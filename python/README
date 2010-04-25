@@ -1,0 +1,67 @@
+Author: matthias@corelatus.se
+$Id: README,v 1.3 2009-03-26 11:02:11 matthias Exp $
+----------------------------------------------------------------------
+
+This is example code in Python for a Corelatus GTH. The examples were
+tested on python 2.5.4 on linux. 
+
+Keep in mind that I'm a python beginner, i.e. if it looks weird, then
+that's most likely because I didn't know better. Suggestions for
+improvement are welcome to matthias@corelatus.se
+
+There are three examples:
+
+Recorded file playback
+----------------------
+
+  Plays back a previously recorded timeslot on an E1. The GTH
+  can record bit-exact copies of timeslots and then play back
+  such files at a later time. Typical use:
+
+    >./play.py 172.16.2.7 1A 16 signalling.raw
+    All done, sent 2276 octets
+
+  The file could contain audio (8kHz Alaw, without a header) or
+  it could contain signalling. The GTH treats both the same. Most
+  likely it's a dump of an E1 you recorded earlier using the next
+  example.
+
+E1 timeslot dump to a file
+--------------------------
+
+  This is the opposite of the first example, it copies the 
+  data on the given E1 to a file on your PC. Typical use:
+
+    >./record.py 172.16.2.7 1A 16 4000 signalling.raw
+    All done, wrote 4000 octets
+
+Enable Layer 1 on an E1/T1 interface
+------------------------------------
+
+  At boot time, the E1/T1 interfaces on a GTH are all disabled, so
+  you can't do anything useful with the above two examples until
+  you turn on at least one E1/T1:
+
+    >./enable_l1.py 172.16.2.7 3A
+
+Sniff ISUP
+----------
+
+  Print out when calls start and stop on an SS7 link.
+
+  Uses the GTH to decode MTP-1 and MTP-2. MTP-3 and ISUP decoding
+  is done in python. Typical use:
+
+     >./sniff_isup.py gth21 1A 16
+     IAM called party: 21255512 calling party: 11313555 CIC=0
+     ignoring ISUP address complete
+     ignoring ISUP answer
+     ignoring ISUP release
+     RLC on CIC=0
+
+The examples are built on top of a little library, gth/apilib.py,
+which lets you hack up python code to do pretty much anything
+supported by the GTH, i.e. you don't have to write your own parser.
+
+# eof
+
