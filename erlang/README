@@ -1,0 +1,5 @@
+Typical use:
+
+  erl -make
+  
+then either read gth.erl or look at the ss7_sniffer.erl example.
