@@ -35,14 +35,31 @@ E1 timeslot dump to a file
     >./record.pl 172.16.2.7 1A 16 4000 signalling.raw
     All done, wrote 4000 octets
 
-Enable Layer 1 on an E1/T1 interface
-------------------------------------
+Query and Set Attributes on GTH Resources
+-----------------------------------------
 
-  At boot time, the E1/T1 interfaces on a GTH are all disabled, so you
-  can't do anything useful with the examples until you turn on at
-  least one E1/T1, for instance:
+  The GTH has a bunch of parameters you can query and set, for
+  instance to query the 'board' attributes:
 
-    >./enable_l1.pl 172.16.2.7 3A
+     >./query_set.pl 172.16.2.7 board
+        $VAR1 = {
+          'voice coding' => 'alaw',
+          'LED mode' => 'normal',
+          'power source' => 'A',
+          'architecture' => 'gth2.1',
+          'connected ROM ID 1' => 'none',
+          'PCM LED assignment' => 'universal',
+          'connected ROM ID 2' => 'none',
+          'power consumption' => '7.2',
+          'ROM ID' => '0x26d02d81000000e7',
+          'temperature' => '35.0'
+        };
+
+  and here's how to enable an E1:
+
+     >./query_set.pl 172.16.2.7 pcm1A status enabled mode E1
+
+  (This replaces the enable_l1.pl script)
 
 Sniff ISUP
 ----------
