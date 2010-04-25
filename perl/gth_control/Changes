@@ -1,0 +1,6 @@
+Revision history for Perl extension gth_control.
+
+0.01  Mon May 25 16:21:30 2009
+	- original version; created by h2xs 1.23 with options
+		-AXc -n gth_control
+

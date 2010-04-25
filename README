@@ -9,8 +9,19 @@ systems, billing systems and network monitoring systems on top of GTHs.
 This code is only really of interest to people using GTHs to build something.
 
 The examples are broken up by language, and each language is
-independent of the rest, i.e. you the C examples don't use any code
-from the Perl examples.
+independent of the rest, i.e. the C examples don't use any code
+from the Perl examples. The quality varies:
+
+  erlang: A full parser for responses from the GTH
+          A feature-complete Erlang API
+          Both the parser and API are in fairly widespread use.
+
+  Perl: A partial Perl API for the GTH.
+        Good enough to get you started, but it doesn't support
+           all of the GTH's features.
+        We're not Perl experts, so the Perl may be a bit odd in places.
+
+  Python: Good enough to get you started, but we're not Python experts 
 
 More information about GTH hardware:
 
@@ -21,6 +32,7 @@ More information about the GTH API:
 
   http://www.corelatus.com/gth/api/
 
-The examples are have a BSD licence.
+The examples mostly have BSD licences. Feel free to fork the repository and
+please consider submitting changes back.
 
 --eof--
