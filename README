@@ -17,11 +17,16 @@ from the Perl examples. The quality varies:
           Both the parser and API are in fairly widespread use.
 
   Perl: A partial Perl API for the GTH.
-        Good enough to get you started, but it doesn't support
-           all of the GTH's features.
+        Good enough to get you started, but doesn't support GTH features.
         We're not Perl experts, so the Perl may be a bit odd in places.
 
-  Python: Good enough to get you started, but we're not Python experts 
+  Python: A partial Python API for the GTH.
+          Good enough to get you started, but doesn't support all GTH features.
+          We're not Python experts.
+
+  C: A complete parser for GTH responses
+     Several examples to get you started.
+     Support for compiling on either *nix systems or win32.
 
 More information about GTH hardware:
 
