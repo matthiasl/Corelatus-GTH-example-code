@@ -19,14 +19,17 @@ from the Perl examples. The quality varies:
   Perl: A partial Perl API for the GTH.
         Good enough to get you started, but doesn't support GTH features.
         We're not Perl experts, so the Perl may be a bit odd in places.
+        Some customers use this code for ad-hoc O&M.
 
   Python: A partial Python API for the GTH.
           Good enough to get you started, but doesn't support all GTH features.
           We're not Python experts.
+          We're not aware of any customers using this code.
 
   C: A complete parser for GTH responses
      Several examples to get you started.
      Support for compiling on either *nix systems or win32.
+     Some customers use this code for ad-hoc O&M.
 
 More information about GTH hardware:
 
