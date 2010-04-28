@@ -1,8 +1,10 @@
 -module(save_to_pcap).
 %% 
-%% Start up signalling (MTP-2 or frame relay) monitoring on the given
+%% Start up signalling (MTP-2, frame relay or AAL5) monitoring on the given
 %% E1 interface/timeslots and save the signal units to a file in
 %% libpcap format, suitable for viewing with wireshark or tcpdump.
+%%
+%% The AAL5 can be either SAAL (SS7 signalling over ATM) or LLC (IP over ATM)
 %%
 %% PCAP file format: http://wiki.wireshark.org/Development/LibpcapFileFormat
 %%
