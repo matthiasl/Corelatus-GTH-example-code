@@ -1,0 +1,7 @@
+*.exe
+install_release
+install_start_script
+monitor_cas
+playback_file
+record
+save_to_pcap
