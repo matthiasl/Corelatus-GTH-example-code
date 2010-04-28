@@ -3,7 +3,6 @@
 # Title: Query and/or set resource attributes on a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# $Id: query_set.pl,v 1.1 2010-04-21 16:32:30 matthias Exp $
 
 use 5.008;         # Probably works with earlier versions too.
 use strict;

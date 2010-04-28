@@ -3,7 +3,6 @@
 # Title: Play a file to an E1/T1 timeslot using a Corelatus GTH 
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# $Id: play.pl,v 1.2 2009-08-10 17:52:50 matthias Exp $
 
 use 5.008;         # Probably works with earlier versions too.
 use strict;

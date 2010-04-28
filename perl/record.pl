@@ -3,7 +3,6 @@
 # Title: Record E1/T1 timeslot data from a Corelatus GTH 
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# $Id: record.pl,v 1.1 2009-05-28 20:46:13 matthias Exp $
 
 use 5.008;         # Probably works with earlier versions too.
 use strict;

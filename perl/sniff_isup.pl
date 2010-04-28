@@ -7,7 +7,6 @@
 #            MTP-2 is in ITU-T Q.703
 #            MTP-3 is in ITU-T Q.704
 #
-# $Id: sniff_isup.pl,v 1.2 2009-05-28 12:51:39 matthias Exp $
 
 use 5.008;         # Probably works with earlier versions too.
 use strict;

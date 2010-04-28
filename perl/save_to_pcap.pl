@@ -13,7 +13,6 @@
 #
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# $Id: save_to_pcap.pl,v 1.1 2009-08-10 17:53:04 matthias Exp $
 
 use 5.008;         # Probably works with earlier versions too.
 use strict;
