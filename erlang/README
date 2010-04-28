@@ -1,5 +1,45 @@
-Typical use:
+Title: README file for Erlang GTH example code
+Author: matthias@corelatus.se
+----------------------------------------------------------------------
+
+This is example code in Erlang for a Corelatus GTH. It is available under
+a BSD licence. It includes:
+
+  A complete parser for the XML a GTH emits. (see gth_client_xml_parse.erl)
+
+  A complete native Erlang API for all GTH features. (see gth.erl)
+
+  Three examples which use the Erlang API.
+
+This code is used on the GTH itself, so it's in live use in dozens of
+installations around the world. Several customers also use it in their
+live systems.
+
+Getting started
+---------------
 
   erl -make
   
-then either read gth.erl or look at the ss7_sniffer.erl example.
+  Then either read gth.erl or look at the ss7_sniffer.erl example.
+
+save_to_pcap.erl Example
+------------------------
+
+  Captures signalling from one of the GTHs E1 ports, in either
+  MTP-2, frame relay or ATM AAL5 mode, and saves the signalling
+  to a file in libpcap format, suitable for viewing with wireshark.
+
+ss7_sniffer.erl Example
+-----------------------
+
+  Listens to an SS7-MTP2 link and decodes enough ISUP to show when
+  calls start and stop.
+
+record_and_play_back.erl Example
+--------------------------------
+
+  Save a bit-exact copy of a timeslot to a file, play back the
+  contents of a file to a timeslot.
+
+
+-eof-
