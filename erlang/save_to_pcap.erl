@@ -22,7 +22,7 @@
 %%
 %% Program loops forever, you need to kill it to end it.
 %%
-%% $Id: save_to_pcap.erl,v 1.5 2010-04-10 06:33:38 matthias Exp $
+%% $Id: save_to_pcap.erl,v 1.7 2010-04-28 10:26:27 matthias Exp $
 %%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
@@ -59,7 +59,7 @@ mtp2(GTH_IP, Span, Timeslot, Filename) ->
 
 frame_relay(GTH_IP, Span, Timeslots, Filename) ->
     go(GTH_IP, Span, Filename, frame_relay,
-       fun(A) -> gth:new_new_fr_monitor(A, Span, Timeslots) end).
+       fun(A) -> gth:new_fr_monitor(A, Span, Timeslots) end).
 
 aal5(GTH_IP, Span, Timeslots, {VPI, VCI}, Filename) ->
     go(GTH_IP, Span, Filename, aal5,
