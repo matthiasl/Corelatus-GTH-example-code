@@ -1,5 +1,6 @@
 CVS
 *.pyc
+*.beam
 *~
 .cvsignore
 *.zip
