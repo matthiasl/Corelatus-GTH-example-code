@@ -1,5 +1,5 @@
 Author: matthias@corelatus.se
-$Id: README,v 1.10 2010-02-26 19:47:17 matthias Exp $
+$Id: README,v 1.12 2010-06-15 12:22:58 matthias Exp $
 ----------------------------------------------------------------------
 
 This is example code in C for a Corelatus GTH. It is available under
@@ -12,13 +12,27 @@ a BSD licence. It includes:
   Four examples which use the C API: an SS7 sniffer, a CAS sniffer,
   a timeslot recorder and a timeslot playback program.
 
-  Pre-compiled .exe files of the examples for Win32
+As a convenience for windows users, the distribution at
+www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.
 
-We test this code on linux and Win32.
+How to build this code
+----------------------
 
-The Win32 code uses a gcc toolchain. Some changes are probably
-necessary if you want to use visual studio. We have no visual studio
-experience.
+  * If you're using Microsoft Windows and Visual Studio, unpack the source
+    and then:
+
+       nmake /f NMakefile
+
+    (we tested this using Visual Studio Express 2010, a free download
+    from microsoft.com)
+
+  * If you're using a unix-like operating system with a GCC toolchain,
+    you should just be able to type 'make'. We tested with gcc 4.4.4 on linux.
+
+  It's also possible to cross-compile from a Linux build system to a
+  win32 target. That's not documented, though.
+
+  If you get stuck building this code, feel free to mail matthias@corelatus.se
 
 SS7 sniffer which saves to PCAP (wireshark) format files
 --------------------------------------------------------

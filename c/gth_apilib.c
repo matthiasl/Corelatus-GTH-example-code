@@ -40,24 +40,21 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <string.h>
+#include <assert.h>
 
 #ifdef WIN32
 #include <winsock2.h>
 typedef int socklen_t;
-#define ENETUNREACH WSAENETUNREACH
-#define ENOTSOCK    WSAENOTSOCK
 #else
+#include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#define closesocket close
 #endif // WIN32
 
-#include <string.h>
-#include <unistd.h>
-#include <assert.h>
-#include <errno.h>
-
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 #include "gth_client_xml_parse.h"
 
@@ -1135,3 +1132,16 @@ void win32_specific_startup() {
 
   return;
 }
+
+#ifndef _MSC_VER
+// Microsoft use a "more secure" variant of fopen(). So if we're not using
+// a Microsoft compiler, provide a workalike:
+int fopen_s(FILE **file, const char *filename, const char *mode)
+{
+  *file = fopen(filename, mode);
+  if (!file)
+    return errno;
+  else 
+    return 0;
+}
+#endif

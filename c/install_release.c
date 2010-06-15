@@ -37,8 +37,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-#include <unistd.h>
 
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 #include "gth_client_xml_parse.h"
 
@@ -56,9 +56,11 @@ static void install_release(const char *hostname, const char *filename)
 {
   GTH_api api;
   int result = gth_connect(&api, hostname);
-  FILE *image = fopen(filename, "rb");
+  FILE *image;
   int image_length;
   char *image_data;
+
+  fopen_s(&image, filename, "rb");
 
   fprintf(stderr, "installing software image %s\n", filename);
 

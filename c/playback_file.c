@@ -33,23 +33,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// $Id: playback_file.c,v 1.12 2010-01-15 11:31:35 matthias Exp $
+// $Id: playback_file.c,v 1.14 2010-06-15 12:48:51 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <errno.h>
+#include <assert.h>
+#include <string.h>
 
 #ifdef WIN32
 #include <winsock2.h>
 #else
-#define closesocket close
+#include <unistd.h>
 #include <sys/socket.h>
 #endif
 
-#include <assert.h>
-#include <unistd.h>
-#include <string.h>
-
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
 static void usage() 
@@ -82,7 +82,7 @@ static void play_a_file(GTH_api *api,
     exit(-1);
   }
 
-  file = fopen(filename, "rb");
+  fopen_s(&file, filename, "rb");
   if (file == 0) {
     fprintf(stderr, "unable to open %s, aborting\n", filename);
     exit(-1);
@@ -124,8 +124,8 @@ int main(int argc, char **argv)
   assert(result == 0);
 
   assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
-  strcpy(pcm_name, "pcm");
-  strcat(pcm_name, argv[2]);
+  strncpy(pcm_name, "pcm", sizeof pcm_name);
+  strncat(pcm_name, argv[2], sizeof pcm_name);
   gth_set_single(&api, pcm_name, "status", "enabled");
 
   play_a_file(&api, argv[2], atoi(argv[3]), argv[4]);

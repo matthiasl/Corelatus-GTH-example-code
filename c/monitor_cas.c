@@ -34,7 +34,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// $Id: monitor_cas.c,v 1.9 2010-01-15 12:25:47 matthias Exp $
+// $Id: monitor_cas.c,v 1.11 2010-06-15 13:16:28 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -48,8 +48,8 @@
 #endif // WIN32
 
 #include <assert.h>
-#include <unistd.h>
 
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
 #define PROTOCOL_MFC 0xe020
@@ -97,6 +97,7 @@ static void read_loop(int s)
   short length;
   int result;
   
+#pragma pack(1)
   struct mfc_detection {
     unsigned short tag;
     unsigned short bitfield;
@@ -105,7 +106,7 @@ static void read_loop(int s)
     unsigned short reserved;
     unsigned char type;
     unsigned char digit;
-  } __attribute__ (( __packed__ ));
+  } PACK_SUFFIX;
 
   struct mfc_detection md;
 

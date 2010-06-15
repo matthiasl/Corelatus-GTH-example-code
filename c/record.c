@@ -37,23 +37,22 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// $Id: record.c,v 1.6 2010-01-29 10:05:22 matthias Exp $
+// $Id: record.c,v 1.9 2010-06-15 13:16:28 matthias Exp $
 //
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <assert.h>
+#include <string.h>
 
 #ifdef WIN32
 #include <winsock2.h>
 #else
-#define closesocket close
 #include <sys/socket.h>
+#include <unistd.h>
 #endif
 
-#include <assert.h>
-#include <unistd.h>
-#include <string.h>
-
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
 static void usage() 
@@ -75,6 +74,7 @@ typedef unsigned short u16;
 // The WAV header format, as described in 
 //
 // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+#pragma pack(1)
 struct WAV_header {
   char ckID[4];
   u32 cksize;         // always 20 + the number of samples
@@ -94,10 +94,7 @@ struct WAV_header {
   //----
   char DATAID[4];
   u32 data_size;
-  
-} __attribute__ ((__packed__));
-// The GCC __packed__ attribute above is to be sure that there aren't 
-// any holes in the structures. On x86 that's overkill.
+} PACK_SUFFIX;
 
 #if !(__BYTE_ORDER == __LITTLE_ENDIAN)
 #error "the .wav header will won't work"
@@ -167,7 +164,7 @@ static void record_a_file(GTH_api *api,
     exit(-1);
   }
 
-  file = fopen(filename, "wb");
+  fopen_s(&file, filename, "wb");
   if (file == 0) {
     fprintf(stderr, "unable to open %s, aborting\n", filename);
     exit(-1);
@@ -247,8 +244,8 @@ int main(int argc, char** argv)
   }
 
   assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
-  strcpy(pcm_name, "pcm");
-  strcat(pcm_name, argv[2]);
+  strncpy(pcm_name, "pcm", sizeof pcm_name);
+  strncat(pcm_name, argv[2], sizeof pcm_name);
 
   setup_layer_1(&api, pcm_name, t1_mulaw_mode);
 

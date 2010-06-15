@@ -1,0 +1,29 @@
+# Makefile for Microsoft nmake
+
+targets=\
+	install_release.exe\
+	playback_file.exe\
+	record.exe\
+	install_start_script.exe\
+	save_to_pcap.exe\
+	monitor_cas.exe
+
+header_files=gth_client_xml_parse.h gth_apilib.h
+common_c_files=gth_client_xml_parse.c gth_apilib.c
+
+LIBS_WIN32=ws2_32.lib
+CFLAGS=/DWIN32 /nologo
+
+CC=cl
+RM=del
+
+all: $(targets)
+
+clean:
+	$(RM) $(targets) *~ *.zip
+
+.exe: $(header_files) $(common_c_files)
+
+.c.exe:
+	$(CC) $(CFLAGS) $< $(common_c_files) $(LIBS_WIN32)
+

@@ -38,7 +38,7 @@
 //----------------------------------------------------------------------
 
 // 
-// $Id: gth_client_xml_parse.c,v 1.11 2010-01-15 11:19:12 matthias Exp $
+// $Id: gth_client_xml_parse.c,v 1.12 2010-06-14 13:20:49 matthias Exp $
 //
 #include <stdio.h>
 #include <string.h>
@@ -514,6 +514,7 @@ static enum Token_type name_to_token_type(const char* name)
   fprintf(stderr, "don't know what this is: %s\n", name);
 
   assert(!"unknown tag");
+  return 0; // never reached
 }
 
 // Are there at least N tokens left to look at.

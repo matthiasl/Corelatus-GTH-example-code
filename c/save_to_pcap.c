@@ -45,11 +45,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// $Id: save_to_pcap.c,v 1.12 2010-01-15 12:15:35 matthias Exp $
+// $Id: save_to_pcap.c,v 1.15 2010-06-15 13:16:28 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <assert.h>
+#include <string.h>
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -58,15 +60,11 @@
 #include <arpa/inet.h>
 #endif // WIN32
 
-#include <assert.h>
-#include <unistd.h>
-#include <string.h>
-
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-// PCAP file format structures. The GCC __packed__ attribute
-// is to be sure that there aren't any holes in the structures. On
-// x86 that's overkill.
+// PCAP file format structures.
+#pragma pack(1)
 typedef struct {
   unsigned int magic;
   unsigned short major_version;
@@ -75,14 +73,15 @@ typedef struct {
   unsigned int sigfigs;
   unsigned int snaplen;
   unsigned int network;
-} __attribute__ ((__packed__)) PCAP_global_header;
+} PACK_SUFFIX PCAP_global_header;
 
+#pragma pack(1)
 typedef struct {
   unsigned int ts_sec;
   unsigned int ts_us;
   unsigned int incl_len;
   unsigned int orig_len;
-} __attribute__ ((__packed__)) PCAP_packet_header;
+} PACK_SUFFIX PCAP_packet_header;
 
 // GTH socket structure. An SS7 MTP-2 signal unit can't be more than
 // 279 octets long according to Q.703.
@@ -94,7 +93,7 @@ typedef struct {
   unsigned short timestamp_hi;
   unsigned int timestamp_lo;
   char payload[MAX_SIGNAL_UNIT];
-}  __attribute__ ((__packed__)) GTH_mtp2;
+} GTH_mtp2;
 
 void usage() {
   fprintf(stderr, 
@@ -128,8 +127,8 @@ static void enable_l1(GTH_api *api, const char* span)
   };
 
   assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
-  strcpy(pcm_name, "pcm");
-  strcat(pcm_name, span);
+  strncpy(pcm_name, "pcm", sizeof pcm_name);
+  strncat(pcm_name, span, sizeof pcm_name);
   
   result = gth_set(api, pcm_name, attributes, 2);
   
@@ -231,7 +230,7 @@ static void convert_to_pcap(int data_socket,
       {
 
 	snprintf(filename, MAX_FILENAME, "%s.%d", base_name, file_number);
-	file = fopen(filename, "wb");
+	fopen_s(&file, filename, "wb");
 	if (file == 0) {
 	  fprintf(stderr, "unable to open %s for writing. Abort.\n", filename);
 	  exit(-1);
@@ -260,8 +259,8 @@ static void convert_to_pcap(int data_socket,
       ts_sec = ts_us / 1000;
       ts_us = (ts_us % 1000) * 1000;
 
-      pcap_header.ts_sec = ts_sec;
-      pcap_header.ts_us =  ts_us;
+      pcap_header.ts_sec = (unsigned int)ts_sec;
+      pcap_header.ts_us =  (unsigned int)ts_us;
       pcap_header.incl_len = length;
       pcap_header.orig_len = length;
 

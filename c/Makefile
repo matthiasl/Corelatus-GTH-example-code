@@ -9,27 +9,36 @@ target_basenames=\
 	save_to_pcap\
 	monitor_cas
 
+headers=gth_apilib.h gth_client_xml_parse.h
+
 # For windows, we need a .exe suffix on all executables
-targets=$(addsuffix .exe, $(target_basenames)) $(target_basenames)
+win_targets=$(addsuffix .exe, $(target_basenames))
+common_c_files=gth_apilib.c gth_client_xml_parse.c
+
 
 CC_WIN32=i586-mingw32msvc-gcc
 LIBS_WIN32=-lws2_32
 
 CC=gcc
 
-all: $(targets)
+unix: $(target_basenames)
+
+win32: $(win_targets)
 
 clean:
-	rm -f $(targets) *~ *.zip
+	rm -f $(win_targets) $(target_basenames) *~ *.zip
 
 ship:
 	make clean
 	make
+	make win32
 	zip gth_c_examples *.c *.h Makefile audio/* README *.exe
 
-%: %.c gth_apilib.c gth_client_xml_parse.c gth_apilib.h gth_client_xml_parse.h
-	$(CC) -Wall -o $@ $^ $(LIBS)
+target_basenames win_targets: $(headers) $(common_c_files)
 
-%.exe: %.c gth_apilib.c gth_client_xml_parse.c gth_apilib.h gth_client_xml_parse.h
-	$(CC_WIN32) -Wall -o $@ $^ $(LIBS_WIN32)
+%: %.c
+	$(CC) -Wall -o $@ $^ $(common_c_files) $(LIBS)
+
+%.exe: %.c
+	$(CC_WIN32) -Wall -o $@ $^  $(common_c_files) $(LIBS_WIN32)
 
