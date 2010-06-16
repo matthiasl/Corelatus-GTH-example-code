@@ -32,7 +32,7 @@ ship:
 	make clean
 	make
 	make win32
-	zip gth_c_examples *.c *.h Makefile audio/* README *.exe
+	zip gth_c_examples *.c *.h NMakefile Makefile audio/* README *.exe
 
 target_basenames win_targets: $(headers) $(common_c_files)
 
