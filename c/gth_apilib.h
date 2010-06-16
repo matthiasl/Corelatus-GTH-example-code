@@ -88,7 +88,7 @@ typedef struct {
 
 // Close an API connection to the GTH, cleanly. 
 //
-// Returns 0 on success.
+// Return: 0 on success.
 int gth_bye(GTH_api *api);
 
 // Make a socket which is connected to the API on a GTH module.
@@ -97,14 +97,21 @@ int gth_bye(GTH_api *api);
 int gth_connect(GTH_api *api, const char *address);
 
 // Make a TCP socket and put it in the listening state.
-// Returns the socket file descriptor and also modifies
-//   the 'port' argument to tell you which port the OS selected.
+//
+// Return: the socket file descriptor 
+//
+// This function also writes the port number to the *port argument so that
+//   you know which port the OS selected.
 int gth_make_listen_socket(int *port);
 
-// Given a socket, wait for an accept on it. Return the accepted socket.
+// Given a socket, wait for an accept on it. 
+//
+// Return: the accepted socket.
 int gth_wait_for_accept(int listen_socket);
 
 // Wait for a <message ended> event for the given job_id
+//
+// Return: 0 on success
 int gth_wait_for_message_ended(GTH_api *api, const char *job_id);
 
 // Print message and abort
@@ -112,7 +119,7 @@ void die(const char *message);
 
 // Install.
 //
-// Return 0 on success
+// Return: 0 on success
 int gth_install(GTH_api *api,
 		const char *name,
 		const char *type,  // one of "binary/file", "binary/filesystem"
@@ -164,15 +171,17 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const int port);
 
 
-// Return a file descriptor (>= 0) on success. The file descriptor is a socket
-// to write the player data to.
+// Return: the file descriptor (>= 0) on success. 
+//
+// The file descriptor is a socket to write the player data to.
 int gth_new_player(GTH_api *api, 
 		   const char *span, 
 		   int timeslot,      // E1: 1--31   T1: 1--24
 		   char *job_id);     // function writes the job-id here
 		   
-// Return a file descriptor (>= 0) on success. The file descriptor is a socket
-// the recorder data gets written to
+// Return: the file descriptor (>= 0) on success. 
+//
+// The file descriptor is a socket the recorder data gets written to
 int gth_new_recorder(GTH_api *api, 
 		     const char *span, 
 		     int timeslot,      // E1: 1--31   T1: 1--24
@@ -181,7 +190,7 @@ int gth_new_recorder(GTH_api *api,
 
 // Set a attributes on a resource.
 //
-// Return 0 on success.
+// Return: 0 on success.
 int gth_set(GTH_api *api,
 	    const char *resource,
 	    const GTH_attribute *attributes,
@@ -189,7 +198,7 @@ int gth_set(GTH_api *api,
 
 // Special case of set for just one attribute.
 //
-// Return 0 on success.
+// Return: 0 on success.
 int gth_set_single(GTH_api *api,
 		   const char *resource,
 		   const char *attribute,
@@ -216,7 +225,7 @@ int gth_query_resource_attribute(GTH_api *api,
 //
 // *n_attributes is set to the number of attributes returned
 //
-// Return value: 0 on success.
+// Return: 0 on success.
 //
 int gth_query_resource(GTH_api *api,
 		       const char *name,
@@ -233,7 +242,7 @@ const char *gth_my_ip_address(GTH_api *api);
 // Wait for a GTH to reboot. Assumes that the GTH has just been 
 // given a boot command or just plugged in.
 //
-// Returns 0 on success
+// Return: 0 on success
 //        -1 on timeout
 int gth_wait_for_reboot(const char *hostname);
 
