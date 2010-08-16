@@ -82,8 +82,6 @@ static void install_release(const char *hostname, const char *filename)
 
   result = gth_install(&api, "system_image", "binary/filesystem", 
 		       image_data, image_length);
-  assert(result == 0);
-
   free(image_data);
 
   if (result != 0) die("install failed");
