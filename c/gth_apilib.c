@@ -372,6 +372,30 @@ int gth_new_cas_r2_linesig_monitor(GTH_api *api,
   return result;
 }
 
+int gth_new_connection(GTH_api *api,
+		       const char *src_span,
+		       const int   src_ts,
+		       const char *dst_span,
+		       const int   dst_ts,
+		       char *job_id)
+{
+  int result;
+  char command[MAX_COMMAND];
+  const char* command_template = 
+    "<new><connection>"
+    "<pcm_source span='%s' timeslot='%d'/>"
+    "<pcm_sink   span='%s' timeslot='%d'/>"
+    "</connection></new>";
+
+  snprintf(command, MAX_COMMAND, command_template, src_span, src_ts,
+	   dst_span, dst_ts);
+  api_write(api, command);
+
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
 			 const char *span, 

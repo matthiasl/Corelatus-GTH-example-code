@@ -152,6 +152,17 @@ int gth_new_cas_r2_linesig_monitor(GTH_api *api,
 				   const char *ip,
 				   const int port);
 
+// Switch a timeslot from a source to a sink.
+//
+// This function writes the resulting job-id to job_id
+//
+// Return: 0 on success
+int gth_new_connection(GTH_api *api,
+		       const char *src_span,
+		       const int   src_ts,
+		       const char *dst_span,
+		       const int   dst_ts,
+		       char *job_id);
 
 // Start MTP-2 monitoring. 
 //
@@ -259,5 +270,8 @@ void gth_switch_to(const char *hostname,
 // So call this before doing anything if you're running on win32.
 // This function does nothing on non windows platforms.
 void win32_specific_startup();
+
+// posix and Win32 have different APIs for sleeping. Unify them.
+void sleep_seconds(int seconds);
 
 #endif
