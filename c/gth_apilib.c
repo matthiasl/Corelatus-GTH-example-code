@@ -58,7 +58,8 @@ typedef int socklen_t;
 #include "gth_apilib.h"
 #include "gth_client_xml_parse.h"
 
-#define MAX_COMMAND 1000
+#define MAX_COMMAND 10000
+#define MAX_RESPONSE 10000
 #define MAX_LOGFILE 20000000
 
 const int GTH_API_PORT = 2089;        // TCP port a Corelatus GTH listens on
@@ -724,12 +725,13 @@ static GTH_resp *check_api_response(GTH_api *api, GTH_resp_type expected)
 
 // Return the next response which is _not_ an event
 static GTH_resp *gth_next_non_event(GTH_api *api) {
-  char buffer[MAX_COMMAND];
+  char buffer[MAX_RESPONSE];
   int result;
   GTH_resp *resp = 0;
 
   for (;;) {
     result = next_api_response(api, buffer, sizeof(buffer));
+
     if (result != 0) {
       return 0;
     }
@@ -902,7 +904,6 @@ static int query_single_resource(GTH_api *api,
   if (resp->n_children != 1) return -2;
   if (resp->children[0].type != GTH_RESP_RESOURCE) return -3;
 
-
   resource = resp->children;
 
   *n_attributes = resource->n_children;
@@ -919,7 +920,6 @@ static int query_single_resource(GTH_api *api,
       result = next_api_response(api, text_buffer, MAX_LOGFILE);
       if (result)
 	{
-	  fprintf(stderr, "blargon %d\n", result);
 	  return result;
 	}
 
@@ -935,26 +935,21 @@ static int query_single_resource(GTH_api *api,
       assert(*attributes);      
     }
 
-  if (resource->n_children > 0)
-    {
+  for (x = 0; x < resource->n_children; x++) {
+    GTH_resp *attribute;
+    char *name;
+    char *value;
 
+    attribute = resource->children+x;
+    if (attribute->type != GTH_RESP_ATTRIBUTE) 
+      die("invalid response from GTH");
 
-      for (x = 0; x < resource->n_children; x++) {
-	GTH_resp *attribute;
-	char *name;
-	char *value;
+    name  = attribute_value_and_clear(attribute, "name");
+    value = attribute_value_and_clear(attribute, "value");
 
-	attribute = resource->children+x;
-	if (attribute->type != GTH_RESP_ATTRIBUTE) 
-	  die("invalid response from GTH");
-
-	name  = attribute_value_and_clear(attribute, "name");
-	value = attribute_value_and_clear(attribute, "value");
-
-	(*attributes)[x].key   = name;
-	(*attributes)[x].value = value;
-      }
-    }
+    (*attributes)[x].key   = name;
+    (*attributes)[x].value = value;
+  }
  
   gth_free_resp(resp);
 
