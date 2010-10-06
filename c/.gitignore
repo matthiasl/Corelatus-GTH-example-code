@@ -1,4 +1,6 @@
 *.exe
+duplex_lapd
+query_set
 install_release
 install_start_script
 monitor_cas
