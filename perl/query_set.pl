@@ -20,7 +20,7 @@ query_set.pl <hostname> <resource> [<attribute> [<value>]]
      <value>: optional, sets the given attribute of the given resource
 
 If no <value> argument is given, just query the GTH.
-If a  <value> argument is given, set the value
+If a  <value> argument is given, set the <attribute> to the <value>
 Multiple <attribute> <value> arguments can be given to set multiple attributes.
 
 Examples:
