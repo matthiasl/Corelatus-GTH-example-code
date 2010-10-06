@@ -68,7 +68,7 @@ sub record {
 }
 
 # Entry point
-($#ARGV != 5) || usage() && die();
+($#ARGV == 4) || usage() && die();
 
 my $host = $ARGV[0];
 my $span = $ARGV[1];
