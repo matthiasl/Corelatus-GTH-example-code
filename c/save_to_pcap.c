@@ -45,7 +45,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// $Id: save_to_pcap.c,v 1.15 2010-06-15 13:16:28 matthias Exp $
+// $Id: save_to_pcap.c,v 1.16 2010-10-06 19:54:37 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -110,8 +110,6 @@ void usage() {
   
   exit(-1);
 }
-
-#define MAX_API_COMMAND 1000
 
 // Start up L1 on the given span. It defaults to E1/doubleframe. We
 // disable the TX pins since we're only listening.
