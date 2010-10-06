@@ -1,5 +1,5 @@
 Author: matthias@corelatus.se
-$Id: README,v 1.12 2010-06-15 12:22:58 matthias Exp $
+$Id: README,v 1.13 2010-10-06 19:58:20 matthias Exp $
 ----------------------------------------------------------------------
 
 This is example code in C for a Corelatus GTH. It is available under
@@ -9,8 +9,14 @@ a BSD licence. It includes:
 
   A C API for some, but not all, GTH features. (see gth_apilib.h)
 
-  Four examples which use the C API: an SS7 sniffer, a CAS sniffer,
-  a timeslot recorder and a timeslot playback program.
+  Seven examples which use the C API: 
+    - an SS7 sniffer
+    - a CAS sniffer,
+    - a timeslot recorder 
+    - a timeslot playback program
+    - a program to query and set attributes on GTH resources
+    - a program to install software images on a GTH
+    - a program to enable duplex (active) ISDN LAPD on a timeslot
 
 As a convenience for windows users, the distribution at
 www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.
@@ -107,7 +113,7 @@ Software image installer
 
   The upgrade process works via the API. Typical use:
 
-   >./install_release gth21 /tmp/gth2_system_33c.gth
+   >./install_release 172.16.1.10 /tmp/gth2_system_33c.gth
    Current system image version: gth2_system_32a
    Current failsafe image version: gth2_failsafe_9
    switching to failsafe
@@ -118,23 +124,71 @@ Software image installer
    waiting for the GTH to reboot
    GTH back up
    Current system image version: gth2_system_33c
- 
+
+Query and set attributes on GTH resources
+-----------------------------------------
+
+   The GTH has many counters and indicators, called
+   "attributes". These attributes are grouped into "resources". The
+   attributes can be queried, for example:
+
+   Find out the temperature (and more) on the GTH module:
+
+      >./query_set 172.16.2.7 board
+      architecture=gth2.1
+      ROM ID=0x26d02d81000000e7
+      temperature=33.4
+      power consumption=7.4
+      power source=A
+
+   See a list of all the resources:
+
+      >./query_set 172.16.1.10 inventory
+      sync
+      performance
+      cpu
+      board
+      os
+      system_image
+      failsafe_image
+      http_server
+      eth1
+      eth2
+      pcm1A
+      pcm1B
+      pcm1C
+      ...
+
+   Some attributes can also be changed, for instance to enable
+   an E1/T1 interface with default parameters:
+
+      >./query_set 172.16.1.10 pcm1A status enabled
+  
+   The GTH API manual, http://www.corelatus.com/gth/api/ has a
+   section explaining what all the attributes are for.
+
+Start duplex LAPD on a timeslot
+-------------------------------
+
+   Start duplex LAPD signalling on a timeslot. This example
+   program has hooks for inserting code to handle Q.931, i.e.
+   set up calls.
+
+   Typical use:
+
+     >./duplex_lapd 172.16.1.10 1A 16
 
 GTH API for C programs
 ----------------------
 
   gth_apilib.h provides an interface to the GTH for C programs.  This
   interface lets you set up communication to the GTH and then send
-  commands for 
+  commands to do everything which the above example programs do, and more.
 
-      - recording and playing back timeslots 
-      - sniffing CAS
-      - sniffing SS7 MTP2
-      - installing software releases on the GTH
-
-  The GTH can do more than the above, extending gth_apilib.h to 
-  cover more GTH features is left as an exercise, either for the
-  reader or, on request, by Corelatus.
+  gth_apilib.h is not feature complete, i.e. not all GTH features are
+  implemented. Extending gth_apilib.h to cover more GTH features is
+  left as an exercise, either for the reader or, on request, by
+  Corelatus.
 
   Typical use:
 

@@ -2,12 +2,16 @@
 # and Win32 targets. The win32 executables are called .exe.
 
 target_basenames=\
+	clear_failsafe\
+	duplex_lapd \
+	install_release \
+	install_start_script \
+	intrusive_monitor \
+	monitor_cas \
 	playback_file\
+	query_set\
 	record\
-	install_release\
-	install_start_script\
-	save_to_pcap\
-	monitor_cas
+	save_to_pcap
 
 headers=gth_apilib.h gth_client_xml_parse.h
 
@@ -36,9 +40,9 @@ ship:
 
 target_basenames win_targets: $(headers) $(common_c_files)
 
-%: %.c
-	$(CC) -Wall -o $@ $^ $(common_c_files) $(LIBS)
+%: %.c $(common_c_files)
+	$(CC) -Wall -g -o $@ $^ $(LIBS)
 
-%.exe: %.c
-	$(CC_WIN32) -Wall -o $@ $^  $(common_c_files) $(LIBS_WIN32)
+%.exe: %.c $(common_c_files)
+	$(CC_WIN32) -Wall -o $@ $^ $(LIBS_WIN32)
 
