@@ -164,6 +164,28 @@ int gth_new_connection(GTH_api *api,
 		       const int   dst_ts,
 		       char *job_id);
 
+// Start a LAPD layer.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by 
+// calling gth_make_listen_socket() first.
+//
+// 0 is a reasonable default value for 'sapi' and 'tei'
+//
+// This function writes the resulting job-id to job_id.
+// 
+// Return: 0 on success
+int gth_new_lapd_layer(GTH_api *api,
+		       const int tag,
+		       const char *span,
+		       const int timeslot,
+		       const char *side,       // either "network" or "user"
+		       const int sapi,
+		       const int tei,
+		       char *job_id,
+		       const char *ip,
+		       const int port);
+
 // Start MTP-2 monitoring. 
 //
 // The TCP port specified by (ip/port) is expected to be in a

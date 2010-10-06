@@ -59,6 +59,7 @@ typedef int socklen_t;
 #include "gth_client_xml_parse.h"
 
 #define MAX_COMMAND 1000
+#define MAX_LOGFILE 20000000
 
 const int GTH_API_PORT = 2089;        // TCP port a Corelatus GTH listens on
 
@@ -395,6 +396,39 @@ int gth_new_connection(GTH_api *api,
 
   return result;
 }
+
+int gth_new_lapd_layer(GTH_api *api,
+		       const int tag,
+		       const char *span,
+		       const int ts,
+		       const char *side,       // either "network" or "user"
+		       const int sapi,
+		       const int tei,
+		       char *job_id,
+		       const char *ip,
+		       const int port)
+{
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(ts > 0 && ts < 32);
+  assert(!strcmp("network", side) || !strcmp("user", side));
+
+  template = "<new><lapd_layer side='%s' sapi='%d' tei='%d' ip_addr='%s' ip_port='%d' tag='%d'>"
+    "<pcm_source span='%s' timeslot='%d'/>"
+    "<pcm_sink span='%s' timeslot='%d'/>"
+    "</lapd_layer></new>";
+
+  result = snprintf(command, MAX_COMMAND, template, side, sapi, 
+		    tei, ip, port, tag, span, ts, span, ts);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
 
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
@@ -839,6 +873,17 @@ int gth_query_resource_attribute(GTH_api *api,
   return retval;
 }
 
+static int is_text_following_resource_query(const char *name)
+{
+  return (!strcmp(name, "system_log")
+	  || !strcmp(name, "system_log_recent")
+	  || !strcmp(name, "application_log")
+	  || !strcmp(name, "application_log_recent")
+	  || !strcmp(name, "standby_application_log")
+	  || !strcmp(name, "standby_system_log")
+	  );
+}
+
 static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
@@ -857,27 +902,59 @@ static int query_single_resource(GTH_api *api,
   if (resp->n_children != 1) return -2;
   if (resp->children[0].type != GTH_RESP_RESOURCE) return -3;
 
+
   resource = resp->children;
 
-  *attributes = malloc(sizeof(GTH_attribute) * resource->n_children);
-  assert(*attributes);
   *n_attributes = resource->n_children;
+  *attributes = 0;
 
-  for (x = 0; x < resource->n_children; x++) {
-    GTH_resp *attribute;
-    char *name;
-    char *value;
+  // Some queries return a text/plain section after the XML
+  if (is_text_following_resource_query(name))
+    {
+      int result;
+      char *text_buffer = malloc(MAX_LOGFILE);
 
-    attribute = resource->children+x;
-    if (attribute->type != GTH_RESP_ATTRIBUTE) 
-      die("invalid response from GTH");
+      assert(text_buffer);
 
-    name  = attribute_value_and_clear(attribute, "name");
-    value = attribute_value_and_clear(attribute, "value");
+      result = next_api_response(api, text_buffer, MAX_LOGFILE);
+      if (result)
+	{
+	  fprintf(stderr, "blargon %d\n", result);
+	  return result;
+	}
 
-    (*attributes)[x].key   = name;
-    (*attributes)[x].value = value;
-  }
+      (*n_attributes)++;
+      *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
+      assert(*attributes);      
+      (*attributes)[*n_attributes - 1].key = "log_body";
+      (*attributes)[*n_attributes - 1].value = text_buffer;
+    }
+  else
+    {
+      *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
+      assert(*attributes);      
+    }
+
+  if (resource->n_children > 0)
+    {
+
+
+      for (x = 0; x < resource->n_children; x++) {
+	GTH_resp *attribute;
+	char *name;
+	char *value;
+
+	attribute = resource->children+x;
+	if (attribute->type != GTH_RESP_ATTRIBUTE) 
+	  die("invalid response from GTH");
+
+	name  = attribute_value_and_clear(attribute, "name");
+	value = attribute_value_and_clear(attribute, "value");
+
+	(*attributes)[x].key   = name;
+	(*attributes)[x].value = value;
+      }
+    }
  
   gth_free_resp(resp);
 
