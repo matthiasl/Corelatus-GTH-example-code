@@ -36,7 +36,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// $Id: save_to_pcap.c,v 1.15 2010-06-15 13:16:28 matthias Exp $
+// $Id: duplex_lapd.c,v 1.1 2010-10-06 23:42:25 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,6 +56,12 @@
 
 // N201=260 on the GTH.
 #define MAX_SIGNAL_UNIT 300
+
+// Opcodes from the GTH API manual
+#define Q921_DL_ESTABLISH_REQUEST 5
+#define Q921_DL_RELEASE_REQUEST   8
+#define Q921_DL_DATA_REQUEST      1
+
 
 typedef struct {
   unsigned short tag;
@@ -101,8 +107,43 @@ static void enable_l1(GTH_api *api, const char* span)
   strncat(pcm_name, span, sizeof pcm_name);
   
   result = gth_set(api, pcm_name, attributes, 2);
+
+  // give L1 a chance to settle down
+  sleep_seconds(1);
   
   assert(result == 0);
+}
+
+static void send_dl_establish_req(int data_socket)
+{
+  GTH_lapd_tx_su su;
+  int result;
+
+  // To activate the link, send DL_EST_REQ 
+  su.length = htons(6);
+  su.tag = 0;
+  su.flags = 0x21;
+  su.opcode = Q921_DL_ESTABLISH_REQUEST;
+  su.reserved = 0;
+
+  result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
+  assert(result == 8);
+}
+
+static void send_dl_data_req(int data_socket)
+{
+  GTH_lapd_tx_su su;
+  int result;
+
+  su.length = htons(6 + 11);
+  su.tag = 0;
+  su.flags = 0x21;
+  su.opcode = Q921_DL_DATA_REQUEST;
+  su.reserved = 0;
+  strcpy(su.payload, "hello world");
+
+  result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
+  assert(result == ntohs(su.length) + sizeof(su.length));
 }
 
 // Start up duplex LAPD on the given timeslot
@@ -133,7 +174,7 @@ static int setup_lapd(GTH_api *api,
 }
 
 // Read exactly the requested number of bytes from the given descriptor
-void read_exact(int fd, char* buf, size_t count) {
+void read_exact(int fd, char *buf, size_t count) {
   size_t this_time;
 
   while (count > 0) {
@@ -146,14 +187,42 @@ void read_exact(int fd, char* buf, size_t count) {
   }
 }
 
+// This function is the hook for Q.931. For now, it prints out 
+// data and tries to establish a data link.
 static void dump_incoming_lapd(int data_socket)
 {
-  sleep(1000);
-  // nyi
-}
+  short length;
+  GTH_lapd_rx_su su;
 
-#define Q931_DL_ESTABLISH_REQUEST 5
-#define Q931_DL_RELEASE_REQUEST   8
+  send_dl_establish_req(data_socket);
+
+  for (;;)
+    {
+      length = 0;
+      read_exact(data_socket, (char *)&length, 2);
+      length = ntohs(length);
+      read_exact(data_socket, (char *)&su, length);
+      
+      printf("LAPD data, tag=%d flags=%x opcode=%d length=%d",
+	     su.tag, su.flags, su.opcode, length);
+      if (length == 7)
+	printf(" data=%c\n", su.payload[0]);
+      else 
+	printf("\n");
+
+      if (su.opcode == 7)
+	{
+	  printf("sending dl-establish-req\n");
+	  send_dl_establish_req(data_socket);
+	}
+
+      if (su.opcode == 6)
+	{
+	  printf("sending dl-data-req\n");
+	  send_dl_data_req(data_socket);
+	}
+    }
+}
 
 // Entry point 
 int main(int argc, char** argv) 
@@ -161,7 +230,6 @@ int main(int argc, char** argv)
   GTH_api api;
   int data_socket;
   int result;
-  GTH_lapd_tx_su su;
 
   if (argc != 4) {
     usage();
@@ -178,16 +246,6 @@ int main(int argc, char** argv)
 
   enable_l1(&api, argv[2]);
   data_socket = setup_lapd(&api, argv[2], atoi(argv[3]));
-
-  // To activate the link, send DL_EST_REQ 
-  su.length = htons(6);
-  su.tag = 0;
-  su.flags = 0x21;
-  su.opcode = Q931_DL_ESTABLISH_REQUEST;
-  su.reserved = 0;
-
-  result = send(data_socket, &su, ntohs(su.length) + sizeof(su.length), 0);
-  assert(result == 8);
 
   fprintf(stderr, "lapd started, press ^C to abort\n");
   dump_incoming_lapd(data_socket);

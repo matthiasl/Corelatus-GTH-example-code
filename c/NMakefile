@@ -4,6 +4,8 @@ targets=\
 	install_release.exe\
 	playback_file.exe\
 	record.exe\
+	duplex_lapd.exe\
+	query_set.exe\
 	install_start_script.exe\
 	save_to_pcap.exe\
 	monitor_cas.exe
