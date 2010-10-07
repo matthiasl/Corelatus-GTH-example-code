@@ -2,11 +2,9 @@
 # and Win32 targets. The win32 executables are called .exe.
 
 target_basenames=\
-	clear_failsafe\
 	duplex_lapd \
 	install_release \
 	install_start_script \
-	intrusive_monitor \
 	monitor_cas \
 	playback_file\
 	query_set\
