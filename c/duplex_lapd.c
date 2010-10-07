@@ -36,7 +36,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-// $Id: duplex_lapd.c,v 1.1 2010-10-06 23:42:25 matthias Exp $
+// $Id: duplex_lapd.c,v 1.2 2010-10-07 11:55:20 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -57,11 +57,18 @@
 // N201=260 on the GTH.
 #define MAX_SIGNAL_UNIT 300
 
-// Opcodes from the GTH API manual
+// Opcodes, application->LAPD Stack (defined in the GTH API manual)
+#define Q921_DL_DATA_REQUEST      1
 #define Q921_DL_ESTABLISH_REQUEST 5
 #define Q921_DL_RELEASE_REQUEST   8
-#define Q921_DL_DATA_REQUEST      1
 
+// Opcodes, LAPD Stack->application (defined in the GTH API manual)
+#define Q921_DL_DATA_IND          2
+#define Q921_DL_ESTABLISH_CONFIRM 6
+#define Q921_DL_ESTABLISH_IND     7
+#define Q921_DL_RELEASE_CONFIRM   9
+#define Q921_DL_RELEASE_IND       0x0a
+#define Q921_MDL_ERROR_IND        0x10
 
 typedef struct {
   unsigned short tag;
@@ -82,8 +89,9 @@ typedef struct {
 
 void usage() {
   fprintf(stderr, 
-	  "duplex_lapd <GTH-IP> <span> <timeslot>"
-	  "\n\nEnable ISDN LAPD on the specified timeslot\n\n");
+	  "duplex_lapd <GTH-IP> <span> <timeslot> [<end>]"
+	  "\n\nEnable ISDN LAPD on the specified timeslot. If <end> is"
+	  "\nspecified, it must be either 'user' or 'network'\n\n");
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./duplex_lapd 172.16.1.10 1A 16\n");
   
@@ -148,8 +156,9 @@ static void send_dl_data_req(int data_socket)
 
 // Start up duplex LAPD on the given timeslot
 static int setup_lapd(GTH_api *api, 
-		      const char* span,
-		      const int timeslot)
+		      const char *span,
+		      const int timeslot,
+		      const char *end)
 {
   int listen_port = 0;
   int listen_socket = gth_make_listen_socket(&listen_port);
@@ -164,7 +173,7 @@ static int setup_lapd(GTH_api *api,
     exit(-1);
   }
 
-  result = gth_new_lapd_layer(api, 0, span, timeslot, "user", sapi, tei, 
+  result = gth_new_lapd_layer(api, 0, span, timeslot, end, sapi, tei, 
 			      job_id, api->my_ip, listen_port);
   assert(result == 0);
 
@@ -203,23 +212,38 @@ static void dump_incoming_lapd(int data_socket)
       length = ntohs(length);
       read_exact(data_socket, (char *)&su, length);
       
-      printf("LAPD data, tag=%d flags=%x opcode=%d length=%d",
-	     su.tag, su.flags, su.opcode, length);
-      if (length == 7)
-	printf(" data=%c\n", su.payload[0]);
-      else 
-	printf("\n");
-
-      if (su.opcode == 7)
+      switch (su.opcode)
 	{
-	  printf("sending dl-establish-req\n");
-	  send_dl_establish_req(data_socket);
-	}
+	case Q921_DL_ESTABLISH_IND:
+	  printf("dl-establish-ind received, data link is up\n");
+	  break;
 
-      if (su.opcode == 6)
-	{
-	  printf("sending dl-data-req\n");
+	case Q921_DL_ESTABLISH_CONFIRM:
+	  printf("dl-establish-conf received, data link is up, sending data\n");
 	  send_dl_data_req(data_socket);
+	  break;
+
+	case Q921_DL_RELEASE_IND:
+	  printf("got dl-release-ind, resending dl_establish_req\n");
+	  send_dl_establish_req(data_socket);
+	  break;
+
+	case Q921_MDL_ERROR_IND:
+	  printf("got MDL-error-ind(%c)\n", su.payload[0]);
+	  break;
+
+	case Q921_DL_DATA_IND:
+	  printf("got LAPD payload data, len=%d, hexdump=%2x %2x %2x %2x %2x (%c%c%c%c%c)\n",
+		 length - 6, 
+		 su.payload[0], su.payload[1], su.payload[2], su.payload[3], su.payload[4],
+		 su.payload[0], su.payload[1], su.payload[2], su.payload[3], su.payload[4]);
+	  break;
+
+	default:
+	  printf("unexpected LAPD data, tag=%d flags=0x%x opcode=%d len=%d\n",
+	     su.tag, su.flags, su.opcode, length);
+
+	  break;
 	}
     }
 }
@@ -230,10 +254,26 @@ int main(int argc, char** argv)
   GTH_api api;
   int data_socket;
   int result;
+  char *end = "user";
 
-  if (argc != 4) {
-    usage();
-  }
+  if (argc != 4 && argc != 5) 
+    {
+      usage();
+    }
+
+  if (argc == 5)
+    {
+      if (strcmp(argv[4], "user") && strcmp(argv[4], "network")) 
+	{
+	  usage();
+	}
+      else
+	{
+	  end = argv[4];
+	}
+    }
+
+  printf("end is %s\n", end);
 
   win32_specific_startup();
 
@@ -245,7 +285,7 @@ int main(int argc, char** argv)
   assert(result == 0);
 
   enable_l1(&api, argv[2]);
-  data_socket = setup_lapd(&api, argv[2], atoi(argv[3]));
+  data_socket = setup_lapd(&api, argv[2], atoi(argv[3]), end);
 
   fprintf(stderr, "lapd started, press ^C to abort\n");
   dump_incoming_lapd(data_socket);
