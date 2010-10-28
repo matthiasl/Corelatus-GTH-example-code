@@ -77,7 +77,7 @@
 %%%
 %%% To do: edoc-ify this module
 %%% 
-%%% $Id: gth.erl,v 1.45 2010-03-24 13:30:27 matthias Exp $
+%%% $Id: gth.erl,v 1.48 2010-10-28 13:08:24 matthias Exp $
 %%%-------------------------------------------------------------------
 -module(gth).
 -behaviour(gen_server).
@@ -223,11 +223,11 @@ get_ip(Pid)
 %% Return: ok | {error, Reason}
 %% Reason = atom()
 %% Bin = binary() | {Length, Install_fun}
-%% Install_fun = fun() -> {binary(), fun()} | eof
+%% Install_fun = fun() -> {binary(), fun() | eof} 
 %%
 %% If called with a fun() as the third argument, the install process
 %% will call fun() to obtain some data and a new fun, and then call the
-%% new fun. That continues until the fun returns eof.
+%% new fun. That continues until eof is returned instead of a new fun.
 install(Pid, Name, Bin_or_fun)
   when is_pid(Pid), is_list(Name) ->
     %% Use a long timeout, install takes time
@@ -619,27 +619,27 @@ handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
     {reply, Reply, State};
 
 handle_call({new_atm_aal0_monitor, Span, Timeslots, Options}, 
-	    _From, State) ->
-    Reply = new_signalling_monitor(State, Span, Timeslots, 
+	    {Pid, _tag}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
 				   "atm_aal0_monitor", Options),
     {reply, Reply, State};
 
 handle_call({new_atm_aal2_monitor, Span, Timeslots, {VPI, VCI}, User_options}, 
-	    _From, State) ->
+	    {Pid, _tag}, State) ->
     Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
-    Reply = new_signalling_monitor(State, Span, Timeslots, 
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
 				   "atm_aal2_monitor", Options),
     {reply, Reply, State};
 
 handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options}, 
-	    _From, State) ->
+	    {Pid, _tag}, State) ->
     Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
-    Reply = new_signalling_monitor(State, Span, Timeslots, 
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
 				   "atm_aal5_monitor", Options),
     {reply, Reply, State};
 
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options}, 
-	    _From, 	    
+	    {Pid, _tag}, 	    
 	    State = #state{socket = S, my_ip = Hostname}) ->
     Options = User_options ++ [{"scramble", "true"}],
     Scramble = proplists:get_value("scramble", Options),
@@ -654,6 +654,7 @@ handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
     Reply = case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
+		    ok = gen_tcp:controlling_process(D, Pid),
 		    {ok, Job, D};
 		X ->
 		    X
@@ -662,18 +663,18 @@ handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
     {reply, Reply, State};
 
 handle_call({new_cas_r2_mfc_detector, Span, Ts, Direction, User_options}, 
-	    _From, State) ->
+	    {Pid, _tag}, State) ->
     Options = case Direction of
 		  forward -> [{"direction", "forward"}];
 		  backward -> [{"direction", "backward"}]
 	      end,
-    Reply = new_signalling_monitor(State, Span, Ts, "cas_r2_mfc_detector", 
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "cas_r2_mfc_detector", 
 				   Options ++ User_options),
     {reply, Reply, State};
 
-handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, _From, State) ->
-    Reply = new_signalling_monitor(State, Span, Ts, "cas_r2_linesig_monitor", 
-				   Options),
+handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, 
+				   "cas_r2_linesig_monitor", Options),
     {reply, Reply, State};
 
 handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
@@ -707,13 +708,13 @@ handle_call({new_ebs, IPs}, _From, State = #state{socket = S}) ->
     {reply, Reply, State};
 
 handle_call({new_fr_monitor, Span, Timeslots, Options}, 
-	    _From, State) ->
-    Reply = new_signalling_monitor(State, Span, Timeslots, 
+	    {Pid, _tag}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
 				   "fr_monitor", Options),
     {reply, Reply, State};
 
 handle_call({new_fr_layer, Span, Timeslots}, 
-	    _From, 	    
+	    {Pid, _tag}, 	    
 	    State = #state{socket = S, my_ip = Hostname}) ->
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
@@ -726,6 +727,7 @@ handle_call({new_fr_layer, Span, Timeslots},
     Reply = case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
+		    ok = gen_tcp:controlling_process(D, Pid),
 		    {ok, Job, D};
 
 		{error, Reason} ->
@@ -736,7 +738,7 @@ handle_call({new_fr_layer, Span, Timeslots},
 
 
 handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options}, 
-	    _From, State = #state{socket = S, my_ip = Hostname}) ->
+	    {Pid, _tag}, State = #state{socket = S, my_ip = Hostname}) ->
 
     Source_sink = [xml:pcm_source(Span, Ts), xml:pcm_sink(Span, Ts)],
 
@@ -757,6 +759,7 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
 		    ok = gen_tcp:close(L),
+		    ok = gen_tcp:controlling_process(D, Pid),
 		    {reply, {ok, Job, D}, State};
 		{error, Reason} ->
 		    ok = gen_tcp:close(L),
@@ -784,8 +787,8 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 	    end
     end;
 
-handle_call({new_lapd_monitor, Span, Ts, Options}, _From, State) ->
-    Reply = new_signalling_monitor(State, Span, Ts, "lapd_monitor", Options),
+handle_call({new_lapd_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "lapd_monitor", Opts),
     {reply, Reply, State};
 
 handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From, 
@@ -822,8 +825,8 @@ handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From,
 	    {reply, E, State}
     end;
 
-handle_call({new_mtp2_monitor, Span, Ts, Options}, _From, State) ->
-    Reply = new_signalling_monitor(State, Span, Ts, "mtp2_monitor", Options),
+handle_call({new_mtp2_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "mtp2_monitor", Opts),
     {reply, Reply, State};
 
 handle_call({new_player, Clips, Span, Ts, Loop}, 
@@ -834,18 +837,19 @@ handle_call({new_player, Clips, Span, Ts, Loop},
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_ss5_linesig_monitor, Span, Ts, Options}, _From, State) ->
-    Reply = new_signalling_monitor(State, Span, Ts, "ss5_linesig_monitor", 
+handle_call({new_ss5_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "ss5_linesig_monitor", 
 				   Options),
     {reply, Reply, State};
 
-handle_call({new_ss5_registersig_monitor, Span, Ts, Options}, _From, State) ->
-    Rep = new_signalling_monitor(State, Span, Ts, "ss5_registersig_monitor", 
-				 Options),
+handle_call({new_ss5_registersig_monitor, Span, Ts, Options}, 
+	    {Pid, _}, State) ->
+    Rep = new_signalling_monitor(Pid, State, Span, Ts, 
+				 "ss5_registersig_monitor", Options),
     {reply, Rep, State};
 
 handle_call({new_tcp_player, Span, Ts, Options},
-	    _From, 	    
+	    {Pid, _}, 	    
 	    State = #state{socket = S, my_ip = Hostname, 
 			   player_ls = {Portno, L}}) ->
     
@@ -858,6 +862,7 @@ handle_call({new_tcp_player, Span, Ts, Options},
 		    {error, Reason};
 		{ok, Job} -> 		  
 		    {ok, Data} = gen_tcp:accept(L, 1000),
+		    ok = gen_tcp:controlling_process(Data, Pid),
 		    {ok, Job, Data}
 	    end,
 
@@ -906,7 +911,7 @@ handle_call({new_tone_detector, Span, Ts, Freq, Length, Event_handler},
 
 
 handle_call({new_recorder, Span, Ts, Options},
-	    _From,
+	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
     {Portno, L} = listen(),
     ok = gth_apilib:send(S, xml:new("recorder", Options, 
@@ -920,6 +925,7 @@ handle_call({new_recorder, Span, Ts, Options},
 		{ok, Id} ->
 		    case gen_tcp:accept(L, 1000) of
 			{ok, Data} ->
+			    ok = gen_tcp:controlling_process(Data, Pid),
 			    {ok, Id, Data};
 			_X ->
 			    {error, accept_failed}
@@ -1255,21 +1261,22 @@ listen_active(Opts) ->
     {ok, P} = inet:port(L),
     {P, L}.
 
-new_signalling_monitor(State, Span, Ts, Name, Options) 
-  when is_integer(Ts); is_tuple(Ts) ->
-    new_signalling_monitor(State, Span, [Ts], Name, Options);
+new_signalling_monitor(Pid, State, Span, Ts, Name, Options) 
+  when is_pid(Pid), is_integer(Ts); is_tuple(Ts) ->
+    new_signalling_monitor(Pid, State, Span, [Ts], Name, Options);
 
-new_signalling_monitor(State, Span, Timeslots, Name, Options) ->
+new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
     Disallowed_options = ["ip_addr", "ip_port"],
     case [ X || X <- Disallowed_options, proplists:is_defined(X, Options) ] of
 	[] ->
-	    new_signalling_monitor_checked_options(State, Span, 
+	    new_signalling_monitor_checked_options(Pid, State, Span, 
 						   Timeslots, Name, Options);
 	_ ->
 	    {error, badarg}
     end.
 
 new_signalling_monitor_checked_options(
+  Pid,
   State = #state{socket = S, my_ip = Hostname}, 
   Span, 
   Timeslots, 
@@ -1296,6 +1303,7 @@ new_signalling_monitor_checked_options(
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
 		    ok = gen_tcp:close(L),
+		    ok = gen_tcp:controlling_process(D, Pid),
 		    {ok, Job, D};
 		{error, Reason} ->
 		    ok = gen_tcp:close(L),
@@ -1473,11 +1481,9 @@ get_text_trailer_body(S) ->
     ok = inet:setopts(S, [{packet, line}, {active, once}]),
     Bin.
 
-stream_install(Fun, Socket) ->
-    case Fun() of
-	eof -> 
-	    done;
-	{Bin, Next_fun} when is_binary(Bin) ->
-	    ok = gen_tcp:send(Socket, Bin),
-	    stream_install(Next_fun, Socket)
-    end.
+stream_install(_Socket, eof) ->
+    done;
+stream_install(Socket, Fun) when is_function(Fun) ->
+    {Bin, Fun_or_eof} = Fun(),
+    ok = gen_tcp:send(Socket, Bin),
+    stream_install(Socket, Fun_or_eof).
