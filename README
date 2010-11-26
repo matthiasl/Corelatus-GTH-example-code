@@ -31,6 +31,8 @@ from the Perl examples. The quality varies:
      Support for compiling on either *nix systems or win32.
      Some customers use this code for ad-hoc O&M.
 
+  Java: Basic example code. We're not proud of it, we're no good at Java.
+
 More information about GTH hardware:
 
   http://www.corelatus.com/duplex.html
