@@ -77,7 +77,6 @@
 %%%
 %%% To do: edoc-ify this module
 %%% 
-%%% $Id: gth.erl,v 1.48 2010-10-28 13:08:24 matthias Exp $
 %%%-------------------------------------------------------------------
 -module(gth).
 -behaviour(gen_server).

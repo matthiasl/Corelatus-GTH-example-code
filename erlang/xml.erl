@@ -2,8 +2,6 @@
 %%%
 %%% A little library of routines to help with XML when talking to a GTH.
 %%%
-%%% $Id: xml.erl,v 1.31 2009-11-16 09:07:41 matthias Exp $
-%%%
 
 %% Generate tags
 -export([attribute/2,

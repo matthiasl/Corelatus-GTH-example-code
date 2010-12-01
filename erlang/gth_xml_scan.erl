@@ -5,8 +5,6 @@
 %%
 %% Author: Matthias Lang (matthias@corelatus.com)
 %%
-%% $Id: gth_xml_scan.erl,v 1.6 2009-12-19 22:38:44 matthias Exp $
-%%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
 %% All rights reserved.

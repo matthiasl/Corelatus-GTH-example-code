@@ -22,8 +22,6 @@
 %%
 %% Program loops forever, you need to kill it to end it.
 %%
-%% $Id: save_to_pcap.erl,v 1.7 2010-04-28 10:26:27 matthias Exp $
-%%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
 %% All rights reserved.

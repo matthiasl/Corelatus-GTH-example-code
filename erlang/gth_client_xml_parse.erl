@@ -6,8 +6,6 @@
 %%
 %% Author: Matthias Lang (matthias@corelatus.com)
 %%
-%% $Id: gth_client_xml_parse.erl,v 1.42 2010-03-02 15:40:31 matthias Exp $
-%%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
 %% All rights reserved.

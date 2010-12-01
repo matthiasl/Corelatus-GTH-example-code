@@ -23,9 +23,6 @@
 %%    ignoring release complete
 %%    ...
 %%
-%%
-%% $Id: ss7_sniffer.erl,v 1.4 2010-03-31 10:36:01 matthias Exp $
-%%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
 %% All rights reserved.
