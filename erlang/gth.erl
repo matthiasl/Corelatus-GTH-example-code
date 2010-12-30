@@ -49,6 +49,8 @@
 %%%
 %%% Copyright (c) 2009, Corelatus AB Stockholm
 %%%
+%%% Licence: BSD
+%%%
 %%% All rights reserved.
 %%%
 %%% Redistribution and use in source and binary forms, with or without
@@ -583,7 +585,13 @@ handle_call(get_ip, _From, State = #state{socket = S}) ->
 		IP;
 
 	    X ->
-		%% Ok, this is clearly an Erlang bug. It happens in R12B-4 SMP.
+		%% One legitimate way to end up here is if we lose contact
+		%% with the GTH (power fail, ethernet unplugged, etc.).
+		%%
+		%% But Erlang R12B-4 SMP sometimes gets here even without
+		%% anything being wrong. Looks like an Erlang bug. Hasn't
+		%% been observed in R13B or later.
+		%%
 		%% My guess is that peername doesn't work on {active, once}
 		%% sockets when they've just sent a message, which is why the
 		%% sleep-and-try again approach usually works.
