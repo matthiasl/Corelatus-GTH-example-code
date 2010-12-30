@@ -283,7 +283,11 @@ stream_entire_content(_S, _Type, _Typeline, _Length, _Timeout, _Fun) ->
 stream_rest(_, 0, _, _) ->                           %% nothing left to stream
     ok;
 stream_rest(S, Bytes, Timeout, Fun) ->
-    Read_now = min(13216, Bytes),                  %% Arbitrary number
+    %% OTP R13 and later have erlang:min/2, which is better than lists:min/1,
+    %% but we want this code to work even on R11.
+    %%
+    %% 13216 is an arbitrary number
+    Read_now = lists:min([13216, Bytes]),
     erlang:garbage_collect(),
     case gen_tcp:recv(S, Read_now, Timeout) of
 	{ok, Lump} ->
@@ -297,9 +301,6 @@ stream_rest(S, Bytes, Timeout, Fun) ->
 	X = {error, _Reason} ->
 	    X
     end.
-
-min(A, B) when A < B -> A;
-min(_A, B) -> B.
 
 dump_rest(S, Bytes, Timeout) ->
     Dummy_fun = fun(_) -> ok end,
