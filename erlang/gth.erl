@@ -1081,10 +1081,7 @@ handle_info(kick, State = #state{socket = S}) ->
 	    R;
 	_ -> {stop, {"API watchdog expired", State#state.debug_remote_ip}, 
 	      State}
-    end;
-
-handle_info(_Info, State) ->
-    {noreply, State}.
+    end.
 
 terminate(normal, #state{socket = none}) ->
     ok;
