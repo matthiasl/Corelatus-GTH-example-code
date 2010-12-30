@@ -280,8 +280,8 @@ stream_entire_content(_S, _Type, _Typeline, _Length, _Timeout, _Fun) ->
 
 %% Returns ok | {error, Reason}
 
-stream_rest(_, 0, _, _) ->                           %% nothing left to stream
-    ok;
+stream_rest(_, 0, _, Fun) ->                       %% nothing left to stream
+    Fun(eof);
 stream_rest(S, Bytes, Timeout, Fun) ->
     %% OTP R13 and later have erlang:min/2, which is better than lists:min/1,
     %% but we want this code to work even on R11.
