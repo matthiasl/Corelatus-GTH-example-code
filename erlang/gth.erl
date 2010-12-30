@@ -1081,9 +1081,13 @@ handle_info(kick, State = #state{socket = S}) ->
 	    R;
 	_ -> {stop, {"API watchdog expired", State#state.debug_remote_ip}, 
 	      State}
-    end.
+    end;
 
-terminate(normal, #state{socket = none}) ->
+handle_info({tcp_closed, S}, State = #state{socket = S}) ->
+    {stop, {"API socket closed unexpectedly", State#state.debug_remote_ip}, 
+     State#state{socket = none}}.
+
+terminate(_, #state{socket = none}) ->
     ok;
 
 terminate(_Reason, State = #state{socket = S}) ->
