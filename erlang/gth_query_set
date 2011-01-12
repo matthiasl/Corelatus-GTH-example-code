@@ -1,0 +1,59 @@
+#!/usr/bin/env escript
+%% -*- erlang -*-
+%%
+%% script which lets you query (and set) a GTH's resource attributes
+%% interactively from the command line. It depends on several of the
+%% modules in this directory, i.e. you have to run 'erl -make' first.
+%%
+%% Examples:
+%%   ./gth_query_set 172.16.2.7 inventory
+%%   sync
+%%   board
+%%   pcm1A
+%%   ...
+%%
+%%   ./gth_query_set 172.16.2.7 board
+%%   architecture=gth2.1
+%%   ROM ID=0x26cbce800000005f
+%%   temperature=34.5
+%%   power consumption=5.7
+%%   power source=A
+%%   
+
+main(Args) ->
+    set_up_path(escript:script_name()),
+    go(Args).
+
+go([Host, Resource]) ->
+    {ok, A} = gth:start_link(Host),
+    case gth:query_resource(A, Resource) of
+	{ok, KVs} ->
+	    print_kvs(KVs);
+	{ok, KVs, Bin} ->
+	    print_kvs(KVs),
+	    io:put_chars([Bin, "\n"])
+    end;
+
+go([Host, Resource, Attribute]) ->
+    {ok, A} = gth:start_link(Host),
+    {ok, Value} = gth:query_resource(A, Resource, Attribute),
+    io:fwrite("~s=~s\n", [Attribute, Value]);
+
+go([Host, Resource, Attribute, Value]) ->
+    {ok, A} = gth:start_link(Host),
+    gth:set(A, Resource, [{Attribute, Value}]);
+
+go(_) ->
+    io:fwrite("Usage: gth_query_set <host> <resource> [<attribute> [<value>]]\n").
+
+set_up_path(Candidate) ->
+    case file:read_link(Candidate) of
+	{ok, Path} ->
+	    set_up_path(Path);
+	_ ->
+	    code:add_path(filename:dirname(Candidate))
+    end.
+
+print_kvs(KVs) ->
+    _ = [io:fwrite("~s=~s\n", [K,V]) || {K,V} <- KVs],
+    _ = [io:fwrite("~s\n", [V]) || V <- KVs, is_list(V)].
