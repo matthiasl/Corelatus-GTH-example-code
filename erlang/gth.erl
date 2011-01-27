@@ -1377,6 +1377,7 @@ atomise_error_reason("busy") -> busy;
 atomise_error_reason("conflict") -> conflict;
 atomise_error_reason("failure") -> failure;
 atomise_error_reason("no such job") -> 'no such job';
+atomise_error_reason("not yet implemented") -> 'not yet implemented';
 atomise_error_reason("parse") -> parse;
 atomise_error_reason("refused") -> refused;
 atomise_error_reason("transport") -> transport;
