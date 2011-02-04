@@ -644,7 +644,7 @@ static int definite_read(int fd,
 			 char *response,
 			 const int max_response_length) 
 {
-  int to_read;
+  size_t to_read;
   int result;
 
   to_read = length;
@@ -799,7 +799,7 @@ static GTH_resp *gth_next_non_event(GTH_api *api) {
 
 static void string_write(int s, const char* string) 
 {
-  int result;
+  size_t result;
 
   assert(string);
   
