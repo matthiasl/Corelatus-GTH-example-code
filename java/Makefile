@@ -5,8 +5,6 @@
 # Created: January 2001
 # 
 # Copyright (C) 2001 Corelatus AB Stockholm
-#
-# $Id: Makefile,v 1.18 2009-02-14 20:38:21 matthias Exp $
 
 classpath=$(CLASSPATH)
 

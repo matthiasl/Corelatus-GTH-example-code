@@ -2,8 +2,6 @@
 #
 # Title: Record E1/T1 timeslot data from a Corelatus GTH 
 # Author: Matthias Lang (matthias@corelatus.se)
-#
-# $Id: record.py,v 1.5 2009-03-06 10:21:18 matthias Exp $
 
 import sys
 from sys import argv, stderr

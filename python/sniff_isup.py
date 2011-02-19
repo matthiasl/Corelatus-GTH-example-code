@@ -6,8 +6,6 @@
 # Reference: ISUP decoding is in ITU-T Q.767 Annex C
 #            MTP-2 is in ITU-T Q.703
 #            MTP-3 is in ITU-T Q.704
-#
-# $Id: sniff_isup.py,v 1.1 2009-03-26 11:02:11 matthias Exp $
 
 import sys
 from sys import argv, stderr

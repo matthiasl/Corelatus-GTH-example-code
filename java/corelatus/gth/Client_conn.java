@@ -6,8 +6,6 @@
 // Copyright (c) 2001 Corelatus AB Stockholm
 //
 // This is demonstration code. Use at your own risk.
-//
-// $Id: Client_conn.java,v 1.9 2010-05-17 11:43:38 matthias Exp $
 //----------------------------------------------------------------------
 
 package corelatus.gth;

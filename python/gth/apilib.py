@@ -3,8 +3,6 @@
 #
 # I could have derived API from API_socket. I couldn't see a compelling
 # reason to do so, which is why I just composed the classes.
-#
-# $Id: apilib.py,v 1.4 2009-03-26 11:02:11 matthias Exp $
 
 from transport import API_socket
 import socket

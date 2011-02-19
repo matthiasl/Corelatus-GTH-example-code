@@ -16,8 +16,6 @@
 //                status is shown
 //
 //      If "failsafe" is specified, the failsafe system is upgraded.
-//
-// $Id: install.java,v 1.11 2009-01-29 12:03:08 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 
@@ -254,7 +252,7 @@ public class install {
     }
 
     private static void usage() {
-	System.err.println("Version: $Id: install.java,v 1.11 2009-01-29 12:03:08 matthias Exp $ usage:");
+	System.err.println("usage:");
 	System.err.println("");
 	System.err.println("  java corelatus.gth.install <hostname> [<filename> [failsafe]]");
 	System.err.println("");

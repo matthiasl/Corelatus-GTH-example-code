@@ -2,8 +2,6 @@
 #
 # Title: Enable an E1 on a Corelatus GTH 
 # Author: Matthias Lang (matthias@corelatus.se)
-#
-# $Id: enable_l1.py,v 1.2 2009-06-04 08:10:02 matthias Exp $
 
 import sys
 from sys import argv, stderr

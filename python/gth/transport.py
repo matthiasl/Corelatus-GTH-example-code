@@ -2,8 +2,6 @@
 #
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# $Id: transport.py,v 1.3 2009-03-06 10:20:39 matthias Exp $
-#
 # This is blocking code. The GTH can send asynchronous information at any
 # time, so blocking isn't so great. Options:
 #

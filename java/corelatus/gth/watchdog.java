@@ -14,7 +14,6 @@
 //  <do something>
 //  w.stop();
 //
-// $Id: watchdog.java,v 1.4 2009-01-29 12:03:09 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 import java.io.*;

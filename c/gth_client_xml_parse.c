@@ -37,9 +37,6 @@
 // 
 //----------------------------------------------------------------------
 
-// 
-// $Id: gth_client_xml_parse.c,v 1.12 2010-06-14 13:20:49 matthias Exp $
-//
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>

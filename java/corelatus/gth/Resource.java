@@ -1,8 +1,6 @@
 //----------------------------------------------------------------------
 // Purpose: Models a GTH resource.
 // Author: Matthias Lang (matthias@corelatus.com)
-//
-// $Id: Resource.java,v 1.2 2009-01-29 12:03:08 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 

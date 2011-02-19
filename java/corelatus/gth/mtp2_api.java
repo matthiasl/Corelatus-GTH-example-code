@@ -26,8 +26,6 @@
 //      timeslots from one receiver process to another at random.
 //
 // Using this program on live systems will disrupt signalling.
-//
-// $Id: mtp2_api.java,v 1.5 2009-01-29 12:03:08 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 

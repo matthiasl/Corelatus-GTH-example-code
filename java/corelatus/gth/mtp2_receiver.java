@@ -22,8 +22,6 @@
 //       java corelatus.gth.mtp2_receiver 1234
 //
 // where '1234' is the port number the MTP-2 packets will arrive on.
-//
-// $Id: mtp2_receiver.java,v 1.4 2009-01-29 12:03:09 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 

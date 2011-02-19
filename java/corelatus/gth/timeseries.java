@@ -18,7 +18,6 @@
 //
 //      hostname: hostname or dotted-quad IP address the GTH host
 //
-// $Id: timeseries.java,v 1.2 2009-01-29 12:03:09 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 

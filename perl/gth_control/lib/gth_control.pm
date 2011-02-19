@@ -7,8 +7,6 @@ use IO::Socket;
 use Data::Dumper;
 use XML::Simple;   # From CPAN. In Debian it's called libxml-simple-perl
 
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.3 $ =~ /: (\d+)\.(\d+)/;
-
 sub new {
     my ($unused, $gth_ip_or_hostname) = @_;
     my $self = {};

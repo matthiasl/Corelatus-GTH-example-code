@@ -2,8 +2,6 @@
 #
 # Title: Play a file to an E1/T1 timeslot using a Corelatus GTH 
 # Author: Matthias Lang (matthias@corelatus.se)
-#
-# $Id: play.py,v 1.3 2009-03-06 11:17:50 matthias Exp $
 
 import sys
 from sys import argv, stderr

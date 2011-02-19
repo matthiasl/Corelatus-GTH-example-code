@@ -13,8 +13,6 @@
 //
 //      hostname: hostname or dotted-quad IP address the GTH host
 //      bootmode: normal | failsafe  (defaults to 'normal')
-//
-// $Id: reboot.java,v 1.3 2009-01-29 12:03:09 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 

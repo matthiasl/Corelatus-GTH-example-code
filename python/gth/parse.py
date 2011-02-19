@@ -2,8 +2,6 @@
 #
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# $Id: parse.py,v 1.3 2008-09-01 12:47:46 matthias Exp $
-#
 # The GTH uses a text protocol which is a cut-down XML. It can be parsed
 # using an XML parser (probably a DOM one), but that would be overkill.
 #
