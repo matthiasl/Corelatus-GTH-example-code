@@ -221,7 +221,6 @@
 
 -record(at2m_stats, {
 	  at0m_stats,
-	  owner,
 	  vpi, vci,
 	  n_sdu, sdu_o, 
 	  n_cdu, cdu_o,
@@ -230,7 +229,6 @@
 
 -record(at5m_stats, {
 	  at0m_stats, 
-	  owner,
 	  vpi, vci, 
 	  n_sdu, sdu_o,
 	  n_cdu, cdu_o,
