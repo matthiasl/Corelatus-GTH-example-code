@@ -27,6 +27,8 @@
 %%
 %% All rights reserved.
 %%
+%% Licence: BSD
+%%
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions are met:
 %%     * Redistributions of source code must retain the above copyright
@@ -53,6 +55,7 @@
 -module(ss7_sniffer).
 -export([go/1, go/4]).
 
+-spec go(inet:ip_address()) -> no_return().
 go(GTH_IP) ->
     go(GTH_IP, "1A", 16, false).
 
@@ -60,6 +63,11 @@ go(GTH_IP) ->
 %% Tell the GTH to start extracting MTP-2 from the given timeslot.
 %%
 %% Monitoring = boolean() % true if a -20dB monitor point is used
+-spec go(GTH_IP::inet:ip_address(), 
+	 Span::string(), 
+	 Timeslot::integer(),
+	 Monitoring::boolean()) 
+	-> no_return().
 go(GTH_IP, Span, Timeslot, Monitoring) ->
     {ok, A} = gth:start_link(GTH_IP),
     setup_l1(A, Span, Monitoring),

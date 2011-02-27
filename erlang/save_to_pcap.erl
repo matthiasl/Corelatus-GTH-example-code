@@ -51,18 +51,38 @@
 %%
 -export([mtp2/4, frame_relay/4, aal5/5, from_file/2]).
 
+-type host() :: {byte(), byte(), byte(), byte()} | string().
+-spec mtp2(GTH_IP::host(), 
+	   Span::string(), 
+	   Timeslot::integer(), 
+	   Filename::string()) -> no_return().
 mtp2(GTH_IP, Span, Timeslot, Filename) ->
     go(GTH_IP, Span, Filename, mtp2,
        fun(A) -> gth:new_mtp2_monitor(A, Span, Timeslot) end).
 
+-spec frame_relay(GTH_IP::host(), 
+		  Span::string(), 
+		  Timeslots::[integer()], 
+		  Filename::string()) -> no_return().
 frame_relay(GTH_IP, Span, Timeslots, Filename) ->
     go(GTH_IP, Span, Filename, frame_relay,
        fun(A) -> gth:new_fr_monitor(A, Span, Timeslots) end).
 
+-spec aal5(GTH_IP::host(), 
+		  Span::string(), 
+		  Timeslots::[integer()], 
+		  ATM_addr::{integer(), integer()},
+		  Filename::string()) -> no_return().
 aal5(GTH_IP, Span, Timeslots, {VPI, VCI}, Filename) ->
     go(GTH_IP, Span, Filename, aal5,
        fun(A) -> gth:new_atm_aal5_monitor(A, Span, Timeslots, {VPI, VCI}) end).
 
+-spec go(GTH_IP::host(), 
+	 Span::string(),
+	 Filename::string(),
+	 Protocol::atom(),
+	 Fun::fun()) ->
+		no_return().
 go(GTH_IP, Span, Filename, Protocol, Fun) ->
     {ok, A} = gth:start_link(GTH_IP),
     {ok, Out} = file:open(Filename, [raw, write]),
@@ -170,9 +190,9 @@ pcap_packet_header(Timestamp_ms, Payload_len) ->
 from_file(In_filename, Out_filename) ->
     {ok, In} = file:open(In_filename, [read, binary]),
     {ok, Out} = file:open(Out_filename, [write]),
-    {Number, Protocol} = guess_file_protocol(In),
+    Protocol = guess_file_protocol(In),
     ok = file:write(Out, pcap_file_header(Protocol)),
-    file_to_file(In, Out, {Number, Protocol}),
+    file_to_file(In, Out, Protocol),
     ok = file:close(In),
     ok = file:close(Out).
 
@@ -186,7 +206,7 @@ guess_file_protocol(In) ->
 	2 -> frame_relay;
 	5 -> aal5
     end.
-
+    
 file_to_file(In, Out, Guess) ->
     case file:read(In, 2) of
 	{ok, <<Size:16>>} ->

@@ -4,9 +4,12 @@
 %%% Description : An Erlang wrapper for the XML API on a Corelatus GTH.
 %%%
 %%%               A corelatus GTH is a T1/E1 device which can do pretty 
-%%%               much anything with a T1/E1 line. This interface lets 
-%%%               you interface to a GTH without having to deal with the 
-%%%               API socket and its XML commands directly.
+%%%               much anything with a T1/E1 line: detect tones, switch
+%%%               timeslots, decode signalling, play recorded messages, etc.
+%%%
+%%%               This interface lets you interface to a GTH without
+%%%               having to deal with the API socket and its XML
+%%%               commands directly.
 %%%
 %%%               See also: www.corelatus.com/gth/api/
 %%%
@@ -130,23 +133,36 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
--record(state, {socket, 
-		debug_remote_ip,
-		player_ls,              %% pre-opened listen socket for players
-		command_timeout = 5000,
-		event_dict,
-		resource_event_target,  %% target for events from resources
-		job_event_target,       %% default target for events from jobs
-		my_ip}).                %% my IP address, according to the GTH
+-record(state, 
+	{socket :: port() | none, 
+	 debug_remote_ip,
 
-%% Macro to be used in guards to decide if something is a valid 
-%% event handler, i.e. {pid(), term()} 
+	 %% pre-opened listen socket for players
+	 player_ls :: {integer(), port()},
+	 command_timeout = 5000 :: integer(),
+	 event_dict :: dict:dictionary(),
+	 resource_event_target :: pid(),  %% target for events from resources
+	 job_event_target :: pid(),       %% default target for events from jobs
+	 my_ip :: string()}).             %% my IP address, according to the GTH
+
+%% Macro used in guards to decide if something is a valid event handler.
 -define(IS_VALID_EVENT_HANDLER(Arg), (Arg == default orelse is_pid(Arg)) ).
 
 %% This code supervises the GTH, and requests the GTH to supervise it.
 -define(KICK_INTERVAL, 5000).
 
+-type ok_or_error()::'ok' | {error, Reason::any()}.
+-type id_or_error()::{'ok', string()} | {error, Reason::any()}.
+
+-type keyval_list()::[{Key::atom() | string(), Value::any()}].
+-type event_handler()::'default' | pid().
+-type timeslot_or_timeslot_list()::1..31 | [1..31].
+-type subrate()::{'subrate', Timeslot::1..31, First_bit::0..7, 
+		  Bandwidth::integer()}.
+-type hostname_or_address()::inet:hostname() | inet:ip_address().
+
 %% API for users
+-spec start_link( hostname_or_address() ) -> {'ok',pid()} | {'error', _}.
 start_link(Host) ->
     start_link(Host, []).
 
@@ -168,6 +184,8 @@ start_link(Host) ->
 %% Start_link connects to the API socket but then cedes control to
 %% the newly started process. This is a bit complicated, but it allows
 %% us to fail without a crash when the remote socket can't be opened.
+-spec start_link( hostname_or_address(), keyval_list()) ->
+			{'ok', pid()} | {'error', _}.
 start_link(Host, Options) 
   when is_list(Options) ->
     Default = [{gth_ip, Host},
@@ -195,40 +213,36 @@ start_link(Host, Options)
 	    Error
     end.
 
-%% Return: ok (and the process terminates normally)
+-spec bye(pid()) -> 'ok'.
+		 
+%% Terminate gracefully.
 bye(Pid)
   when is_pid(Pid) ->
     Result = gen_server:call(Pid, bye),
     flush(Pid),
     Result.
 
-%% Name = string()
-%% Attributes = [{string(), Value}]
-%% Value = string() | integer()
-%%
-%% Return: ok | {error, Reason}
+-spec custom(pid(), string(), keyval_list()) -> ok_or_error().
 custom(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Name), is_list(Attributes) ->
     gen_server:call(Pid, {custom, Name, Attributes}).    
 
-%% Return: ok | {error, {'no such job', Human_readable_info}}
+-spec delete(pid(), string()) -> ok_or_error().
 delete(Pid, Id) 
-  when is_pid(Pid) ->
+  when is_pid(Pid), is_list(Id) ->
     gen_server:call(Pid, {delete, Id}).
 
-%% Return: {ok, GTH_IP}
+-spec get_ip(pid()) -> {ok, inet:ip_address()}.
 get_ip(Pid) 
   when is_pid(Pid) ->
     gen_server:call(Pid, get_ip).
 
-%% Return: ok | {error, Reason}
-%% Reason = atom()
-%% Bin = binary() | {Length, Install_fun}
 %% Install_fun = fun() -> {binary(), fun() | eof} 
 %%
 %% If called with a fun() as the third argument, the install process
 %% will call fun() to obtain some data and a new fun, and then call the
 %% new fun. That continues until eof is returned instead of a new fun.
+%-spec install(pid(), string(), binary() | {integer(), fun()}) -> ok_or_error().
 install(Pid, Name, Bin_or_fun)
   when is_pid(Pid), is_list(Name) ->
     %% Use a long timeout, install takes time
@@ -236,12 +250,11 @@ install(Pid, Name, Bin_or_fun)
 
 %% Options = {string(), integer() | string()}
 %%         | {reuse_socket, port()}
-%%
-%% Direction = forward | backward
-%%
-%% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
-%%
 
+-spec new_cas_r2_mfc_detector(pid(), string(), 1..31, 
+			      Direction::'forward' | 'backward',
+			      keyval_list()) ->
+				     {ok, string(), port()} | {'error', any()}.
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction) ->
     new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, []). 
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options) 
@@ -252,13 +265,17 @@ new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
     gen_server:call(Pid, {new_cas_r2_mfc_detector, Span, Timeslot, 
 			  Direction, Options}).
 
+-spec new_cas_r2_linesig_monitor(pid(), string(), 1..31, 
+				 keyval_list()) ->
+					{ok, string(), port()} 
+					    | {'error', any()}.
 new_cas_r2_linesig_monitor(Pid, Span, Timeslot) ->
     new_cas_r2_linesig_monitor(Pid, Span, Timeslot, []). 
 new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options) 
   when is_pid(Pid), is_integer(Timeslot), is_list(Options) ->
     gen_server:call(Pid, {new_cas_r2_linesig_monitor, Span, Timeslot, Options}).
  
-%% Return: {ok, Job_id} | {error, Reason}
+-spec new_clip(pid(), string(), binary() | iolist()) -> id_or_error().
 new_clip(Pid, Name, Bin) 
   when is_pid(Pid), is_binary(Bin) ->
     gen_server:call(Pid, {new_clip, Name, Bin});
@@ -267,27 +284,30 @@ new_clip(Pid, Name, List)
   when is_list(List) ->
     new_clip(Pid, Name, list_to_binary(List)).
 
-%% Return: {ok, Job_id} | {error, Reason}
+-spec new_connection(pid(), string(), 1..31, string(), 1..31) ->
+			    id_or_error().
 new_connection(Pid, S_span, S_ts, D_span, D_ts) 
   when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
     gen_server:call(Pid, {new_connection, S_span, S_ts, D_span, D_ts}).
 
-%% Return: {ok, Job_id} | {error, Reason}
 new_connection(Pid, S_span, S_ts, D_IP, D_span, D_ts) 
   when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
     gen_server:call(Pid, {new_connection, S_span, S_ts, D_IP, D_span, D_ts}).
 
-%% Return: {ok, Job_id} | {error, Reason}
-%%
 %% EBS is experimental and not formally supported. (Checked 2008-10-14)
+-spec new_ebs(pid(), [string()]) -> id_or_error().
 new_ebs(Pid, IPs = [H|_]) 
   when is_pid(Pid), is_list(H) ->
     gen_server:call(Pid, {new_ebs, IPs}).
 
-%% Side: user | network
-%% SAPI_TEI: {integer(), integer()}
-%%
-%% Return: {ok, Job_id, Signalling_socket}
+-spec new_lapd_layer(pid(), 
+		     Span::string(), 
+		     Timeslot::1..31,
+		     Side::user|network,
+		     SAPI_TEI::{byte(), byte()},
+		     Tag::integer(),
+		     Options::keyval_list()) ->
+			    {ok, string(), port()} | {error, any()}.
 new_lapd_layer(Pid, Span, Ts, Side, SAPI_TEI, Tag) ->
     new_lapd_layer(Pid, Span, Ts, Side, SAPI_TEI, Tag, []).    
 new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options) 
@@ -296,8 +316,6 @@ new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options)
     gen_server:call(Pid, {new_lapd_layer, Span, Ts, Side, {SAPI, TEI},
 			  Tag, Options}).
 
-%% Ts: integer() | [integer()] | {subrate, Timeslot, First_bit, Bandwidth}
-%%
 %% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
 %%
 %% Signalling_socket: a socket in {packet, 2} mode
@@ -308,13 +326,22 @@ new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options)
 %% The reuse_socket option sends the signalling to an existing socket
 %% instead of opening a new one.
 new_mtp2_monitor(Pid, Span, Ts) ->
-    new_mtp2_monitor(Pid, Span, Ts, []).    
+    new_mtp2_monitor(Pid, Span, Ts, []).
+
+-spec new_mtp2_monitor(pid(), string(), 
+		       timeslot_or_timeslot_list() | subrate(), 
+		       keyval_list()) ->
+			      {'ok', string(), port()} | {'error', any()}.
 new_mtp2_monitor(Pid, Span, Ts, Options) 
   when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_mtp2_monitor, Span, Ts, Options}).
 
 new_lapd_monitor(Pid, Span, Ts) ->
-    new_lapd_monitor(Pid, Span, Ts, []).    
+    new_lapd_monitor(Pid, Span, Ts, []).
+-spec new_lapd_monitor(pid(), string(), 
+		       1..31 | subrate(), 
+		       keyval_list()) ->
+			      {'ok', string(), port()} | {'error', any()}.
 new_lapd_monitor(Pid, Span, Ts, Options) 
   when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_lapd_monitor, Span, Ts, Options}).
@@ -322,13 +349,19 @@ new_lapd_monitor(Pid, Span, Ts, Options)
 %% Level: integer()  % level in dB
 new_level_detector(Pid, Span, Ts, Threshold) ->
     new_level_detector(Pid, Span, Ts, Threshold, [], default).
+
+-spec new_level_detector(pid(), string(), 1..31, -100..6, keyval_list(), 
+			 event_handler()) -> 
+				{'ok', string()} | {'error', any()}.
 new_level_detector(Pid, Span, Ts, Threshold, Options, EH) 
   when is_pid(Pid), is_integer(Ts), is_integer(Threshold), is_list(Options),
        ?IS_VALID_EVENT_HANDLER(EH) ->
     gen_server:call(Pid, {new_level_detector, Span, Ts, Threshold, 
 			  Options, EH}).
 
-%% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
+-spec new_atm_aal0_monitor(pid(), string(), [1..31], keyval_list()) ->
+				  {ok, string(), Signalling_socket::port()}
+				      | {error, any()}.
 new_atm_aal0_monitor(Pid, Span, Timeslots) ->
     new_atm_aal0_monitor(Pid, Span, Timeslots, []).
 
@@ -336,7 +369,11 @@ new_atm_aal0_monitor(Pid, Span, Timeslots, Options)
   when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
     gen_server:call(Pid, {new_atm_aal0_monitor, Span, Timeslots, Options}).
 
-%% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
+-spec new_atm_aal2_monitor(pid(), string(), [1..31], 
+			   {VPI::integer(), VCI::integer()}, 
+			   keyval_list()) ->
+				  {ok, string(), Signalling_socket::port()}
+				      | {error, any()}.
 new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}) ->
     new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}, []).
 
@@ -346,7 +383,12 @@ new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 		    {new_atm_aal2_monitor, 
 		     Span, Timeslots, {VPI, VCI}, Options}).
 
-%% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
+-spec new_atm_aal5_monitor(pid(), string(), [1..31], 
+			   {VPI::integer(), VCI::integer()}, 
+			   keyval_list()) ->
+				  {ok, string(), Signalling_socket::port()}
+				      | {error, any()}.
+
 new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}) ->
     new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, []).
 
@@ -360,7 +402,9 @@ new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 		    {new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, 
 		     Options}).
 
-%% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
+-spec new_fr_monitor(pid(), string(), [1..31], keyval_list()) ->
+			    {ok, string(), Signalling_socket::port()}
+				| {error, any()}.
 new_fr_monitor(Pid, Span, Timeslots) ->
     new_fr_monitor(Pid, Span, Timeslots, []).
 new_fr_monitor(Pid, Span, Timeslots, Options) 
@@ -380,6 +424,8 @@ new_atm_aal0_layer(Pid, Span, Timeslots, Options)
     gen_server:call(Pid, {new_atm_aal0_layer, Span, Timeslots, Options}).    
 
 %% Return: {ok, Id} | {error, Reason}
+-spec new_player(pid(), Clips::[string()], Span::string(), Ts::1..31) ->
+			id_or_error().
 new_player(Pid, Clips, Span, Ts) ->
     new_player(Pid, Clips, Span, Ts, false).
 
@@ -391,9 +437,9 @@ new_player(Pid, Clips, Span, Ts, Loop)
        Clips =/= [] ->
     gen_server:call(Pid, {new_player, Clips, Span, Ts, Loop}).
 
-%% Options: always an empty list.  
-%%
-%% Return: {ok, Id, Raw_socket} | {error, Reason}
+%% The 'Raw_socket' is a socket in {packet, 0} mode, delivering timeslot data.
+-spec new_recorder(pid(), string(), 1..31, keyval_list()) ->
+			  {ok, string(), Raw_socket::port()} | {error, any()}.
 new_recorder(Pid, Span, Ts) ->
     new_recorder(Pid, Span, Ts, []).
 
@@ -401,7 +447,9 @@ new_recorder(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_recorder, Span, Ts, Options}).
 
-%% Return {ok, Job_id, Signalling_socket}
+-spec new_ss5_linesig_monitor(pid(), string(), 1..31, keyval_list()) ->
+				     {ok, string(), Signalling_socket::port()} 
+					 | {error, any()}.
 new_ss5_linesig_monitor(Pid, Span, Ts) ->
     new_ss5_linesig_monitor(Pid, Span, Ts, []).
 
@@ -409,7 +457,9 @@ new_ss5_linesig_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_ss5_linesig_monitor, Span, Ts, Options}).
 
-%% Return {ok, Job_id, Signalling_socket}
+-spec new_ss5_registersig_monitor(pid(), string(), 1..31, keyval_list()) ->
+				     {ok, string(), Signalling_socket::port()} 
+					 | {error, any()}.
 new_ss5_registersig_monitor(Pid, Span, Ts) ->
     new_ss5_registersig_monitor(Pid, Span, Ts, []).
 
@@ -417,11 +467,9 @@ new_ss5_registersig_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_ss5_registersig_monitor, Span, Ts, Options}).
 
-%% Options: always an empty list.
-%%
-%% Return {ok, Id, Raw_socket}
-%%
 %% Raw_socket: a socket in {packet, 0} mode
+-spec new_tcp_player(pid(), string(), 1..31, keyval_list()) ->
+			    {ok, string(), Raw_socket::port()} | {error, any()}.
 new_tcp_player(Pid, Span, Ts) ->
     new_tcp_player(Pid, Span, Ts, []).
 
@@ -429,14 +477,10 @@ new_tcp_player(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_tcp_player, Span, Ts, Options}).
 
-%% Make a DTMF detector
-%%
-%% Report = pid()
-%%
 %% Whenever a tone is detected, {tone, self(), {Id, Name, Length}} is 
-%% sent to Pid
-%%
-%% Return: {ok, Id} | {error, Reason}
+%% sent to the event handler, by default the calling process.
+-spec new_tone_detector(pid(), string(), 1..31, event_handler()) ->
+			       id_or_error().
 new_tone_detector(Pid, Span, Ts) ->
     new_tone_detector(Pid, Span, Ts, default).
     
@@ -445,12 +489,12 @@ new_tone_detector(Pid, Span, Ts, Event_handler)
        ?IS_VALID_EVENT_HANDLER(Event_handler) ->
     gen_server:call(Pid, {new_tone_detector, Span, Ts, Event_handler}).
 
-%% Make a custom tone detector. 
-%%
-%% Freq = integer()  % Hertz
-%%  Len = integer()  % milliseconds
-%%
-%% Return: {ok, Id} | {error, Reason}
+-spec new_tone_detector(pid(), 
+			string(), 1..31, 
+			Freq::integer(),   %% Hertz
+			Length::integer(), %% milliseconds
+			event_handler()) ->
+			       id_or_error().
 new_tone_detector(Pid, Span, Ts, Freq, Length) ->
     new_tone_detector(Pid, Span, Ts, Freq, Length, default).
 
@@ -458,23 +502,23 @@ new_tone_detector(Pid, Span, Ts, Freq, Length, Event_handler)
   when is_pid(Pid), Freq > 0, Freq < 4000,  Length > 40, Length < 10000 ->
     gen_server:call(Pid, {new_tone_detector, Span, Ts, Freq, Length, 
 			  Event_handler}).
-  
+
+-spec nop(pid()) ->  ok_or_error().
 nop(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, nop).
 
-%% Return: {ok, Info}
-%%       | {error, Reason}
-%%
-%% Info = {job, Id, Owner, Attributes} 
-%% Attributes = [{Key, Value}...]       %% For all jobs except EBS
-%%            | [ [{Key, Value}], ...]  %% For EBS (experimental)
-%%       
+-spec query_job(pid(), string()) ->
+		       {ok, {job, ID::string(), Owner::string(), 
+			     keyval_list() | [string()]}}
+			   | {error, any()}.
 query_job(Pid, Id) when is_pid(Pid) ->
     gen_server:call(Pid, {query_job, Id}).
 
-%% Return: {ok, [Name]}          % when querying the inventory
-%%       | {ok, [{Key, Value}]}  % when querying anything else
-%%
+-spec query_resource(pid(), Name::string()) ->
+			    {ok, keyval_list()}                 % normal
+				| {ok, [Name::string()]}        % "inventory"
+				| {ok, keyval_list(), binary()} % log queries
+				| {error, any()}.
 %% This uses a timeout of 15s. When fetching logs over a slow link, that 
 %% won't be enough. Why are you using a slow link?
 query_resource(Pid, Name) when is_pid(Pid) ->
@@ -492,43 +536,37 @@ query_resource(Pid, Name, Attribute) when is_pid(Pid) ->
     end.
 
 %% Undocumented. Used for testing incorrect API commands.
+-spec raw_xml(pid(), binary() | iolist()) -> any().		     
 raw_xml(Pid, XML) when is_pid(Pid) ->
     gen_server:call(Pid, {raw_xml, XML}, 17000).
 
-%% Return: ok | {error, Reason}
-%%
-%% Name = string()
-%% Attributes = [{Key, Value}]
-%% Key = string()
-%% Value = string() | integer()
-%%
+-spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
 set(Pid, Name, Attributes) 
   when is_pid(Pid), is_list(Attributes) ->
     gen_server:call(Pid, {set, Name, Attributes}).
 
-%% Return: ok | {error, Reason}
+-spec reset(pid()) -> ok_or_error().
 reset(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, reset).
 
-%% IDs = [string()]
-%%
-%% Return: ok | {error, Reason}
+-spec takeover(pid(), IDs::[string()]) -> ok_or_error().
 takeover(_Pid, []) ->
     ok;
 takeover(Pid, IDs = [H|_]) 
   when is_pid(Pid), is_list(H) ->
     gen_server:call(Pid, {takeover, IDs}).
 
-%% Return: ok | {error, Reason}
+-spec update(pid(), ID::string(), Attributes::keyval_list() | [string()]) -> 
+		    ok_or_error().
 update(Pid, ID, Attributes) 
   when is_pid(Pid), is_list(ID), is_list(Attributes) ->
     gen_server:call(Pid, {update, ID, Attributes}).
 
-%% Return: ok | {error, Reason}
+-spec zero_job(pid(), ID::string()) -> ok_or_error().
 zero_job(Pid, Id) when is_pid(Pid) ->
     gen_server:call(Pid, {zero_job, Id}).
 
-%% Return: ok | {error, Reason}
+-spec zero_resource(pid(), ID::string()) -> ok_or_error().
 zero_resource(Pid, Name) when is_pid(Pid) ->
     gen_server:call(Pid, {zero_resource, Name}).
     
