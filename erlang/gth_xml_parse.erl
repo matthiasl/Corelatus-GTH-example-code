@@ -372,6 +372,12 @@ new_child({tone_detector, A, [Source], _}) ->
     #tone_detector{source = pcm_source(Source), type = Type, 
 			frequency = Freq, length = Len};
 
+new_child({wide_recorder, A, [Sink], _}) ->
+    [Span, ATag] = multiple_extract(A, ["span", {"tag", "0"}]),
+    #wide_recorder{span = Span, 
+		   tag = list_to_integer(ATag), 
+		   sink = udp_sink(Sink)};
+
 new_child(_) ->
     exit("new_without_job").
 
@@ -633,6 +639,12 @@ tcp_source({tcp_source, A, [], _}) ->
     {value, {_, Port}} = lists:keysearch("ip_port", 1, A),
     NPort = list_to_integer(Port),
     #tcp_source{address = ip_to_tuple(Address), port = NPort}.
+
+udp_sink({udp_sink, A, [], _}) ->
+    {value, {_, Address}} = lists:keysearch("ip_addr", 1, A),
+    {value, {_, Port}} = lists:keysearch("ip_port", 1, A),
+    NPort = list_to_integer(Port),
+    #udp_sink{address = ip_to_tuple(Address), port = NPort}.
 
 %% Name: string()
 %% Default: integer()

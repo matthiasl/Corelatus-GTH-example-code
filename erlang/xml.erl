@@ -19,12 +19,13 @@
 	 player/3, player/4,
 	 query_job/1,
 	 query_resource/1,
-	 recorder/4,
+	 recorder/4, recorder/5,
 	 reset/1,
 	 set/2, 
 	 tag/3, tag/2,
 	 takeover/1,
 	 tcp_sink/2, tcp_source/2,
+	 wide_recorder/4,
 	 zero_job/1,
 	 zero_resource/1]).
 
@@ -88,7 +89,10 @@ query_resource(Name) ->
     tag("query", [], tag("resource", [{"name", Name}])).
 
 recorder(Span, Timeslot, Host, Port) ->
-    new("recorder", [], [pcm_source(Span, Timeslot), tcp_sink(Host, Port)]).
+    recorder(Span, Timeslot, Host, Port, []).
+    
+recorder(Span, Timeslot, Host, Port, Opts) ->
+    new("recorder", Opts, [pcm_source(Span, Timeslot), tcp_sink(Host, Port)]).
 
 reset(Name) ->
     tag("reset", [], tag("resource", [{"name", Name}])).
@@ -123,6 +127,14 @@ tag(Name, Attrs, Child_text) ->
     ["<", Name,
      [ [" ", N, "=\"", stringify(V), "\""] || {N, V} <- Attrs],
      ">", Child_text, "</", Name, ">"].
+
+udp_sink(IP, Port) when is_integer(Port) ->
+    tag("udp_sink", [{"ip_addr", IP}, {"ip_port", integer_to_list(Port)}]).
+
+wide_recorder(Span, Host, Port, Tag) ->
+    new("wide_recorder", [{"span", Span}, {"tag", Tag}], 
+	[udp_sink(Host, Port)]).
+
 
 zero_job(Id) ->
     tag("zero", [], tag("job", [{"id", Id}])).

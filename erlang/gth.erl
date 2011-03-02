@@ -114,6 +114,7 @@
 	 new_ss5_linesig_monitor/3, new_ss5_linesig_monitor/4,
 	 new_ss5_registersig_monitor/3, new_ss5_registersig_monitor/4,
 	 new_tcp_player/3, new_tcp_player/4,
+	 new_wide_recorder/3,
 	 new_tone_detector/3, new_tone_detector/4,
 	 new_tone_detector/5, new_tone_detector/6,
 	 nop/1,
@@ -438,7 +439,7 @@ new_player(Pid, Clips, Span, Ts, Loop)
     gen_server:call(Pid, {new_player, Clips, Span, Ts, Loop}).
 
 %% The 'Raw_socket' is a socket in {packet, 0} mode, delivering timeslot data.
--spec new_recorder(pid(), string(), 1..31, keyval_list()) ->
+-spec new_recorder(pid(), string(), 0..31, keyval_list()) ->
 			  {ok, string(), Raw_socket::port()} | {error, any()}.
 new_recorder(Pid, Span, Ts) ->
     new_recorder(Pid, Span, Ts, []).
@@ -446,6 +447,11 @@ new_recorder(Pid, Span, Ts) ->
 new_recorder(Pid, Span, Ts, Options) 
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_recorder, Span, Ts, Options}).
+
+-spec new_wide_recorder(pid(), string(), integer()) -> 
+			       {ok, string(), UDP::port()} | {error, any()}.
+new_wide_recorder(Pid, Span, Tag) when is_pid(Pid) ->
+    gen_server:call(Pid, {new_wide_recorder, Span, Tag}).    
 
 -spec new_ss5_linesig_monitor(pid(), string(), 1..31, keyval_list()) ->
 				     {ok, string(), Signalling_socket::port()} 
@@ -959,9 +965,7 @@ handle_call({new_recorder, Span, Ts, Options},
 	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
     {Portno, L} = listen(),
-    ok = gth_apilib:send(S, xml:new("recorder", Options, 
-				    [xml:pcm_source(Span, Ts),
-				     xml:tcp_sink(Hostname, Portno)])),
+    ok = gth_apilib:send(S, xml:recorder(Span, Ts, Hostname, Portno, Options)),
 
     Reply = case receive_job_id(State) of
 		{error, Reason} ->
@@ -977,6 +981,26 @@ handle_call({new_recorder, Span, Ts, Options},
 		    end
     end,
     gen_tcp:close(L),
+    {reply, Reply, State};
+
+handle_call({new_wide_recorder, Span, Tag},
+	    {Pid, _tag},
+	    State = #state{socket = S, my_ip = Hostname}) ->
+
+    {ok, UDP} = gen_udp:open(0, [{active, false}]),
+    ok = gen_tcp:controlling_process(UDP, Pid),
+    {ok, Portno} = inet:port(UDP),
+
+    ok = gth_apilib:send(S, xml:wide_recorder(Span, Hostname, Portno, Tag)),
+
+    Reply = case receive_job_id(State) of
+		{error, Reason} ->
+		    gen_udp:close(UDP),
+		    {error, Reason};
+
+		{ok, Id} ->
+		    {ok, Id, UDP}
+	    end,
     {reply, Reply, State};
 
 handle_call(nop, _From, State = #state{socket = S}) ->

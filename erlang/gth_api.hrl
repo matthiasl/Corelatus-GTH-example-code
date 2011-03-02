@@ -54,6 +54,8 @@
 -record(tcp_source, {address, port}).
 -record(tcp_sink,   {address, port}).
 
+-record(udp_sink,   {address, port}).
+
 %% Switching
 -record(simplex_cx, {source, sink}).
 
@@ -154,12 +156,14 @@
 	  scramble                          % boolean()
 	 }).
 
--record(lapd_layer, {source, sink,          % #pcm_source, #pcm_sink (same ts)
-		     side,                  % network | user
-		     sapi, tei,             % integer()
-		     tag,                   % integer()
-		     ip_addr,               % string()
-		     ip_port}).             % integer()
+-record(lapd_layer, {source :: #pcm_source{}, 
+		     sink   :: #pcm_sink{}, 
+		     side   :: network | user,
+		     sapi   :: integer(),
+		     tei    :: integer(),
+		     tag    :: integer(),
+		     ip_addr:: string(),
+		     ip_port:: integer()}).
 
 %% Audio recording and playback.
 -record(audio_clip, {id}).
@@ -174,6 +178,12 @@
 		   nsync = 0                % undocumented hack for TLE
 		 }
 	).
+
+-record(wide_recorder, {span :: string(),               
+			sink :: #udp_sink{},
+			tag  :: 0..65536
+		       }
+       ).
 
 %% Other
 -record(conference, {id, sources}).
