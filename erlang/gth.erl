@@ -987,7 +987,7 @@ handle_call({new_wide_recorder, Span, Tag},
 	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
 
-    {ok, UDP} = gen_udp:open(0, [{active, false}]),
+    {ok, UDP} = gen_udp:open(0, [{active, false}, binary]),
     ok = gen_tcp:controlling_process(UDP, Pid),
     {ok, Portno} = inet:port(UDP),
 
