@@ -448,10 +448,14 @@ new_recorder(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_recorder, Span, Ts, Options}).
 
--spec new_wide_recorder(pid(), string(), integer()) -> 
-			       {ok, string(), UDP::port()} | {error, any()}.
-new_wide_recorder(Pid, Span, Tag) when is_pid(Pid) ->
-    gen_server:call(Pid, {new_wide_recorder, Span, Tag}).    
+%% Options: {"tag", integer()} 
+%%        | {udp_address, {inet:ip_address(), Port::integer()}}
+-spec new_wide_recorder(pid(), string(), keyval_list()) -> 
+			       {ok, string(), UDP::port()} 
+				   | {ok, string()}
+				   | {error, any()}.
+new_wide_recorder(Pid, Span, Options) when is_pid(Pid) ->
+    gen_server:call(Pid, {new_wide_recorder, Span, Options}).
 
 -spec new_ss5_linesig_monitor(pid(), string(), 1..31, keyval_list()) ->
 				     {ok, string(), Signalling_socket::port()} 
@@ -983,23 +987,40 @@ handle_call({new_recorder, Span, Ts, Options},
     gen_tcp:close(L),
     {reply, Reply, State};
 
-handle_call({new_wide_recorder, Span, Tag},
+handle_call({new_wide_recorder, Span, Options},
 	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
 
-    {ok, UDP} = gen_udp:open(0, [{active, false}, binary]),
-    ok = gen_tcp:controlling_process(UDP, Pid),
-    {ok, Portno} = inet:port(UDP),
+    {UDP_host, UDP_portno, UDP_port} 
+	= case proplists:get_value(udp_address, Options) of
+	      {{A,B,C,D}, Port} -> 
+		  {lists:flatten(io_lib:fwrite("~p.~p.~p.~p", [A,B,C,D])), 
+		   Port, none};
 
-    ok = gth_apilib:send(S, xml:wide_recorder(Span, Hostname, Portno, Tag)),
+	      {Host, Port} when is_list(Host) ->
+		  {Host, Port, none};
+
+	      undefined ->
+		  {ok, UDP} = gen_udp:open(0, [{active, false}, binary]),
+		  ok = gen_tcp:controlling_process(UDP, Pid),
+		  {ok, Portno} = inet:port(UDP),
+		  {Hostname, Portno, UDP}
+	  end,
+
+    Tag = proplists:get_value("tag", Options, 0),
+
+    ok = gth_apilib:send(S, xml:wide_recorder(Span, UDP_host, UDP_portno, Tag)),
 
     Reply = case receive_job_id(State) of
-		{error, Reason} ->
-		    gen_udp:close(UDP),
-		    {error, Reason};
+		{ok, Id} when UDP_port == none ->
+		    {ok, Id};
 
 		{ok, Id} ->
-		    {ok, Id, UDP}
+		    {ok, Id, UDP_port};
+
+		{error, Reason} ->
+		    catch gen_udp:close(UDP_port),
+		    {error, Reason}
 	    end,
     {reply, Reply, State};
 
