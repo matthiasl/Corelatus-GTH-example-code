@@ -43,22 +43,17 @@
 %% S: string()
 %% Return: {ok, #cmd_tuple} | {error, {Reason, Sub_reason}}
 string(S) ->
-    case catch (do_string(S)) of
-	{'EXIT', _Reason} ->
-	    error_logger:error_report(xml_command, {bad_command, S}),
-	    {error, {parse, malformed_XML}};
-
-	{error, Reason} ->
-	    error_logger:error_report(xml_command, {bad_command, S}),
-	    {error, Reason};
-	
+    try 
+	{[Tree], []} = gth_xml_scan:scan_and_parse(S),
+	#cmd_tuple{} = checked(Tree)
+    of
 	Cmd = #cmd_tuple{} ->
 	    {ok, Cmd}
+    catch
+	_:_ ->
+	    error_logger:error_report(xml_command, {bad_command, S}),
+	    {error, {parse, malformed_XML}}
     end.
-
-do_string(S) ->
-    {[Tree], []} = gth_xml_scan:scan_and_parse(S),
-    #cmd_tuple{} = checked(Tree).
 
 %%======================================================================
 %% Checker.
