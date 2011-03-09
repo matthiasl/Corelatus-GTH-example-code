@@ -181,7 +181,8 @@
 
 -record(wide_recorder, {span :: string(),               
 			sink :: #udp_sink{},
-			tag  :: 0..65536
+			tag  :: 0..65536,
+			opts :: []
 		       }
        ).
 
