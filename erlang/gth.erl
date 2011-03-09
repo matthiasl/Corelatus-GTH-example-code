@@ -3,7 +3,7 @@
 %%% Author  : matthias <matthias@corelatus.se>
 %%% Description : An Erlang wrapper for the XML API on a Corelatus GTH.
 %%%
-%%%               A corelatus GTH is a T1/E1 device which can do pretty 
+%%%               A corelatus GTH is a T1/E1 device which can do pretty
 %%%               much anything with a T1/E1 line: detect tones, switch
 %%%               timeslots, decode signalling, play recorded messages, etc.
 %%%
@@ -21,17 +21,17 @@
 %%%                  </mtp2_monitor></new>
 %%%
 %%%               is implemented by the function new_mtp2_monitor/3. The
-%%%               options all have the same names and values as in the 
+%%%               options all have the same names and values as in the
 %%%               XML API, but they're coded as lists of tuples. So for
-%%%               instance the option attributes in 
+%%%               instance the option attributes in
 %%%
 %%%                  <mtp2_monitor msu='yes' tag='13'>
 %%%
-%%%               are passed to this code as 
+%%%               are passed to this code as
 %%%
 %%%                  [{"msu", "yes"}, {"tag", 13}]
 %%%
-%%% Example: starting MTP-2 monitoring 
+%%% Example: starting MTP-2 monitoring
 %%%
 %%%     41> {ok, A} = gth:start_link("172.16.2.7").
 %%%         {ok,<0.188.0>}
@@ -66,7 +66,7 @@
 %%%     * Neither the name of Corelatus nor the
 %%%       names of its contributors may be used to endorse or promote products
 %%%       derived from this software without specific prior written permission.
-%%% 
+%%%
 %%% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY EXPRESS
 %%% OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %%% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -81,7 +81,7 @@
 %%%
 %%%
 %%% To do: edoc-ify this module
-%%% 
+%%%
 %%%-------------------------------------------------------------------
 -module(gth).
 -behaviour(gen_server).
@@ -134,8 +134,8 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 	 terminate/2, code_change/3]).
 
--record(state, 
-	{socket :: port() | none, 
+-record(state,
+	{socket :: port() | none,
 	 debug_remote_ip,
 
 	 %% pre-opened listen socket for players
@@ -158,7 +158,7 @@
 -type keyval_list()::[{Key::atom() | string(), Value::any()}].
 -type event_handler()::'default' | pid().
 -type timeslot_or_timeslot_list()::1..31 | [1..31].
--type subrate()::{'subrate', Timeslot::1..31, First_bit::0..7, 
+-type subrate()::{'subrate', Timeslot::1..31, First_bit::0..7,
 		  Bandwidth::integer()}.
 -type hostname_or_address()::inet:hostname() | inet:ip_address().
 
@@ -187,7 +187,7 @@ start_link(Host) ->
 %% us to fail without a crash when the remote socket can't be opened.
 -spec start_link( hostname_or_address(), keyval_list()) ->
 			{'ok', pid()} | {'error', _}.
-start_link(Host, Options) 
+start_link(Host, Options)
   when is_list(Options) ->
     Default = [{gth_ip, Host},
 	       {connect_timeout, 5000},
@@ -196,10 +196,10 @@ start_link(Host, Options)
 
     Timeout = proplists:get_value(connect_timeout, Options ++ Default),
 
-    case gen_tcp:connect(Host, 'GTH_API_PORT'(), 
+    case gen_tcp:connect(Host, 'GTH_API_PORT'(),
 			 [{active, false}, binary, {packet, line}], Timeout) of
-	{ok, S} -> 
-	    case gen_server:start_link(?MODULE, 
+	{ok, S} ->
+	    case gen_server:start_link(?MODULE,
 				       [{socket, S}|Options]++ Default, []) of
 		{ok, Pid} ->
 		    ok = gen_tcp:controlling_process(S, Pid),
@@ -215,7 +215,7 @@ start_link(Host, Options)
     end.
 
 -spec bye(pid()) -> 'ok'.
-		 
+		
 %% Terminate gracefully.
 bye(Pid)
   when is_pid(Pid) ->
@@ -226,19 +226,19 @@ bye(Pid)
 -spec custom(pid(), string(), keyval_list()) -> ok_or_error().
 custom(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Name), is_list(Attributes) ->
-    gen_server:call(Pid, {custom, Name, Attributes}).    
+    gen_server:call(Pid, {custom, Name, Attributes}).
 
 -spec delete(pid(), string()) -> ok_or_error().
-delete(Pid, Id) 
+delete(Pid, Id)
   when is_pid(Pid), is_list(Id) ->
     gen_server:call(Pid, {delete, Id}).
 
 -spec get_ip(pid()) -> {ok, inet:ip_address()}.
-get_ip(Pid) 
+get_ip(Pid)
   when is_pid(Pid) ->
     gen_server:call(Pid, get_ip).
 
-%% Install_fun = fun() -> {binary(), fun() | eof} 
+%% Install_fun = fun() -> {binary(), fun() | eof}
 %%
 %% If called with a fun() as the third argument, the install process
 %% will call fun() to obtain some data and a new fun, and then call the
@@ -252,57 +252,57 @@ install(Pid, Name, Bin_or_fun)
 %% Options = {string(), integer() | string()}
 %%         | {reuse_socket, port()}
 
--spec new_cas_r2_mfc_detector(pid(), string(), 1..31, 
+-spec new_cas_r2_mfc_detector(pid(), string(), 1..31,
 			      Direction::'forward' | 'backward',
 			      keyval_list()) ->
 				     {ok, string(), port()} | {'error', any()}.
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction) ->
-    new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, []). 
-new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options) 
-  when is_pid(Pid), 
+    new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, []).
+new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
+  when is_pid(Pid),
        is_integer(Timeslot),
        is_atom(Direction),
        is_list(Options) ->
-    gen_server:call(Pid, {new_cas_r2_mfc_detector, Span, Timeslot, 
+    gen_server:call(Pid, {new_cas_r2_mfc_detector, Span, Timeslot,
 			  Direction, Options}).
 
--spec new_cas_r2_linesig_monitor(pid(), string(), 1..31, 
+-spec new_cas_r2_linesig_monitor(pid(), string(), 1..31,
 				 keyval_list()) ->
-					{ok, string(), port()} 
+					{ok, string(), port()}
 					    | {'error', any()}.
 new_cas_r2_linesig_monitor(Pid, Span, Timeslot) ->
-    new_cas_r2_linesig_monitor(Pid, Span, Timeslot, []). 
-new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options) 
+    new_cas_r2_linesig_monitor(Pid, Span, Timeslot, []).
+new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options)
   when is_pid(Pid), is_integer(Timeslot), is_list(Options) ->
     gen_server:call(Pid, {new_cas_r2_linesig_monitor, Span, Timeslot, Options}).
- 
+
 -spec new_clip(pid(), string(), binary() | iolist()) -> id_or_error().
-new_clip(Pid, Name, Bin) 
+new_clip(Pid, Name, Bin)
   when is_pid(Pid), is_binary(Bin) ->
     gen_server:call(Pid, {new_clip, Name, Bin});
 
-new_clip(Pid, Name, List) 
+new_clip(Pid, Name, List)
   when is_list(List) ->
     new_clip(Pid, Name, list_to_binary(List)).
 
 -spec new_connection(pid(), string(), 1..31, string(), 1..31) ->
 			    id_or_error().
-new_connection(Pid, S_span, S_ts, D_span, D_ts) 
+new_connection(Pid, S_span, S_ts, D_span, D_ts)
   when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
     gen_server:call(Pid, {new_connection, S_span, S_ts, D_span, D_ts}).
 
-new_connection(Pid, S_span, S_ts, D_IP, D_span, D_ts) 
+new_connection(Pid, S_span, S_ts, D_IP, D_span, D_ts)
   when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
     gen_server:call(Pid, {new_connection, S_span, S_ts, D_IP, D_span, D_ts}).
 
 %% EBS is experimental and not formally supported. (Checked 2008-10-14)
 -spec new_ebs(pid(), [string()]) -> id_or_error().
-new_ebs(Pid, IPs = [H|_]) 
+new_ebs(Pid, IPs = [H|_])
   when is_pid(Pid), is_list(H) ->
     gen_server:call(Pid, {new_ebs, IPs}).
 
--spec new_lapd_layer(pid(), 
-		     Span::string(), 
+-spec new_lapd_layer(pid(),
+		     Span::string(),
 		     Timeslot::1..31,
 		     Side::user|network,
 		     SAPI_TEI::{byte(), byte()},
@@ -310,9 +310,9 @@ new_ebs(Pid, IPs = [H|_])
 		     Options::keyval_list()) ->
 			    {ok, string(), port()} | {error, any()}.
 new_lapd_layer(Pid, Span, Ts, Side, SAPI_TEI, Tag) ->
-    new_lapd_layer(Pid, Span, Ts, Side, SAPI_TEI, Tag, []).    
-new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options) 
-  when is_pid(Pid), is_integer(Ts), is_atom(Side), is_integer(SAPI), 
+    new_lapd_layer(Pid, Span, Ts, Side, SAPI_TEI, Tag, []).
+new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options)
+  when is_pid(Pid), is_integer(Ts), is_atom(Side), is_integer(SAPI),
        is_integer(TEI), is_integer(Tag), is_list(Options) ->
     gen_server:call(Pid, {new_lapd_layer, Span, Ts, Side, {SAPI, TEI},
 			  Tag, Options}).
@@ -321,29 +321,29 @@ new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options)
 %%
 %% Signalling_socket: a socket in {packet, 2} mode
 %%
-%% Options: all of the XML options, except ip_port and ip_addr, 
-%%          plus {reuse_socket, S}. 
+%% Options: all of the XML options, except ip_port and ip_addr,
+%%          plus {reuse_socket, S}.
 %%
 %% The reuse_socket option sends the signalling to an existing socket
 %% instead of opening a new one.
 new_mtp2_monitor(Pid, Span, Ts) ->
     new_mtp2_monitor(Pid, Span, Ts, []).
 
--spec new_mtp2_monitor(pid(), string(), 
-		       timeslot_or_timeslot_list() | subrate(), 
+-spec new_mtp2_monitor(pid(), string(),
+		       timeslot_or_timeslot_list() | subrate(),
 		       keyval_list()) ->
 			      {'ok', string(), port()} | {'error', any()}.
-new_mtp2_monitor(Pid, Span, Ts, Options) 
+new_mtp2_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_mtp2_monitor, Span, Ts, Options}).
 
 new_lapd_monitor(Pid, Span, Ts) ->
     new_lapd_monitor(Pid, Span, Ts, []).
--spec new_lapd_monitor(pid(), string(), 
-		       1..31 | subrate(), 
+-spec new_lapd_monitor(pid(), string(),
+		       1..31 | subrate(),
 		       keyval_list()) ->
 			      {'ok', string(), port()} | {'error', any()}.
-new_lapd_monitor(Pid, Span, Ts, Options) 
+new_lapd_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_lapd_monitor, Span, Ts, Options}).
 
@@ -351,13 +351,13 @@ new_lapd_monitor(Pid, Span, Ts, Options)
 new_level_detector(Pid, Span, Ts, Threshold) ->
     new_level_detector(Pid, Span, Ts, Threshold, [], default).
 
--spec new_level_detector(pid(), string(), 1..31, -100..6, keyval_list(), 
-			 event_handler()) -> 
+-spec new_level_detector(pid(), string(), 1..31, -100..6, keyval_list(),
+			 event_handler()) ->
 				{'ok', string()} | {'error', any()}.
-new_level_detector(Pid, Span, Ts, Threshold, Options, EH) 
+new_level_detector(Pid, Span, Ts, Threshold, Options, EH)
   when is_pid(Pid), is_integer(Ts), is_integer(Threshold), is_list(Options),
        ?IS_VALID_EVENT_HANDLER(EH) ->
-    gen_server:call(Pid, {new_level_detector, Span, Ts, Threshold, 
+    gen_server:call(Pid, {new_level_detector, Span, Ts, Threshold,
 			  Options, EH}).
 
 -spec new_atm_aal0_monitor(pid(), string(), [1..31], keyval_list()) ->
@@ -366,26 +366,26 @@ new_level_detector(Pid, Span, Ts, Threshold, Options, EH)
 new_atm_aal0_monitor(Pid, Span, Timeslots) ->
     new_atm_aal0_monitor(Pid, Span, Timeslots, []).
 
-new_atm_aal0_monitor(Pid, Span, Timeslots, Options) 
+new_atm_aal0_monitor(Pid, Span, Timeslots, Options)
   when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
     gen_server:call(Pid, {new_atm_aal0_monitor, Span, Timeslots, Options}).
 
--spec new_atm_aal2_monitor(pid(), string(), [1..31], 
-			   {VPI::integer(), VCI::integer()}, 
+-spec new_atm_aal2_monitor(pid(), string(), [1..31],
+			   {VPI::integer(), VCI::integer()},
 			   keyval_list()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
 new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}) ->
     new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}, []).
 
-new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options) 
+new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
   when is_pid(Pid), is_list(Timeslots), is_integer(VPI), is_integer(VCI) ->
-    gen_server:call(Pid, 
-		    {new_atm_aal2_monitor, 
+    gen_server:call(Pid,
+		    {new_atm_aal2_monitor,
 		     Span, Timeslots, {VPI, VCI}, Options}).
 
--spec new_atm_aal5_monitor(pid(), string(), [1..31], 
-			   {VPI::integer(), VCI::integer()}, 
+-spec new_atm_aal5_monitor(pid(), string(), [1..31],
+			   {VPI::integer(), VCI::integer()},
 			   keyval_list()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
@@ -393,14 +393,14 @@ new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}) ->
     new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, []).
 
-new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options) 
+new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
   when is_pid(Pid),
        is_list(Timeslots),
        is_integer(VPI),
        is_integer(VCI),
        is_list(Options) ->
-    gen_server:call(Pid, 
-		    {new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, 
+    gen_server:call(Pid,
+		    {new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI},
 		     Options}).
 
 -spec new_fr_monitor(pid(), string(), [1..31], keyval_list()) ->
@@ -408,21 +408,21 @@ new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 				| {error, any()}.
 new_fr_monitor(Pid, Span, Timeslots) ->
     new_fr_monitor(Pid, Span, Timeslots, []).
-new_fr_monitor(Pid, Span, Timeslots, Options) 
+new_fr_monitor(Pid, Span, Timeslots, Options)
   when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
     gen_server:call(Pid, {new_fr_monitor, Span, Timeslots, Options}).
 
 %% Frame relay layers are undocumented and unsupported (checked 2008-05-10).
-new_fr_layer(Pid, Span, Timeslots) 
+new_fr_layer(Pid, Span, Timeslots)
   when is_pid(Pid), is_list(Timeslots) ->
     gen_server:call(Pid, {new_fr_layer, Span, Timeslots}).
 
 %% ATM layers are undocumented and unsupported (checked 2008-05-12).
 new_atm_aal0_layer(Pid, Span, Timeslots) ->
     new_atm_aal0_layer(Pid, Span, Timeslots, []).
-new_atm_aal0_layer(Pid, Span, Timeslots, Options) 
+new_atm_aal0_layer(Pid, Span, Timeslots, Options)
   when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
-    gen_server:call(Pid, {new_atm_aal0_layer, Span, Timeslots, Options}).    
+    gen_server:call(Pid, {new_atm_aal0_layer, Span, Timeslots, Options}).
 
 %% Return: {ok, Id} | {error, Reason}
 -spec new_player(pid(), Clips::[string()], Span::string(), Ts::1..31) ->
@@ -430,8 +430,8 @@ new_atm_aal0_layer(Pid, Span, Timeslots, Options)
 new_player(Pid, Clips, Span, Ts) ->
     new_player(Pid, Clips, Span, Ts, false).
 
-new_player(Pid, Clips, Span, Ts, Loop) 
-  when is_pid(Pid), 
+new_player(Pid, Clips, Span, Ts, Loop)
+  when is_pid(Pid),
        is_boolean(Loop),
        is_integer(Ts),
        is_list(Clips),
@@ -444,31 +444,31 @@ new_player(Pid, Clips, Span, Ts, Loop)
 new_recorder(Pid, Span, Ts) ->
     new_recorder(Pid, Span, Ts, []).
 
-new_recorder(Pid, Span, Ts, Options) 
+new_recorder(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_recorder, Span, Ts, Options}).
 
-%% Options: {"tag", integer()} 
+%% Options: {"tag", integer()}
 %%        | {udp_address, {inet:ip_address(), Port::integer()}}
--spec new_wide_recorder(pid(), string(), keyval_list()) -> 
-			       {ok, string(), UDP::port()} 
+-spec new_wide_recorder(pid(), string(), keyval_list()) ->
+			       {ok, string(), UDP::port()}
 				   | {ok, string()}
 				   | {error, any()}.
 new_wide_recorder(Pid, Span, Options) when is_pid(Pid) ->
     gen_server:call(Pid, {new_wide_recorder, Span, Options}).
 
 -spec new_ss5_linesig_monitor(pid(), string(), 1..31, keyval_list()) ->
-				     {ok, string(), Signalling_socket::port()} 
+				     {ok, string(), Signalling_socket::port()}
 					 | {error, any()}.
 new_ss5_linesig_monitor(Pid, Span, Ts) ->
     new_ss5_linesig_monitor(Pid, Span, Ts, []).
 
-new_ss5_linesig_monitor(Pid, Span, Ts, Options) 
+new_ss5_linesig_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_ss5_linesig_monitor, Span, Ts, Options}).
 
 -spec new_ss5_registersig_monitor(pid(), string(), 1..31, keyval_list()) ->
-				     {ok, string(), Signalling_socket::port()} 
+				     {ok, string(), Signalling_socket::port()}
 					 | {error, any()}.
 new_ss5_registersig_monitor(Pid, Span, Ts) ->
     new_ss5_registersig_monitor(Pid, Span, Ts, []).
@@ -483,24 +483,24 @@ new_ss5_registersig_monitor(Pid, Span, Ts, Options)
 new_tcp_player(Pid, Span, Ts) ->
     new_tcp_player(Pid, Span, Ts, []).
 
-new_tcp_player(Pid, Span, Ts, Options) 
+new_tcp_player(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_tcp_player, Span, Ts, Options}).
 
-%% Whenever a tone is detected, {tone, self(), {Id, Name, Length}} is 
+%% Whenever a tone is detected, {tone, self(), {Id, Name, Length}} is
 %% sent to the event handler, by default the calling process.
 -spec new_tone_detector(pid(), string(), 1..31, event_handler()) ->
 			       id_or_error().
 new_tone_detector(Pid, Span, Ts) ->
     new_tone_detector(Pid, Span, Ts, default).
-    
+
 new_tone_detector(Pid, Span, Ts, Event_handler)
   when is_pid(Pid), is_integer(Ts),
        ?IS_VALID_EVENT_HANDLER(Event_handler) ->
     gen_server:call(Pid, {new_tone_detector, Span, Ts, Event_handler}).
 
--spec new_tone_detector(pid(), 
-			string(), 1..31, 
+-spec new_tone_detector(pid(),
+			string(), 1..31,
 			Freq::integer(),   %% Hertz
 			Length::integer(), %% milliseconds
 			event_handler()) ->
@@ -508,9 +508,9 @@ new_tone_detector(Pid, Span, Ts, Event_handler)
 new_tone_detector(Pid, Span, Ts, Freq, Length) ->
     new_tone_detector(Pid, Span, Ts, Freq, Length, default).
 
-new_tone_detector(Pid, Span, Ts, Freq, Length, Event_handler) 
+new_tone_detector(Pid, Span, Ts, Freq, Length, Event_handler)
   when is_pid(Pid), Freq > 0, Freq < 4000,  Length > 40, Length < 10000 ->
-    gen_server:call(Pid, {new_tone_detector, Span, Ts, Freq, Length, 
+    gen_server:call(Pid, {new_tone_detector, Span, Ts, Freq, Length,
 			  Event_handler}).
 
 -spec nop(pid()) ->  ok_or_error().
@@ -518,7 +518,7 @@ nop(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, nop).
 
 -spec query_job(pid(), string()) ->
-		       {ok, {job, ID::string(), Owner::string(), 
+		       {ok, {job, ID::string(), Owner::string(),
 			     keyval_list() | [string()]}}
 			   | {error, any()}.
 query_job(Pid, Id) when is_pid(Pid) ->
@@ -529,7 +529,7 @@ query_job(Pid, Id) when is_pid(Pid) ->
 				| {ok, [Name::string()]}        % "inventory"
 				| {ok, keyval_list(), binary()} % log queries
 				| {error, any()}.
-%% This uses a timeout of 15s. When fetching logs over a slow link, that 
+%% This uses a timeout of 15s. When fetching logs over a slow link, that
 %% won't be enough. Why are you using a slow link?
 query_resource(Pid, Name) when is_pid(Pid) ->
     gen_server:call(Pid, {query_resource, Name}, 15000).
@@ -546,12 +546,12 @@ query_resource(Pid, Name, Attribute) when is_pid(Pid) ->
     end.
 
 %% Undocumented. Used for testing incorrect API commands.
--spec raw_xml(pid(), binary() | iolist()) -> any().		     
+-spec raw_xml(pid(), binary() | iolist()) -> any().		
 raw_xml(Pid, XML) when is_pid(Pid) ->
     gen_server:call(Pid, {raw_xml, XML}, 17000).
 
 -spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
-set(Pid, Name, Attributes) 
+set(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Attributes) ->
     gen_server:call(Pid, {set, Name, Attributes}).
 
@@ -562,13 +562,13 @@ reset(Pid) when is_pid(Pid) ->
 -spec takeover(pid(), IDs::[string()]) -> ok_or_error().
 takeover(_Pid, []) ->
     ok;
-takeover(Pid, IDs = [H|_]) 
+takeover(Pid, IDs = [H|_])
   when is_pid(Pid), is_list(H) ->
     gen_server:call(Pid, {takeover, IDs}).
 
--spec update(pid(), ID::string(), Attributes::keyval_list() | [string()]) -> 
+-spec update(pid(), ID::string(), Attributes::keyval_list() | [string()]) ->
 		    ok_or_error().
-update(Pid, ID, Attributes) 
+update(Pid, ID, Attributes)
   when is_pid(Pid), is_list(ID), is_list(Attributes) ->
     gen_server:call(Pid, {update, ID, Attributes}).
 
@@ -579,7 +579,7 @@ zero_job(Pid, Id) when is_pid(Pid) ->
 -spec zero_resource(pid(), ID::string()) -> ok_or_error().
 zero_resource(Pid, Name) when is_pid(Pid) ->
     gen_server:call(Pid, {zero_resource, Name}).
-    
+
 %%====================================================================
 %% gen_server callbacks
 
@@ -594,19 +594,19 @@ init(Options) ->
     ?IS_VALID_EVENT_HANDLER(RET) orelse exit(badarg),
 
     {ok, {Addr, _Port}} = inet:sockname(S),
-    IP = tl(lists:flatten(["." ++ integer_to_list(X) 
+    IP = tl(lists:flatten(["." ++ integer_to_list(X)
 			   || X <- tuple_to_list(Addr)])),
 
     erlang:send_after(?KICK_INTERVAL, self(), kick),
-        
+
     State = #state{my_ip = IP,
 		   debug_remote_ip = Hostname,
 		   player_ls = listen(),
-		   socket = S, 
+		   socket = S,
 		   event_dict = dict:new(),
 		   job_event_target = JET,
 		   resource_event_target = RET},
-    
+
     {ok, State}.
 
 handle_call(bye, _From, State) ->
@@ -629,7 +629,7 @@ handle_call({delete, Id}, _From, State = #state{socket=S, event_dict=Dict}) ->
 
 handle_call(get_ip, _From, State = #state{socket = S}) ->
     I = case inet:peername(S) of
-	    {ok, {IP, _Port}} -> 
+	    {ok, {IP, _Port}} ->
 		IP;
 
 	    X ->
@@ -644,10 +644,10 @@ handle_call(get_ip, _From, State = #state{socket = S}) ->
 		%% sockets when they've just sent a message, which is why the
 		%% sleep-and-try again approach usually works.
 		io:fwrite("Impossible. Peername reported ~p. Retrying.\n", [X]),
-		receive 
+		receive
 		    Y -> io:fwrite("had ~p in the queue\n", [Y])
-		after 0 -> 
-			ok 
+		after 0 ->
+			ok
 		end,
 		timer:sleep(1000),
 		{ok, {IP, _Port}} = inet:peername(S),
@@ -669,39 +669,39 @@ handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
 	    ok = gen_tcp:send(S, gth_apilib:header(Type, Length)),
 	    stream_install(S, Fun)
     end,
-				 
+				
     Reply = expect_ok(State#state{command_timeout = 60000}),
     {reply, Reply, State};
 
-handle_call({new_atm_aal0_monitor, Span, Timeslots, Options}, 
+handle_call({new_atm_aal0_monitor, Span, Timeslots, Options},
 	    {Pid, _tag}, State) ->
-    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots,
 				   "atm_aal0_monitor", Options),
     {reply, Reply, State};
 
-handle_call({new_atm_aal2_monitor, Span, Timeslots, {VPI, VCI}, User_options}, 
+handle_call({new_atm_aal2_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 	    {Pid, _tag}, State) ->
     Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
-    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots,
 				   "atm_aal2_monitor", Options),
     {reply, Reply, State};
 
-handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options}, 
+handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 	    {Pid, _tag}, State) ->
     Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
-    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots,
 				   "atm_aal5_monitor", Options),
     {reply, Reply, State};
 
-handle_call({new_atm_aal0_layer, Span, Timeslots, User_options}, 
-	    {Pid, _tag}, 	    
+handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
+	    {Pid, _tag}, 	
 	    State = #state{socket = S, my_ip = Hostname}) ->
     Options = User_options ++ [{"scramble", "true"}],
     Scramble = proplists:get_value("scramble", Options),
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
     Sinks = [xml:pcm_sink(Span, Ts) || Ts <- Timeslots ],
-    ok = gth_apilib:send(S, xml:new("atm_aal0_layer", 
+    ok = gth_apilib:send(S, xml:new("atm_aal0_layer",
 				    [{"ip_addr", Hostname},
 				     {"ip_port", Portno},
 				     {"scramble", Scramble}],
@@ -717,18 +717,18 @@ handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
     ok = gen_tcp:close(L),
     {reply, Reply, State};
 
-handle_call({new_cas_r2_mfc_detector, Span, Ts, Direction, User_options}, 
+handle_call({new_cas_r2_mfc_detector, Span, Ts, Direction, User_options},
 	    {Pid, _tag}, State) ->
     Options = case Direction of
 		  forward -> [{"direction", "forward"}];
 		  backward -> [{"direction", "backward"}]
 	      end,
-    Reply = new_signalling_monitor(Pid, State, Span, Ts, "cas_r2_mfc_detector", 
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "cas_r2_mfc_detector",
 				   Options ++ User_options),
     {reply, Reply, State};
 
 handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
-    Reply = new_signalling_monitor(Pid, State, Span, Ts, 
+    Reply = new_signalling_monitor(Pid, State, Span, Ts,
 				   "cas_r2_linesig_monitor", Options),
     {reply, Reply, State};
 
@@ -738,8 +738,8 @@ handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_connection, S_span, S_ts, D_IP, D_span, D_ts}, 
-	    _From, 
+handle_call({new_connection, S_span, S_ts, D_IP, D_span, D_ts},
+	    _From,
 	    State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:new("connection", [],
 				    [xml:pcm_source(S_span, S_ts),
@@ -747,8 +747,8 @@ handle_call({new_connection, S_span, S_ts, D_IP, D_span, D_ts},
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_connection, S_span, S_ts, D_span, D_ts}, 
-	    _From, 
+handle_call({new_connection, S_span, S_ts, D_span, D_ts},
+	    _From,
 	    State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:new("connection", [],
 				    [xml:pcm_source(S_span, S_ts),
@@ -762,19 +762,19 @@ handle_call({new_ebs, IPs}, _From, State = #state{socket = S}) ->
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_fr_monitor, Span, Timeslots, Options}, 
+handle_call({new_fr_monitor, Span, Timeslots, Options},
 	    {Pid, _tag}, State) ->
-    Reply = new_signalling_monitor(Pid, State, Span, Timeslots, 
+    Reply = new_signalling_monitor(Pid, State, Span, Timeslots,
 				   "fr_monitor", Options),
     {reply, Reply, State};
 
-handle_call({new_fr_layer, Span, Timeslots}, 
-	    {Pid, _tag}, 	    
+handle_call({new_fr_layer, Span, Timeslots},
+	    {Pid, _tag}, 	
 	    State = #state{socket = S, my_ip = Hostname}) ->
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
     Sinks = [xml:pcm_sink(Span, Ts) || Ts <- Timeslots ],
-    ok = gth_apilib:send(S, xml:new("fr_layer", 
+    ok = gth_apilib:send(S, xml:new("fr_layer",
 				    [{"ip_addr", Hostname},
 				     {"ip_port", Portno}],
 				    [Sources, Sinks])),
@@ -792,7 +792,7 @@ handle_call({new_fr_layer, Span, Timeslots},
     {reply, Reply, State};
 
 
-handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options}, 
+handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 	    {Pid, _tag}, State = #state{socket = S, my_ip = Hostname}) ->
 
     Source_sink = [xml:pcm_source(Span, Ts), xml:pcm_sink(Span, Ts)],
@@ -802,14 +802,14 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 	    {Portno, L} = listen([{packet, 2}]),
 
 	    ok = gth_apilib:send(S, xml:new(
-				      "lapd_layer", 
+				      "lapd_layer",
 				      [{"ip_addr", Hostname},
 				       {"ip_port", Portno},
 				       {"side", atom_to_list(Side)},
 				       {"sapi", SAPI},
 				       {"tag", Tag},
 				       {"tei",  TEI}|Options], Source_sink)),
-	    
+	
 	    case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
@@ -825,8 +825,8 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 	    {ok, Portno} = inet:port(D),
 
 	    ok = gth_apilib:send(S, xml:new(
-				      "lapd_layer", 
-				      [{"ip_addr", Hostname}, 
+				      "lapd_layer",
+				      [{"ip_addr", Hostname},
 				       {"ip_port", Portno},
 				       {"tag", Tag},
 				       {"side", atom_to_list(Side)},
@@ -846,11 +846,11 @@ handle_call({new_lapd_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Ts, "lapd_monitor", Opts),
     {reply, Reply, State};
 
-handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From, 
+handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From,
 	    State = #state{socket = S,
-			   event_dict = ED, 
+			   event_dict = ED,
 			   job_event_target = JET}) ->
-    
+
     Attrs = case proplists:get_value("type", Options ++ [{"type", "both"}]) of
 		"backwards_compatible" ->
 		    [{"level", Threshold}];
@@ -863,13 +863,13 @@ handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From,
 			   Period -> [{"period", Period}|Attrs]
 		       end,
 
-    ok = gth_apilib:send(S, xml:new("level_detector", Attrs_and_period, 
+    ok = gth_apilib:send(S, xml:new("level_detector", Attrs_and_period,
 				    xml:pcm_source(Span, Ts))),
-	    
+	
     case receive_job_id(State) of
 	{ok, Job} ->
 	    New_ED = case EH of
-			 default -> 
+			 default ->
 			     dict:store(Job, JET, ED);
 			 _ ->
 			     dict:store(Job, EH, ED)
@@ -884,8 +884,8 @@ handle_call({new_mtp2_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Ts, "mtp2_monitor", Opts),
     {reply, Reply, State};
 
-handle_call({new_player, Clips, Span, Ts, Loop}, 
-	    _From, 
+handle_call({new_player, Clips, Span, Ts, Loop},
+	    _From,
 	    State = #state{socket = S}) ->
     Attrs = [{"loop", atom_to_list(Loop)}],
     ok = gth_apilib:send(S, xml:player(Clips, Attrs, Span, Ts)),
@@ -893,29 +893,29 @@ handle_call({new_player, Clips, Span, Ts, Loop},
     {reply, Reply, State};
 
 handle_call({new_ss5_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
-    Reply = new_signalling_monitor(Pid, State, Span, Ts, "ss5_linesig_monitor", 
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "ss5_linesig_monitor",
 				   Options),
     {reply, Reply, State};
 
-handle_call({new_ss5_registersig_monitor, Span, Ts, Options}, 
+handle_call({new_ss5_registersig_monitor, Span, Ts, Options},
 	    {Pid, _}, State) ->
-    Rep = new_signalling_monitor(Pid, State, Span, Ts, 
+    Rep = new_signalling_monitor(Pid, State, Span, Ts,
 				 "ss5_registersig_monitor", Options),
     {reply, Rep, State};
 
 handle_call({new_tcp_player, Span, Ts, Options},
-	    {Pid, _}, 	    
-	    State = #state{socket = S, my_ip = Hostname, 
+	    {Pid, _}, 	
+	    State = #state{socket = S, my_ip = Hostname,
 			   player_ls = {Portno, L}}) ->
-    
-    ok = gth_apilib:send(S, xml:new("player", Options, 
+
+    ok = gth_apilib:send(S, xml:new("player", Options,
 				    [xml:tcp_source(Hostname, Portno),
 				     xml:pcm_sink(Span, Ts)])),
 
     Reply = case receive_job_id(State) of
-		{error, Reason} -> 
+		{error, Reason} ->
 		    {error, Reason};
-		{ok, Job} -> 		  
+		{ok, Job} -> 		
 		    {ok, Data} = gen_tcp:accept(L, 1000),
 		    ok = gen_tcp:controlling_process(Data, Pid),
 		    {ok, Job, Data}
@@ -924,17 +924,17 @@ handle_call({new_tcp_player, Span, Ts, Options},
     {reply, Reply, State};
 
 handle_call({new_tone_detector, Span, Ts, Event_handler},
-	    _From, 	    
-	    State = #state{socket = S, 
-			   event_dict = ED, 
+	    _From, 	
+	    State = #state{socket = S,
+			   event_dict = ED,
 			   job_event_target = JET}) ->
 
-    ok = gth_apilib:send(S, xml:new("tone_detector", [], 
+    ok = gth_apilib:send(S, xml:new("tone_detector", [],
 				    xml:pcm_source(Span, Ts))),
     case receive_job_id(State) of
 	{ok, Id} ->
 	    New_ED = case Event_handler of
-			 default -> 
+			 default ->
 			     dict:store(Id, JET, ED);
 			 _ ->
 			     dict:store(Id, Event_handler, ED)
@@ -950,14 +950,14 @@ handle_call({new_tone_detector, Span, Ts, Freq, Length, Event_handler},
 	    State = #state{socket = S,
 			   event_dict = ED,
 			   job_event_target = JET}) ->
-    ok = gth_apilib:send(S, xml:new("tone_detector", 
-				    [{"type", "custom"}, 
+    ok = gth_apilib:send(S, xml:new("tone_detector",
+				    [{"type", "custom"},
 				     {"frequency", Freq},
-				     {"length", Length}], 
+				     {"length", Length}],
 				    xml:pcm_source(Span, Ts))),
     {ok, Id} = receive_job_id(State),
     New_ED = case Event_handler of
-		 default -> 
+		 default ->
 		     dict:store(Id, JET, ED);
 		 _ ->
 		     dict:store(Id, Event_handler, ED)
@@ -991,10 +991,10 @@ handle_call({new_wide_recorder, Span, Options},
 	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
 
-    {UDP_host, UDP_portno, UDP_port} 
+    {UDP_host, UDP_portno, UDP_port}
 	= case proplists:get_value(udp_address, Options) of
-	      {{A,B,C,D}, Port} -> 
-		  {lists:flatten(io_lib:fwrite("~p.~p.~p.~p", [A,B,C,D])), 
+	      {{A,B,C,D}, Port} ->
+		  {lists:flatten(io_lib:fwrite("~p.~p.~p.~p", [A,B,C,D])),
 		   Port, none};
 
 	      {Host, Port} when is_list(Host) ->
@@ -1031,15 +1031,15 @@ handle_call(nop, _From, State = #state{socket = S}) ->
 
 handle_call({query_job, Id}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_job(Id)),
-    #resp_tuple{name='state', children=[C]} 
+    #resp_tuple{name='state', children=[C]}
       = next_non_event(State),
     Reply = case C of
-		#resp_tuple{name='error', 
+		#resp_tuple{name='error',
 			    clippings=Clippings,
 			    attributes=[{"reason", R}]} ->
 		    {error, {atomise_error_reason(R), Clippings}};
 
-		_ -> 
+		_ ->
 		    {ok, decode_job_state(C)}
 	    end,
     {reply, Reply, State};
@@ -1047,14 +1047,14 @@ handle_call({query_job, Id}, _From, State = #state{socket = S}) ->
 handle_call({query_resource, "inventory"}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_resource("inventory")),
     #resp_tuple{name='state', children=C} = next_non_event(State),
-    Reply = {ok, [N || #resp_tuple{name=resource, 
+    Reply = {ok, [N || #resp_tuple{name=resource,
 				   attributes=[{"name", N}]} <- C]},
     {reply, Reply, State};
 
 handle_call({query_resource, "schedule"}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_resource("schedule")),
     #resp_tuple{name='state', children=C} = next_non_event(State),
-    Reply = {ok, [{I, O} || #resp_tuple{name=job, 
+    Reply = {ok, [{I, O} || #resp_tuple{name=job,
 				   attributes=[{"id", I}, {"owner", O}]} <- C]},
     {reply, Reply, State};
 
@@ -1065,11 +1065,11 @@ handle_call({query_resource, "schedule"}, _From, State = #state{socket = S}) ->
 handle_call({query_resource, Name}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_resource(Name)),
     #resp_tuple{name='state', children=[C]} = next_non_event(State),
-		  
+		
     Reply = case C of
 		#resp_tuple{name=resource, children=A} ->
-		    KV = [{K, V} || #resp_tuple{name=attribute, 
-						attributes=[{"name", K}, 
+		    KV = [{K, V} || #resp_tuple{name=attribute,
+						attributes=[{"name", K},
 							    {"value",V}]} <- A],
 		    case get_text_trailer(S, Name) of
 			none ->
@@ -1108,10 +1108,10 @@ handle_call({set, Name, Attributes}, _From, State = #state{socket = S}) ->
 handle_call(socket_ready, _From, State = #state{socket = S}) ->
     ok = inet:setopts(S, [{active, once}]),
 
-    ok = gth_apilib:send(S, xml:tag("update", [], 
-				    xml:tag("controller", 
+    ok = gth_apilib:send(S, xml:tag("update", [],
+				    xml:tag("controller",
 					    [{"timeout", ?KICK_INTERVAL *2}]))),
-    
+
     %% In failsafe, we get an error for sending the above command.
     _ = expect_ok(State),
 
@@ -1123,15 +1123,15 @@ handle_call({takeover, IDs}, _From, State = #state{socket = S}) ->
     {reply, Reply, State};
 
 handle_call({update, "controller", Attrs}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:tag("update", [], 
+    ok = gth_apilib:send(S, xml:tag("update", [],
 			       xml:tag("controller", Attrs, []))),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
 handle_call({update, ID = "ebsw"++_, IPs}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, 
-			 xml:tag("update", [], 
-				 xml:tag("ebs", [{"id", ID}], 
+    ok = gth_apilib:send(S,
+			 xml:tag("update", [],
+				 xml:tag("ebs", [{"id", ID}],
 					 [xml:tag("module", [{"ip_addr", IP}])
 					  || IP <- IPs]))),
     Reply = expect_ok(State),
@@ -1150,8 +1150,8 @@ handle_call({zero_resource, Name}, _From, State = #state{socket = S}) ->
 handle_cast(Msg, State) ->
     {stop, {unexpected_cast, Msg}, State}.
 
-handle_info({tcp, Socket, Line1}, 
-	    State = #state{socket = S}) 
+handle_info({tcp, Socket, Line1},
+	    State = #state{socket = S})
   when Socket == S ->
     {'text/xml', Bin} = gth_apilib:active_content(Socket, Line1, 1000),
     String = binary_to_list(Bin),
@@ -1168,14 +1168,14 @@ handle_info(kick, State = #state{socket = S}) ->
 		{noreply, State}
 	end,
     case (catch F()) of
-	R = {noreply, State} -> 
+	R = {noreply, State} ->
 	    R;
-	_ -> {stop, {"API watchdog expired", State#state.debug_remote_ip}, 
+	_ -> {stop, {"API watchdog expired", State#state.debug_remote_ip},
 	      State}
     end;
 
 handle_info({tcp_closed, S}, State = #state{socket = S}) ->
-    {stop, {"API socket closed unexpectedly", State#state.debug_remote_ip}, 
+    {stop, {"API socket closed unexpectedly", State#state.debug_remote_ip},
      State#state{socket = none}}.
 
 terminate(_, #state{socket = none}) ->
@@ -1188,7 +1188,7 @@ terminate(_Reason, State = #state{socket = S}) ->
     %% According to T/J, Erlang on MS Windows sometimes drops that OK.
     %% So we ignore this error on windows.
     case next_non_event(State) of
-	#resp_tuple{name = ok} -> 
+	#resp_tuple{name = ok} ->
 	    fine;
 	_ ->
 	    case os:type() of
@@ -1213,35 +1213,35 @@ code_change(_OldVsn, State, _Extra) ->
 %%
 %% They're arranged as job-related events first, then resource-related ones.
 
-handle_gth_event(#resp_tuple{name=tone, 
-				 attributes=[{"detector", ID}, 
-					     {"name", N}, 
+handle_gth_event(#resp_tuple{name=tone,
+				 attributes=[{"detector", ID},
+					     {"name", N},
 					     {"length", L}]},
 		 State = #state{event_dict = E}) ->
     Pid = dict:fetch(ID, E),
     Pid ! {tone, self(), {ID, N, list_to_integer(L)}},
     State;
 
-handle_gth_event(#resp_tuple{name=level, 
-				 attributes=[{"detector", ID}, 
+handle_gth_event(#resp_tuple{name=level,
+				 attributes=[{"detector", ID},
 					     {"state", ST}]},
 		 State = #state{event_dict = E}) ->
     Pid = dict:fetch(ID, E),
     Pid ! {level, self(), {ID, ST}},
     State;
 
-handle_gth_event(#resp_tuple{name=fatality, 
-			     attributes=[{"id", ID}, {"reason", Reason}]}, 
-		 State = #state{job_event_target = Pid}) ->    
+handle_gth_event(#resp_tuple{name=fatality,
+			     attributes=[{"id", ID}, {"reason", Reason}]},
+		 State = #state{job_event_target = Pid}) ->
     Pid ! {fatality, self(), {ID, Reason}},
     State;
 
-handle_gth_event(#resp_tuple{name=fatality, attributes=[{"id", ID}]}, 
-		 State = #state{job_event_target = Pid}) ->    
+handle_gth_event(#resp_tuple{name=fatality, attributes=[{"id", ID}]},
+		 State = #state{job_event_target = Pid}) ->
     Pid ! {fatality, self(), {ID, ""}},
     State;
 
-handle_gth_event(#resp_tuple{name=l2_alarm, 
+handle_gth_event(#resp_tuple{name=l2_alarm,
 			     attributes=[{"id", Id},
 					 {"attribute", Attribute},
 					 {"state", Al_st},
@@ -1250,7 +1250,7 @@ handle_gth_event(#resp_tuple{name=l2_alarm,
     Pid ! {l2_alarm, self(), {Id, Attribute, Al_st, Value}},
     State;
 
-handle_gth_event(#resp_tuple{name=l2_socket_alert, 
+handle_gth_event(#resp_tuple{name=l2_socket_alert,
 			     attributes=[{"ip_addr", Addr},
 					 {"ip_port", Port},
 					 {"reason", Reason}]},
@@ -1263,17 +1263,17 @@ handle_gth_event(#resp_tuple{name=message_ended, attributes=[{"id", ID}]},
     Pid ! {message_ended, self(), ID},
     State;
 
-handle_gth_event(#resp_tuple{name = L2_message, 
-			     attributes=[{"id", ID}, {"value", Val}]}, 
-		 State = #state{job_event_target = Pid}) 
-  when L2_message == atm_message; 
+handle_gth_event(#resp_tuple{name = L2_message,
+			     attributes=[{"id", ID}, {"value", Val}]},
+		 State = #state{job_event_target = Pid})
+  when L2_message == atm_message;
        L2_message == f_relay_message;
        L2_message == lapd_message;
        L2_message == mtp2_message ->
     Pid ! {L2_message, self(), {ID, Val}},
     State;
 
-handle_gth_event(#resp_tuple{name = backup, children = Jobs}, 
+handle_gth_event(#resp_tuple{name = backup, children = Jobs},
 		 State = #state{job_event_target = Pid}) ->
     IDs = [ID || #resp_tuple{name = job, attributes = [{"id", ID}]} <- Jobs],
     Pid ! {backup, self(), IDs},
@@ -1281,17 +1281,17 @@ handle_gth_event(#resp_tuple{name = backup, children = Jobs},
 
 %%--- resource events below
 
-handle_gth_event(#resp_tuple{name=fault, attributes=[{"name", Name}]}, 
+handle_gth_event(#resp_tuple{name=fault, attributes=[{"name", Name}]},
 		 State = #state{job_event_target = _Pid}) ->
     error_logger:error_report(
       {"FAULT: GTH reported a fault. We will probably die now\n", Name}),
     State;
 
-handle_gth_event(#resp_tuple{name=alarm, 
-			     attributes=[{"name", Name}, 
+handle_gth_event(#resp_tuple{name=alarm,
+			     attributes=[{"name", Name},
 					{"attribute", Attr},
 					{"state", St},
-					{"value", Value}]}, 
+					{"value", Value}]},
 		 State = #state{job_event_target = Pid}) ->
     Pid ! {alarm, self(), {Name, Attr, St, Value}},
     State;
@@ -1321,15 +1321,15 @@ handle_gth_event(#resp_tuple{name=slip, attributes=[{"name", Span}]},
     Pid ! {slip, self(), Span},
     State;
 
-handle_gth_event(#resp_tuple{name=sync_message, 
-			     attributes=[{"state", L}]}, 
+handle_gth_event(#resp_tuple{name=sync_message,
+			     attributes=[{"state", L}]},
 		 State = #state{resource_event_target = Pid}) ->
     Pid ! {sync_message, self(), L},
     State;
 
-handle_gth_event(#resp_tuple{name=ebs, 
+handle_gth_event(#resp_tuple{name=ebs,
 			     attributes=[{"ip_addr", IP},
-					 {"reason", Reason}]}, 
+					 {"reason", Reason}]},
 		 State = #state{resource_event_target = Pid}) ->
     Pid ! {ebs, self(), {IP, Reason}},
     State;
@@ -1352,7 +1352,7 @@ listen_active(Opts) ->
     {ok, P} = inet:port(L),
     {P, L}.
 
-new_signalling_monitor(Pid, State, Span, Ts, Name, Options) 
+new_signalling_monitor(Pid, State, Span, Ts, Name, Options)
   when is_pid(Pid), is_integer(Ts); is_tuple(Ts) ->
     new_signalling_monitor(Pid, State, Span, [Ts], Name, Options);
 
@@ -1360,7 +1360,7 @@ new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
     Disallowed_options = ["ip_addr", "ip_port"],
     case [ X || X <- Disallowed_options, proplists:is_defined(X, Options) ] of
 	[] ->
-	    new_signalling_monitor_checked_options(Pid, State, Span, 
+	    new_signalling_monitor_checked_options(Pid, State, Span,
 						   Timeslots, Name, Options);
 	_ ->
 	    {error, badarg}
@@ -1368,14 +1368,14 @@ new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
 
 new_signalling_monitor_checked_options(
   Pid,
-  State = #state{socket = S, my_ip = Hostname}, 
-  Span, 
-  Timeslots, 
-  Name, 
+  State = #state{socket = S, my_ip = Hostname},
+  Span,
+  Timeslots,
+  Name,
   Options) ->
     Sources = case Timeslots of
 		  [{subrate, Timeslot, First_bit, Bandwidth}] ->
-		      xml:tag("pcm_source", 
+		      xml:tag("pcm_source",
 			      [{"span", Span},
 			       {"timeslot", Timeslot},
 			       {"bandwidth", Bandwidth},
@@ -1404,7 +1404,7 @@ new_signalling_monitor_checked_options(
 	D when is_port(D) ->
 	    {ok, Portno} = inet:port(D),
 	    ok = gth_apilib:send(
-		   S, xml:new(Name, 
+		   S, xml:new(Name,
 			      [{"ip_addr", Hostname},
 			       {"ip_port", Portno}
 			       |proplists:delete(reuse_socket, Options)],
@@ -1417,9 +1417,9 @@ new_signalling_monitor_checked_options(
 	    end
     end.
 
-%% Return: #resp_tuple{}    
+%% Return: #resp_tuple{}
 next_non_event(State = #state{socket = S, command_timeout = T}) ->
-    receive 
+    receive
 	{tcp, S, Line1} ->
 	    case gth_apilib:active_content(S, Line1, T) of
 		{error, Reason} ->
@@ -1432,7 +1432,7 @@ next_non_event(State = #state{socket = S, command_timeout = T}) ->
 		    {ok, Parsed} = gth_client_xml_parse:string(S_content),
 		    case Parsed of
 			#resp_tuple{name = event, children = Events} ->
-			    New_state = lists:foldl(fun handle_gth_event/2, 
+			    New_state = lists:foldl(fun handle_gth_event/2,
 						    State, Events),
 			    #state{} = New_state,
 			    next_non_event(New_state);
@@ -1448,7 +1448,7 @@ next_non_event(State = #state{socket = S, command_timeout = T}) ->
 %% Return: {ok, ID} | {error, Reason}
 receive_job_id(State = #state{}) ->
     case next_non_event(State) of
-	#resp_tuple{name=job, attributes = [{"id", Job}]} -> 
+	#resp_tuple{name=job, attributes = [{"id", Job}]} ->
 	    {ok, Job};
 
 	#resp_tuple{name=error, attributes=[{"reason", R}|_], clippings=T} ->
@@ -1474,14 +1474,14 @@ atomise_error_reason("refused") -> refused;
 atomise_error_reason("transport") -> transport;
 atomise_error_reason(Other) -> exit({"must handle error reason", Other}).
 
-'GTH_API_PORT'() -> 
+'GTH_API_PORT'() ->
     2089.
 
 %% Query of "self" only returns an ID
 decode_job_state(#resp_tuple{name=job, attributes=[{"id", I}]}) ->
     {job, I, I, []};
 
-%% Query of a controller 
+%% Query of a controller
 decode_job_state(#resp_tuple{name=controller, attributes=A}) ->
     ID = case proplists:get_value("id", A) of
 	     undefined -> "";     %% Prior to 33a, no ID in apic query return
@@ -1532,7 +1532,7 @@ decode_job_state(#resp_tuple{name=job,
     case C of
 	[] -> ok;
 	undefined -> ok;
-	_ -> 
+	_ ->
 	    error_logger:error_report(
 	      {"Discarding info in decode_job_state", I, C})
     end,
@@ -1540,7 +1540,7 @@ decode_job_state(#resp_tuple{name=job,
 
 %% Consume all messages which came from this API instance
 flush(Pid) ->
-    receive 
+    receive
 	{_, Pid, _} ->
 	    flush(Pid)
     after 0 ->
@@ -1549,14 +1549,14 @@ flush(Pid) ->
 
 get_text_trailer(S, Name) ->
     case lists:member(Name, ["application_log", "application_log_recent",
-			     "system_log", "system_log_recent", 
-			     "standby_application_log", 
+			     "system_log", "system_log_recent",
+			     "standby_application_log",
 			     "standby_system_log"]) of
 	false ->
 	    none;
 
 	true ->
-	    receive 
+	    receive
 		{tcp, S, <<"Content-type: text/plain\r\n">>} ->
 		    get_text_trailer_body(S)
 	    after 4000 ->
