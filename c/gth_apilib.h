@@ -21,6 +21,8 @@
 //
 // Copyright (c) 2009, Corelatus AB Stockholm
 //
+// Licence: BSD
+//
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -219,7 +221,10 @@ int gth_new_recorder(GTH_api *api,
 		     const char *span, 
 		     int timeslot,      // E1: 1--31   T1: 1--24
 		     char *job_id);     // function writes the job-id here
-		   
+
+// Send a 'no-operation' command to the GTH. Useful for supervision and
+// for polling events.
+void gth_nop(GTH_api *api);
 
 // Set a attributes on a resource.
 //

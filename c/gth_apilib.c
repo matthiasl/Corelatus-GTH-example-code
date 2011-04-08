@@ -533,6 +533,21 @@ int gth_new_recorder(GTH_api *api,
   return (result == 0)?data_socket:-1;
 }
 
+void gth_nop(GTH_api *api)
+{
+  GTH_resp *resp;
+
+  api_write(api, "<nop/>");
+
+  resp = gth_next_non_event(api);
+
+  if (!resp || resp->type != GTH_RESP_OK) {
+    die("nop failed. Aborting.");
+  }
+
+  gth_free_resp(resp);
+}
+
 // We're expecting a <message_ended> event, wait for it
 int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
 {
@@ -1173,15 +1188,7 @@ static void my_ip_address(GTH_api *api)
   // (Actually, we get the failsafe event without a <nop>. The <nop> is
   // needed so that we get an answer even in 'system' mode).
 
-  api_write(api, "<nop/>");
-
-  resp = gth_next_non_event(api);
-
-  if (!resp) {
-    die("nop failed at API connection startup. Aborting.");
-  }
-
-  gth_free_resp(resp);
+  gth_nop(api);
   
   if (api->is_failsafe) {
     api->my_ip[0] = 0;
