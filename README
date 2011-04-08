@@ -17,7 +17,7 @@ from the Perl examples. The quality varies:
           Both the parser and API are in fairly widespread use.
 
   Perl: A partial Perl API for the GTH.
-        Good enough to get you started, but doesn't support GTH features.
+        Good enough to get you started, but doesn't support all GTH features.
         We're not Perl experts, so the Perl may be a bit odd in places.
         Some customers use this code for ad-hoc O&M.
 
