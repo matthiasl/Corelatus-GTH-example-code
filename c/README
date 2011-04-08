@@ -8,7 +8,7 @@ a BSD licence. It includes:
 
   A C API for some, but not all, GTH features. (see gth_apilib.h)
 
-  Seven examples which use the C API: 
+  Eight examples which use the C API: 
     - an SS7 sniffer
     - a CAS sniffer,
     - a timeslot recorder 
@@ -16,6 +16,7 @@ a BSD licence. It includes:
     - a program to query and set attributes on GTH resources
     - a program to install software images on a GTH
     - a program to enable duplex (active) ISDN LAPD on a timeslot
+    - a program to switch timeslots from one E1 to another
 
 As a convenience for windows users, the distribution at
 www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.
@@ -176,6 +177,23 @@ Start duplex LAPD on a timeslot
    Typical use:
 
      >./duplex_lapd 172.16.1.10 1A 16
+
+Switch a timeslot from one E1 to another
+----------------------------------------
+
+   Switch one or more timeslots from one E1 to another. This
+   turns the GTH into a MUX.
+
+   Typical use:
+
+     >./query_set 172.16.1.10 pcm1A status enabled
+     >./query_set 172.16.1.10 pcm2A status enabled
+     >./connect_timeslots 172.16.1.10 1A 16 2A 16
+     press ^C to shut down all timeslot connections
+
+   The timeslot connections are automatically removed when
+   the last program is terminated (e.g. by pressing ^C).
+
 
 GTH API for C programs
 ----------------------

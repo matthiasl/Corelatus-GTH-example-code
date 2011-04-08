@@ -1,4 +1,5 @@
 *.exe
+connect_timeslots
 duplex_lapd
 query_set
 install_release

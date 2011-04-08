@@ -2,6 +2,7 @@
 # and Win32 targets. The win32 executables are called .exe.
 
 target_basenames=\
+	connect_timeslots \
 	duplex_lapd \
 	install_release \
 	install_start_script \
