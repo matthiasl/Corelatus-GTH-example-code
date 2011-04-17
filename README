@@ -38,9 +38,13 @@ More information about GTH hardware:
   http://www.corelatus.com/duplex.html
   http://www.corelatus.com/index.html
 
-More information about the GTH API:
+More information about the GTH API:  
 
   http://www.corelatus.com/gth/api/
+
+Git repo of this code, with commit history:
+
+  https://github.com/matthiasl/Corelatus-GTH-example-code/
 
 The examples mostly have BSD licences. Feel free to fork the repository and
 please consider submitting changes back.
