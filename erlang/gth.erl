@@ -1567,9 +1567,15 @@ get_text_trailer(S, Name) ->
 get_text_trailer_body(S) ->
     {ok, <<"Content-length: ", BLength/binary>>} = gen_tcp:recv(S, 0, 1000),
     {ok, _blank_line} = gen_tcp:recv(S, 0, 1000),
-    ok = inet:setopts(S, [{packet, 0}]),
     {ok, [Length], _} = io_lib:fread("~d", binary_to_list(BLength)),
-    {ok, Bin} = gen_tcp:recv(S, Length),
+    Bin = case Length of
+	      0 -> 
+		  <<>>;
+	      _ ->
+		  ok = inet:setopts(S, [{packet, 0}]),
+		  {ok, B} = gen_tcp:recv(S, Length),
+		  B
+	  end,
     ok = inet:setopts(S, [{packet, line}, {active, once}]),
     Bin.
 
