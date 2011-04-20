@@ -39,12 +39,15 @@ go([Host, Resource, Attribute]) ->
     {ok, Value} = gth:query_resource(A, Resource, Attribute),
     io:fwrite("~s=~s\n", [Attribute, Value]);
 
-go([Host, Resource, Attribute, Value]) ->
+go([Host, Resource | AV_pairs]) when length(AV_pairs) rem 2 == 0 ->
     {ok, A} = gth:start_link(Host),
-    gth:set(A, Resource, [{Attribute, Value}]);
+    gth:set(A, Resource, pairs(AV_pairs));
 
 go(_) ->
     io:fwrite("Usage: gth_query_set <host> <resource> [<attribute> [<value>]]\n").
+
+pairs([]) -> [];
+pairs([A,V|T]) -> [{A,V}|pairs(T)].
 
 set_up_path(Candidate) ->
     case file:read_link(Candidate) of
