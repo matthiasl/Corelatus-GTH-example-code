@@ -268,7 +268,10 @@ int gth_query_resource_attribute(GTH_api *api,
 int gth_query_resource(GTH_api *api,
 		       const char *name,
 		       GTH_attribute **attributes,
-		       int *n_attributes);				    
+		       int *n_attributes);
+
+// Send a raw XML command. Intended for debugging only.
+GTH_resp *gth_raw_xml(GTH_api *api, const char* string);
 
 // Free an array of attributes, typically obtained from gth_query_resource()
 void gth_free_attributes(GTH_attribute *attributes, int n_attributes);

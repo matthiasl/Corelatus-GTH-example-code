@@ -1171,6 +1171,21 @@ int gth_reset(GTH_api *api, const char *resource)
   return 0;
 }
 
+GTH_resp *gth_raw_xml(GTH_api *api, const char* string)
+{
+  GTH_resp *resp;
+
+  assert(api);
+  assert(string);
+
+  api_write(api, string);
+  resp = gth_next_non_event(api);
+  assert(resp);
+
+  return resp;
+}
+
+
 // Figure out this machine's IP address. We ask the GTH, that way
 // the answer is correct even on multihomed machines.
 static void my_ip_address(GTH_api *api) 
