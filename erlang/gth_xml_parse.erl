@@ -135,7 +135,7 @@ checked(_) ->
 update({controller, A, [], _}) ->
     [ATimeout, ABackups] = multiple_extract(A, ["timeout", {"backups", none}]),
     Backups = case ABackups of
-		  [_|_] ->
+		  List when is_list(List) ->
 		      string:tokens(ABackups, " ");
 		  _ ->
 		      none
