@@ -33,7 +33,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -44,7 +44,7 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,6 +86,9 @@ typedef struct {
 // 279 octets long according to Q.703.
 #define MAX_SIGNAL_UNIT 300
 
+// There are 31 useable timeslots in an E1
+#define MAX_TIMESLOTS 31
+
 typedef struct {
   unsigned short tag;
   unsigned short flags;
@@ -95,67 +98,72 @@ typedef struct {
 } GTH_mtp2;
 
 void usage() {
-  fprintf(stderr, 
-	  "save_to_pcap <GTH-IP> <span> <span> <timeslot> <filename>"
+  fprintf(stderr,
+	  "save_to_pcap [-m] <GTH-IP> <span> <span> <ts> [<ts> ...] <filename>"
 	  "\n\nSave decoded MTP-2 signal units from the same timeslot"
 	  "\non two spans to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
+	  "\n-m tells the GTH that you are using a -20dB monitor point"
+	  "\n<ts> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
   fprintf(stderr, "Typical ways to use this program:\n");
   fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
+  fprintf(stderr, "./save_to_pcap -m 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
   fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 - | tshark -V -i - \n");
   fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n");
-  
+
   exit(-1);
 }
 
 // Start up L1 on the given span. It defaults to E1/doubleframe. We
 // disable the TX pins since we're only listening.
-static void enable_l1(GTH_api *api, const char* span) 
+static void enable_l1(GTH_api *api, const char* span, const int monitoring)
 {
   int result;
   char pcm_name[20];
-  GTH_attribute attributes[] = { {"status", "enabled"}, 
+
+  int n_attributes = (monitoring)?3:2;
+  GTH_attribute attributes[] = { {"status", "enabled"},
 				 {"tx_enabled", "false"},
-				 // uncomment the line below if you 
-				 // want to use a -20dB monitor point
-				 // {"monitoring", "true"}
+				 {"monitoring", "true"}
   };
 
   assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
   strncpy(pcm_name, "pcm", sizeof pcm_name);
   strncat(pcm_name, span, sizeof pcm_name);
-  
-  result = gth_set(api, pcm_name, attributes, 2);
-  
+
+  result = gth_set(api, pcm_name, attributes, n_attributes);
+
   assert(result == 0);
 }
 
 // Start up MTP-2 monitoring on the same timeslot of the given spans.
-static int monitor_mtp2(GTH_api *api, 
-			const char* span1,
-			const char* span2,
-			const int timeslot)
+static int monitor_mtp2(GTH_api *api,
+			const char *span1,
+			const char *span2,
+			int *timeslots,
+			int n_timeslots)
 {
   int listen_port = 0;
   int listen_socket = gth_make_listen_socket(&listen_port);
   int data_socket;
   int result;
+  int tag = 0;
   char job_id[MAX_JOB_ID];
 
-  if ( (timeslot < 1) || (timeslot > 31) ) {
-    fprintf(stderr, "valid timeslots are 1--31, not %d. Aborting\n", timeslot);
-    exit(-1);
+  for (tag = 0; tag < n_timeslots; tag++) {
+    int timeslot;
+
+    timeslot = *timeslots++;
+    result = gth_new_mtp2_monitor(api, tag, span1, timeslot,
+				  job_id, api->my_ip, listen_port);
+    assert(result == 0);
+
+    result = gth_new_mtp2_monitor(api, tag, span2, timeslot,
+				  job_id, api->my_ip, listen_port);
+    assert(result == 0);
   }
-
-  result = gth_new_mtp2_monitor(api, 1, span1, timeslot, job_id, api->my_ip,
-				listen_port);
-  assert(result == 0);
-
-  result = gth_new_mtp2_monitor(api, 2, span2, timeslot, job_id, api->my_ip,
-				listen_port);
-  assert(result == 0);
 
   data_socket = gth_wait_for_accept(listen_socket);
 
@@ -168,7 +176,7 @@ void read_exact(int fd, char* buf, size_t count) {
 
   while (count > 0) {
     this_time = recv(fd, buf, count, 0);
-    if (this_time <= 0) 
+    if (this_time <= 0)
       die("MTP-2 data socket from GTH unexpectedly closed\n");
 
     count -= this_time;
@@ -177,7 +185,7 @@ void read_exact(int fd, char* buf, size_t count) {
 }
 
 // Write a PCAP global header
-static void write_pcap_header(FILE* file) 
+static void write_pcap_header(FILE* file)
 {
   int result;
   PCAP_global_header header;
@@ -205,8 +213,13 @@ static void write_pcap_header(FILE* file)
 // Loop forever, converting the incoming GTH data to libpcap format
 //
 // Saves SUS_PER_FILE signal units to a file and then moves to the next file.
-static void convert_to_pcap(int data_socket, 
-			    const char* base_name) 
+static void convert_to_pcap(int data_socket,
+			    const char *base_name,
+			    const char *span1,
+			    const char *span2,
+			    const int timeslots[],
+			    const int n_timeslots
+			    )
 {
   unsigned short length;
   int result;
@@ -216,33 +229,33 @@ static void convert_to_pcap(int data_socket,
   unsigned long long ts_us;
   int su_count;
   int file_number = 1;
-  FILE* file;
+  FILE *file;
+  int write_to_stdout = (strcmp(base_name, "-") == 0);
 
   assert(sizeof ts_sec == 8);
 
   while (1) {
     char filename[MAX_FILENAME];
 
-    if (strcmp(base_name, "-") != 0) 
-      {
-
-	snprintf(filename, MAX_FILENAME, "%s.%d", base_name, file_number);
-	fopen_s(&file, filename, "wb");
-	if (file == 0) {
-	  fprintf(stderr, "unable to open %s for writing. Abort.\n", filename);
-	  exit(-1);
-	}
-	fprintf(stderr, "saving capture to file %s\n", filename);
-      } 
-    else 
-      {
-	fprintf(stderr, "saving capture to stdout\n");
-	file = stdout;
+    if (!write_to_stdout) {
+      snprintf(filename, MAX_FILENAME, "%s_%s_%s.%d",
+	       base_name, span1, span2, file_number);
+      fopen_s(&file, filename, "wb");
+      if (file == 0) {
+	fprintf(stderr, "unable to open %s for writing. Aborting.\n", filename);
+	exit(-1);
       }
-    write_pcap_header(file);
+      fprintf(stderr, "saving to file %s\n", filename);
+      write_pcap_header(file);
+    }
+    else {
+      file = stdout;
+      fprintf(stderr, "saving capture to stdout\n");
+    }
+
     file_number++;
     su_count = 0;
-    
+
     while ( (file == stdout) || (su_count++ < SUS_PER_FILE) ) {
       read_exact(data_socket, (void*)&length, sizeof length);
       length = ntohs(length);
@@ -252,7 +265,7 @@ static void convert_to_pcap(int data_socket,
       ts_us = ntohs(signal_unit.timestamp_hi);
       ts_us <<= 32;
       ts_us += ntohl(signal_unit.timestamp_lo);
-    
+
       ts_sec = ts_us / 1000;
       ts_us = (ts_us % 1000) * 1000;
 
@@ -260,14 +273,15 @@ static void convert_to_pcap(int data_socket,
       pcap_header.ts_us =  (unsigned int)ts_us;
       pcap_header.incl_len = length;
       pcap_header.orig_len = length;
+      assert(ntohs(signal_unit.tag) < n_timeslots);
 
       result = fwrite(&pcap_header, sizeof pcap_header, 1, file);
       assert(result == 1);
       result = fwrite(signal_unit.payload, length, 1, file);
       assert(result == 1);
-      if (file == stdout) 
+      if (write_to_stdout)
 	{
-	  fflush(file);
+	  fflush(stdout);
 	}
     }
 
@@ -275,31 +289,61 @@ static void convert_to_pcap(int data_socket,
   }
 }
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   GTH_api api;
   int data_socket;
   int result;
+  int monitoring = 0;
+  int timeslots[MAX_TIMESLOTS];
+  int n_timeslots = 0;
+  char *span1;
+  char *span2;
 
-  if (argc != 6) {
-    usage();
-  }
+  // Check a couple of assumptions about type size.
+  assert(sizeof(unsigned int) == 4);
+  assert(sizeof(unsigned short) == 2);
 
   win32_specific_startup();
 
-  // Check a couple of assumptions about type size. 
-  assert(sizeof(unsigned int) == 4);
-  assert(sizeof(unsigned short) == 2);
+  if (argc < 6) {
+    usage();
+  }
+
+  while (argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'm': monitoring = 1; break;
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   result = gth_connect(&api, argv[1]);
   assert(result == 0);
 
-  enable_l1(&api, argv[2]);
-  enable_l1(&api, argv[3]);
-  data_socket = monitor_mtp2(&api, argv[2], argv[3], atoi(argv[4]));
+  span1 = argv[2];
+  span2 = argv[3];
+
+  enable_l1(&api, span1, monitoring);
+  enable_l1(&api, span2, monitoring);
+
+  argv += 4;
+  argc -= 4;
+
+  for (n_timeslots = 0; argc > 1; n_timeslots++, argc--) {
+    int timeslot = atoi(*argv++);
+    timeslots[n_timeslots] = timeslot;
+    if ( (timeslot < 1) || (timeslot > 31) ) {
+      fprintf(stderr, "valid timeslots are 1--31, not %d. Abort.\n", timeslot);
+      exit(-1);
+    }
+  }
+
+  data_socket = monitor_mtp2(&api, span1, span2, timeslots, n_timeslots);
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(data_socket, argv[5]);
+  convert_to_pcap(data_socket, *argv, span1, span2, timeslots, n_timeslots);
 
   return 0; // not reached
 }
