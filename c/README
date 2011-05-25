@@ -182,7 +182,7 @@ Switch a timeslot from one E1 to another
 ----------------------------------------
 
    Switch one or more timeslots from one E1 to another. This
-   turns the GTH into a MUX.
+   turns the GTH into a bare-bones MUX/DXC/Groomer.
 
    Typical use:
 
