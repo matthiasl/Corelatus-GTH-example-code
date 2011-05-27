@@ -56,6 +56,8 @@
 
 typedef void(GTH_event_handler)(void *data, GTH_resp *resp);
 
+typedef void(GTH_tone_handler)(const char *name, const int length);
+
 // GTH_api is a structure used by all calls to this API code, it's initially
 // filled in by gth_connect().
 //
@@ -84,8 +86,8 @@ typedef struct {
   int print_cmds;       // nonzero means we want commands to echo on stderr
   int print_responses;  // nonzero means we want responses to echo on stderr
 
-  void *event_handler_data;
   GTH_event_handler *event_handler;
+  GTH_tone_handler *tone_handler;
 } GTH_api;
 
 // Close an API connection to the GTH, cleanly. 
@@ -221,6 +223,15 @@ int gth_new_recorder(GTH_api *api,
 		     const char *span, 
 		     int timeslot,      // E1: 1--31   T1: 1--24
 		     char *job_id);     // function writes the job-id here
+
+// Return: 0 on success
+//
+// The file descriptor is a socket the recorder data gets written to
+int gth_new_tone_detector(GTH_api *api, 
+			  const char *span, 
+			  int timeslot,      // E1: 1--31   T1: 1--24
+			  char *job_id,      // function writes the job-id here
+			  GTH_tone_handler* handler); // callback
 
 // Send a 'no-operation' command to the GTH. Useful for supervision and
 // for polling events.

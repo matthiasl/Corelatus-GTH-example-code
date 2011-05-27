@@ -10,7 +10,8 @@ a BSD licence. It includes:
 
   Eight examples which use the C API: 
     - an SS7 sniffer
-    - a CAS sniffer,
+    - a CAS sniffer
+    - a DTMF sniffer
     - a timeslot recorder 
     - a timeslot playback program
     - a program to query and set attributes on GTH resources
@@ -85,6 +86,28 @@ CAS line and register signalling sniffer
    >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3 
    wrote 800 octets to the <player>
    all done
+
+DTMF sniffer
+------------
+
+  Shows DTMF digits as they're seen on the timeslot. This is also a good
+  example to look at to see how to handle asynchronous API messages.
+
+  Typical use, assuming a loopback cable connects P1 and P2:
+
+  > ./monitor_dtmf 172.16.1.10 1A 5
+  event:   l1 message name=pcm2A state=OK 
+  event:   sync message state=locked 
+  detected DTMF digit 1 (duration: 94 ms)
+  detected DTMF digit 2 (duration: 81 ms)
+  detected DTMF digit 3 (duration: 81 ms)
+
+  And in another window:
+
+  > ./playback_file 172.16.1.10 2A 5 audio/dtmf3
+
+  (if you make your own sequences of DTMF digits, keep in mind that
+  you need to put some silence between the digits)
 
 Timeslot recorder
 -----------------

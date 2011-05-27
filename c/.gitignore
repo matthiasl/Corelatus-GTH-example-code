@@ -5,6 +5,7 @@ query_set
 install_release
 install_start_script
 monitor_cas
+monitor_dtmf
 playback_file
 record
 save_to_pcap

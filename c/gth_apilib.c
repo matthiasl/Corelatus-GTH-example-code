@@ -158,6 +158,14 @@ void gth_event_handler(void *data, GTH_resp *resp)
     break;
   }
 
+  case GTH_RESP_TONE: 
+    if (api->tone_handler) {
+      const char *name = attribute_value(child, "name");
+      const char *length = attribute_value(child, "length");
+      api->tone_handler(name, atoi(length));
+      break;
+    }
+    // no handler -> fall through to printing the tone event
 
   default:
     printf("gth_event_handler got an event, handling with default handler\n");
@@ -178,6 +186,7 @@ int gth_connect(GTH_api *api, const char *address)
   api->is_failsafe = 0;
   api->print_cmds = 0;
   api->event_handler = &gth_event_handler;
+  api->tone_handler = 0;
 
   host = gethostbyname(address);
 
@@ -532,6 +541,32 @@ int gth_new_recorder(GTH_api *api,
 
   return (result == 0)?data_socket:-1;
 }
+
+int gth_new_tone_detector(GTH_api *api, 
+			  const char *span, 
+			  int timeslot,
+			  char *job_id,
+			  GTH_tone_handler* handler)
+{
+  const char *template;
+  int result;
+  char command[MAX_COMMAND];
+
+  template = "<new><tone_detector><pcm_source span='%s' timeslot='%d'/>"
+    "</tone_detector></new>";
+
+  result = snprintf(command, MAX_COMMAND, template, span, timeslot);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  if (result == 0) {
+    api->tone_handler = handler;
+  }
+  
+  return result;
+}
+
 
 void gth_nop(GTH_api *api)
 {

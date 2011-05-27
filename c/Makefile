@@ -7,6 +7,7 @@ target_basenames=\
 	install_release \
 	install_start_script \
 	monitor_cas \
+	monitor_dtmf \
 	playback_file\
 	query_set\
 	record\
