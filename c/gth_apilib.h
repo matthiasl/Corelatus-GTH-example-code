@@ -11,7 +11,7 @@
 //     GTH_api api;
 //     char buffer[MAX_JOB_ID];
 // 
-//     gth_connect(&api, "172.16.1.10");
+//     gth_connect(&api, "172.16.1.10", 0);
 //     gth_new_player(&api, "3A", 16, buffer);
 // 
 // This API supports a subset of the GTH's features.
@@ -97,8 +97,11 @@ int gth_bye(GTH_api *api);
 
 // Make a socket which is connected to the API on a GTH module.
 //
+// Address is a hostname or a dotted quad, e.g. "172.16.1.10"
+// Verbose is boolean
+//
 // Return: 0 on success
-int gth_connect(GTH_api *api, const char *address);
+int gth_connect(GTH_api *api, const char *address, const int verbose);
 
 // Make a TCP socket and put it in the listening state.
 //
@@ -282,6 +285,8 @@ int gth_query_resource(GTH_api *api,
 		       int *n_attributes);
 
 // Send a raw XML command. Intended for debugging only.
+//
+// Returns a pointer to the response, or 0 if something goes wrong.
 GTH_resp *gth_raw_xml(GTH_api *api, const char* string);
 
 // Free an array of attributes, typically obtained from gth_query_resource()

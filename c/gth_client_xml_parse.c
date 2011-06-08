@@ -547,7 +547,7 @@ void print_tokens(const GTH_token *token)
     case TOK_NAME:  printf("(%s)", token->payload); break;
     case TOK_TEXT:  printf("[%s]", token->payload); break;
     default:
-      assert(!"this cannot happen");
+      assert(!"attempted to print a token which doesn't exist");
     }
     token++;
   }
@@ -704,7 +704,7 @@ void gth_print_tree(GTH_resp *resp) {
 
   default:
     fprintf(stderr, "default, type=%d\n", resp->type);
-    assert(!"impossible");
+    assert(!"encountered an <event> which we don't know how to handle");
   }
 }
 
