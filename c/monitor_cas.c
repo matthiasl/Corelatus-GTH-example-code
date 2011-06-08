@@ -56,9 +56,15 @@
 
 static void usage() 
 {
-  fprintf(stderr, "Program expects an IP address as an argument.\n\n");
-  fprintf(stderr, "Typical use:\n");
-  fprintf(stderr, "monitor_cas 172.16.1.10\n");
+  fprintf(stderr, 
+	  "monitor_cas [-v] <GTH-IP>\n\n"
+	  "Monitor an E1, pcm2A, for CAS signalling, print the signalling\n\n"
+
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n\n"
+
+	  "Typical use:\n"
+	  "monitor_cas 172.16.1.10\n");
   
   exit(-1);
 }
@@ -163,25 +169,38 @@ static void layer2(GTH_api *api)
 	  "setting up layer 2, MFC on timeslot 1, line signalling on 16\n");
 
   listen_socket = gth_make_listen_socket(&listen_port);
-  assert(listen_socket >= 0);
+  if (listen_socket < 0) {
+    die("Unable to create a listen() socket. Giving up.\n");
+  }
 
   result = gth_new_cas_r2_mfc_detector(api, 1, "2A", 1, job_id, api->my_ip, 
 				       listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to set up MFC detection (use -v for more information)");
+  }
   result = gth_new_cas_r2_mfc_detector(api, 2, "2C", 1, job_id, api->my_ip, 
 				       listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to set up MFC detection (use -v for more information)");
+  }
 
   result = gth_new_cas_r2_linesig_monitor(api, 3, "2A", 16, job_id, api->my_ip, 
 					  listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to set up linesig detection (use -v for more information)");
+  }
+
   result = gth_new_cas_r2_linesig_monitor(api, 4, "2C", 16, job_id, api->my_ip, 
 					  listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to set up linesig detection (use -v for more information)");
+  }
 
   fprintf(stderr, "waiting for GTH to connect to our signalling socket\n");
   data_socket = gth_wait_for_accept(listen_socket);
-  assert(data_socket >= 0);
+  if (data_socket < 0) {
+    die("unable to accept() the signalling socket (use -v for details)");
+  }
 
   read_loop(data_socket);
 }
@@ -191,6 +210,17 @@ int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 2) {
     usage();
@@ -198,8 +228,10 @@ int main(int argc, char** argv)
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   layer1(&api);
   layer2(&api);

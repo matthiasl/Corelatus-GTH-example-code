@@ -99,12 +99,15 @@ typedef struct {
 
 void usage() {
   fprintf(stderr,
-	  "save_to_pcap [-m] <GTH-IP> <span> <span> <ts> [<ts> ...] <filename>"
+	  "save_to_pcap [-m] [-v] <GTH-IP> <span> <span> <ts> [<ts> ...] <filename>"
 	  "\n\nSave decoded MTP-2 signal units from the same timeslot"
 	  "\non two spans to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
-	  "\n-m tells the GTH that you are using a -20dB monitor point"
+	  "\n-m: tells the GTH that you are using a -20dB monitor point"
+	  "\n-v: print API commands and responses (verbose)"
+	  "\n<GTH-IP> is the GTH's IP address or hostname"
+	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<ts> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
   fprintf(stderr, "Typical ways to use this program:\n");
@@ -135,7 +138,8 @@ static void enable_l1(GTH_api *api, const char* span, const int monitoring)
 
   result = gth_set(api, pcm_name, attributes, n_attributes);
 
-  assert(result == 0);
+  if (result != 0)
+    die("Setting up L1 failed. (-v switch gives more information)");
 }
 
 // Start up MTP-2 monitoring on the same timeslot of the given spans.
@@ -158,11 +162,13 @@ static int monitor_mtp2(GTH_api *api,
     timeslot = *timeslots++;
     result = gth_new_mtp2_monitor(api, tag, span1, timeslot,
 				  job_id, api->my_ip, listen_port);
-    assert(result == 0);
+    if (result != 0)
+      die("Setting up MTP2 monitoring failed. (-v gives more information)");
 
     result = gth_new_mtp2_monitor(api, tag, span2, timeslot,
 				  job_id, api->my_ip, listen_port);
-    assert(result == 0);
+    if (result != 0)
+      die("Setting up MTP2 monitoring failed. (-v gives more information)");
   }
 
   data_socket = gth_wait_for_accept(listen_socket);
@@ -201,7 +207,9 @@ static void write_pcap_header(FILE* file)
   header.network = 140;   // 140 == MTP-2
 
   result = fwrite((void*)&header, sizeof header, 1, file);
-  assert(result == 1);
+
+  if (result != 1)
+    die("Unable to write PCAP header. (Is the file writeable?)");
 
   return;
 }
@@ -276,9 +284,13 @@ static void convert_to_pcap(int data_socket,
       assert(ntohs(signal_unit.tag) < n_timeslots);
 
       result = fwrite(&pcap_header, sizeof pcap_header, 1, file);
-      assert(result == 1);
+      if (result != 1)
+	die("Unable to write packet to the given file. (Is it writeable?)");
+
       result = fwrite(signal_unit.payload, length, 1, file);
-      assert(result == 1);
+      if (result != 1)
+	die("Unable to write packet to the given file. (Is it writeable?)");
+
       if (write_to_stdout)
 	{
 	  fflush(stdout);
@@ -296,6 +308,7 @@ int main(int argc, char** argv)
   int data_socket;
   int result;
   int monitoring = 0;
+  int verbose = 0;
   int timeslots[MAX_TIMESLOTS];
   int n_timeslots = 0;
   char *span1;
@@ -307,21 +320,26 @@ int main(int argc, char** argv)
 
   win32_specific_startup();
 
-  if (argc < 6) {
-    usage();
-  }
-
-  while (argv[1][0] == '-') {
+  while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'm': monitoring = 1; break;
+
+    case 'v': verbose = 1; break;
+
     default: usage();
     }
     argc--;
     argv++;
   }
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  if (argc < 6) {
+    usage();
+  }
+
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   span1 = argv[2];
   span2 = argv[3];

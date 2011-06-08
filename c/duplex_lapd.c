@@ -88,9 +88,13 @@ typedef struct {
 
 void usage() {
   fprintf(stderr, 
-	  "duplex_lapd <GTH-IP> <span> <timeslot> [<end>]"
-	  "\n\nEnable ISDN LAPD on the specified timeslot. If <end> is"
-	  "\nspecified, it must be either 'user' or 'network'\n\n");
+	  "duplex_lapd [-v] <GTH-IP> <span> <timeslot> [<end>]\n\n"
+	  "Enable ISDN LAPD on the specified timeslot.\n\n"
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<span> is the E1/T1 interface, e.g. '1A'\n"
+	  "<timeslot> is the timeslot, 1--31\n"
+	  "<end> is either 'user' (default) or 'network'\n");
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./duplex_lapd 172.16.1.10 1A 16\n");
   
@@ -114,11 +118,12 @@ static void enable_l1(GTH_api *api, const char* span)
   strncat(pcm_name, span, sizeof pcm_name);
   
   result = gth_set(api, pcm_name, attributes, 2);
+  if (result != 0) {
+    die("<set> command failed (-v shows more information)");
+  }
 
   // give L1 a chance to settle down
   sleep_seconds(1);
-  
-  assert(result == 0);
 }
 
 static void send_dl_establish_req(int data_socket)
@@ -174,7 +179,9 @@ static int setup_lapd(GTH_api *api,
 
   result = gth_new_lapd_layer(api, 0, span, timeslot, end, sapi, tei, 
 			      job_id, api->my_ip, listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("starting LAPD failed. (re-run with -v for more information)");
+  }
 
   data_socket = gth_wait_for_accept(listen_socket);
 
@@ -254,6 +261,17 @@ int main(int argc, char** argv)
   int data_socket;
   int result;
   char *end = "user";
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 4 && argc != 5) 
     {
@@ -280,8 +298,10 @@ int main(int argc, char** argv)
   assert(sizeof(unsigned int) == 4);
   assert(sizeof(unsigned short) == 2);
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   enable_l1(&api, argv[2]);
   data_socket = setup_lapd(&api, argv[2], atoi(argv[3]), end);

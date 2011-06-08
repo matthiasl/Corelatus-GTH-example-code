@@ -60,9 +60,17 @@
 
 static void usage() 
 {
-  fprintf(stderr, "monitor_dtmf <IP> <span> <timeslot>.\n\n");
-  fprintf(stderr, "Typical use:\n");
-  fprintf(stderr, "monitor_dtmf 172.16.1.10 1A 23\n");
+  fprintf(stderr, 
+	  "monitor_dtmf [-v] <GTH-IP> <span> <timeslot>.\n\n"
+	  "Set up DTMF monitoring on a GTH and print all received tones\n\n"
+
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n\n"
+	  "<span> is the E1/T1 interface, e.g. '1A'\n"
+	  "<timeslot> is the timeslot, 1--31\n\n"
+
+	  "Typical use:\n"
+	  "monitor_dtmf 172.16.1.10 1A 23\n");
   
   exit(-1);
 }
@@ -80,6 +88,16 @@ int main(int argc, char** argv)
   char job_id[MAX_JOB_ID];
   char pcm_name[20];
   fd_set readfds;
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 4) {
     usage();
@@ -87,15 +105,19 @@ int main(int argc, char** argv)
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   // Enable L1 with default parameters. If you want to use monitor
   // mode or multiframe or ... see save_to_pcap.c 
   result = snprintf(pcm_name, sizeof(pcm_name), "pcm%s", argv[2]),
   assert(result < sizeof(pcm_name));
   result = gth_set_single(&api, pcm_name, "status", "enabled");
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to enable L1. (use -v to see more information)");
+  }
 
   gth_new_tone_detector(&api, argv[2], atoi(argv[3]), job_id, &tone_handler);
 

@@ -52,8 +52,15 @@
 
 static void usage() 
 {
-  fprintf(stderr, "Program expects an IP address, a span name, a timeslot and"
-	  "\na filename as arguments.\n\n");
+  fprintf(stderr, 
+	  "playback_file [-v] <GTH-IP> <span> <timeslot> <filename>\n\n"
+	  "Play the contents of a file on a timeslot.\n"
+	  "\n-v: print the API commands and responses (verbose)"
+	  "\n<GTH-IP> is the GTH's IP address or hostname"
+	  "\n<span> is the name of a span, e.g. '1A'"
+	  "\n<ts> is a timeslot number, from 1 to 31"
+	  "\n<filename> is the file to read data from");
+
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./playback_file 172.16.1.10 1A 1 audio/mfc_fwd_4\n");
   
@@ -87,7 +94,9 @@ static void play_a_file(GTH_api *api,
   }
 
   data_socket = gth_new_player(api, span, timeslot, job_id);
-  assert(data_socket >= 0);
+  if (data_socket < 0) {
+    die("unable to start a player on the GTH. Use -v to see more details.");
+  }
 
   while ( (octet_count = fread(buffer, 1, sizeof buffer, file)) ) {
     result = send(data_socket, buffer, octet_count, 0);
@@ -111,6 +120,18 @@ int main(int argc, char **argv)
   int result;
   GTH_api api;
   char pcm_name[20];
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 5) {
     usage();
@@ -118,8 +139,10 @@ int main(int argc, char **argv)
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
   strncpy(pcm_name, "pcm", sizeof pcm_name);

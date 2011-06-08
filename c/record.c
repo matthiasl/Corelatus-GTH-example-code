@@ -56,13 +56,19 @@
 
 static void usage() 
 {
-  fprintf(stderr, "Program expects an IP address, a span name, a timeslot and"
-	  "\na filename as arguments.\n\n");
+  fprintf(stderr, 
+	  "record [-v] [-T] <GTH-IP> <span> <timeslot> <filename>\n\n"
+	  "Save bit-exact data from a timeslot to a file\n\n"
+	  "-v: print the API commands and responses (verbose)\n"
+	  "-T: use T1 (and mulaw) instead of the default E1 L1 setup\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<span> is the E1/T1 interface, e.g. '1A'\n"
+	  "<timeslot> is the timeslot, 1--31\n"
+	  "<filename> is the filename to save to\n\n");
+
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./record    172.16.1.10 1A 1 my_capture.wav\n\n");
   fprintf(stderr, "./record -T 172.16.1.10 1A 1 my_capture.wav\n\n");
-  fprintf(stderr, "By default, layer 1 is set to E1 mode. The -T switch\n");
-  fprintf(stderr, "enables T1 mode (and, implicitly, mu-law).\n");
   
   exit(-1);
 }
@@ -172,13 +178,17 @@ static void record_a_file(GTH_api *api,
   possibly_prepend_wav_header(filename, file, mulaw);
 
   data_socket = gth_new_recorder(api, span, timeslot, job_id);
-  assert(data_socket >= 0);
+  if (data_socket < 0) {
+    die("unable to start a <recorder> on the GTH. -v gives more information");
+  }
 
   fprintf(stderr, "started recording. Press ^C to end.\n");
 
   while ( (octet_count = recv(data_socket, buffer, sizeof buffer, 0)) ) {
     result = fwrite(buffer, octet_count, 1, file);
-    assert(result == 1);
+    if (result != 1) {
+      die("Writing to the output file failed. Giving up.");
+    }
     fprintf(stderr, "%d ", octet_sum);
     octet_sum += octet_count;
   }
@@ -221,23 +231,26 @@ int main(int argc, char** argv)
   GTH_api api;
   char pcm_name[20];
   int t1_mulaw_mode = 0;
+  int verbose = 0;
 
-  if (argc != 5 && argc != 6) {
-    usage();
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+    case 'T': t1_mulaw_mode = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
   }
 
-  if (argc == 6) {
-    if (strcmp("-T", argv[1]) == 0) {
-      argv++;
-      t1_mulaw_mode = 1;
-    } else {
-      usage();
-    }
+  if (argc != 5) {
+    usage();
   }
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
+  result = gth_connect(&api, argv[1], verbose);
   if (result != 0) {
     die("unable to connect to the GTH");
   }

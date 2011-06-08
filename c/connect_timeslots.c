@@ -46,17 +46,22 @@
 #include <netinet/in.h>
 #endif // WIN32
 
-#include <assert.h>
-
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
 static void usage() 
 {
-  fprintf(stderr, "connect_timeslots <GTH-IP> <src span> <src ts> <dst span> <dest ts> ...\n"
+  fprintf(stderr, "connect_timeslots [-v] <GTH-IP> <src span> <src ts> <dst span> <dest ts> ...\n"
 	  "Connect the given timeslot a GTH.\n\n"
           "Multiple sources and sinks can be given. You may want\n"
-          "to use 'query_set' to set up L1 before starting.\n"
+          "to use 'query_set' to set up L1 before starting.\n\n"
+
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<src span> is the E1/T1 interface to read from, e.g. '1A'\n"
+	  "<src ts> is the timeslot to read from, 1--31\n"
+	  "<dst span> is the E1/T1 interface to write to, e.g. '1A'\n"
+	  "<dst ts> is the timeslot to write to, 1--31\n\n"
 
 	  "Examples:\n"
 	  "./connect_timeslots 172.16.1.10 1A 16 2A 16\n"
@@ -72,6 +77,17 @@ int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
+  int verbose;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc < 6 || (argc - 2) % 4 != 0) {
     usage();
@@ -79,8 +95,9 @@ int main(int argc, char** argv)
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0)
+    die("Unable to connect to the given GTH. Giving up.");
 
   argv += 2;
   argc -= 2;

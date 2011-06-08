@@ -44,21 +44,33 @@
 
 static void usage() 
 {
-  fprintf(stderr, "install_release: installs a software image on a GTH\n\n");
-  fprintf(stderr, "Typical invocation: \n");
-  fprintf(stderr, "    ./install_release 172.16.1.10 gth2_system_33c.gth\n\n");
+  fprintf(stderr, 
+	  "install_release [-v] <GTH-IP> <filename>\n\n"
+
+	  "installs a software image on a GTH\n\n"
+
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<filename> is the firmware image from www.corelatus.com\n\n"
+  
+	  "Example: \n"
+	  "    ./install_release 172.16.1.10 gth2_system_33c.gth\n\n");
   exit(-1);
 }
 
 
 //------------------------------
-static void install_release(const char *hostname, const char *filename)
+static void install_release(const char *hostname, 
+			    const char *filename, 
+			    int verbose)
 {
   GTH_api api;
-  int result = gth_connect(&api, hostname);
+  int result;
   FILE *image;
   int image_length;
   char *image_data;
+
+  result = gth_connect(&api, hostname, verbose);
 
   fopen_s(&image, filename, "rb");
 
@@ -87,14 +99,17 @@ static void install_release(const char *hostname, const char *filename)
   if (result != 0) die("install failed");
 }
 
-static void show_releases(const char *hostname)
+static void show_releases(const char *hostname, const int verbose)
 {
   GTH_api api;
-  int result = gth_connect(&api, hostname);
+  int result;
   char attribute[1000];
 
-  if (result != 0) 
+  result = gth_connect(&api, hostname, verbose);
+
+  if (result != 0) {
     die("unable to connect to GTH");
+  }
 
   result = gth_query_resource_attribute(&api, "system_image", "version", 
 					attribute, sizeof(attribute));
@@ -116,6 +131,17 @@ static void show_releases(const char *hostname)
 int main(int argc, char **argv) 
 {
   const char* hostname;
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 3) {
     usage();
@@ -125,15 +151,15 @@ int main(int argc, char **argv)
 
   hostname = argv[1];
 
-  show_releases(hostname);
+  show_releases(hostname, verbose);
 
   gth_switch_to(hostname, "failsafe", 1);
 
-  install_release(hostname, argv[2]);
+  install_release(hostname, argv[2], verbose);
 
   gth_switch_to(hostname, "system", 1);
 
-  show_releases(hostname);
+  show_releases(hostname, verbose);
 
   return 0;
 }

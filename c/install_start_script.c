@@ -41,24 +41,41 @@
 
 static void usage() 
 {
-  fprintf(stderr, "install_start_script: installs a start script on a GTH\n\n");
-  fprintf(stderr, "Typical invocation: \n");
-  fprintf(stderr, "    ./install_start_script 172.16.1.10 /tmp/start.xml\n\n");
+  fprintf(stderr, 
+	  "install_start_script <GTH-IP> <filename>\n\n"
+	  "Installs a start script on a GTH\n\n"
+
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<filename> is a file containing an XML start script\n\n"
+
+	  "Typical invocation: \n"
+	  "    ./install_start_script 172.16.1.10 /tmp/start.xml\n\n");
   exit(-1);
 }
 
 //------------------------------
-static void install_start_script(const char *hostname, const char *filename)
+static void install_start_script(const char *hostname, 
+				 const char *filename,
+				 int verbose)
 {
   GTH_api api;
-  int result = gth_connect(&api, hostname);
-  FILE *script = fopen(filename, "rb");
+  int result;
+  FILE *script;
   int script_length;
   char *script_data;
 
+  result = gth_connect(&api, hostname, verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
+
   fprintf(stderr, "installing start script %s\n", filename);
 
-  if (!script) die("unable to open start script file");
+  script = fopen(filename, "rb");
+  if (!script) {
+    die("unable to open start script file");
+  }
   
   fseek(script, 0, SEEK_END);
   script_length = ftell(script);
@@ -72,19 +89,23 @@ static void install_start_script(const char *hostname, const char *filename)
 		       script_data, script_length);
   free(script_data);
 
-  if (result != 0) die("install failed");
+  if (result != 0) {
+    die("install failed");
+  }
 }
 
 //------------------------------
 static void print_e1t1_names(const char *hostname) {
   GTH_api api;
-  int result = gth_connect(&api, hostname);
+  int result = gth_connect(&api, hostname, 0);
   GTH_attribute *attributes;
   int n_attributes;
   int x;
 
   result = gth_query_resource(&api, "inventory", &attributes, &n_attributes);
-  assert(result == 0);
+  if (result != 0) {
+    die("Unable to query the GTH inventory. Giving up.");
+  }
 
   printf("Inventory:\n");
   for (x = 0; x < n_attributes; x++) {
@@ -100,6 +121,17 @@ static void print_e1t1_names(const char *hostname) {
 int main(int argc, char **argv) 
 {
   const char* hostname;
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 3) {
     usage();
@@ -111,7 +143,7 @@ int main(int argc, char **argv)
 
   gth_switch_to(hostname, "failsafe", 1);
 
-  install_start_script(hostname, argv[2]);
+  install_start_script(hostname, argv[2], verbose);
 
   gth_switch_to(hostname, "system", 1);
 
