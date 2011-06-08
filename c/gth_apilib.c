@@ -311,7 +311,7 @@ static int gth_wait_for_install_complete(GTH_api *api)
       }
     }
     
-    assert(*api->event_handler);
+    assert(api->event_handler);
     (*api->event_handler)(api, resp);
   }
 
@@ -625,7 +625,7 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
       }
     }
     
-    assert(*api->event_handler);
+    assert(api->event_handler);
     (*api->event_handler)(api, resp);
     gth_free_resp(resp);
   }
@@ -858,7 +858,7 @@ static GTH_resp *gth_next_non_event(GTH_api *api) {
 	return resp;
       }
 
-    assert(*api->event_handler);
+    assert(api->event_handler);
     (*(api->event_handler))(api, resp);
     gth_free_resp(resp);
   }
