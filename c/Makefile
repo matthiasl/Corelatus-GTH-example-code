@@ -30,13 +30,14 @@ unix: $(target_basenames)
 win32: $(win_targets)
 
 clean:
-	rm -f $(win_targets) $(target_basenames) *~ *.zip
+	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos
 
 ship:
 	make clean
 	make
 	make win32
-	zip gth_c_examples *.c *.h NMakefile Makefile audio/* README *.exe
+	sed -e 's/$$/\r/g' < README.unix > README.txt
+	zip gth_c_examples *.c *.h NMakefile Makefile audio/* README.* *.exe
 
 target_basenames win_targets: $(headers) $(common_c_files)
 
