@@ -270,6 +270,9 @@ static void convert_to_pcap(int data_socket,
       assert(length <= sizeof signal_unit);
       read_exact(data_socket, (void*)&signal_unit, length);
 
+      // Remove the GTH header from the length
+      length -= (signal_unit.payload - (char*)&(signal_unit.tag));
+
       ts_us = ntohs(signal_unit.timestamp_hi);
       ts_us <<= 32;
       ts_us += ntohl(signal_unit.timestamp_lo);
