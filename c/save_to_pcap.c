@@ -105,14 +105,16 @@ void usage() {
 	  "\nexamining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
+	  "\n-n <count>: rotate the output file after <count> packets, 0 means never"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<ts> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
-  fprintf(stderr, "Typical ways to use this program:\n");
+  fprintf(stderr, "Examples:\n");
   fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
   fprintf(stderr, "./save_to_pcap -m 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
+  fprintf(stderr, "./save_to_pcap -m -n 1000 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
   fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 - | tshark -V -i - \n");
   fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n");
 
@@ -219,14 +221,13 @@ static void write_pcap_header(FILE* file)
 #define SUS_PER_FILE 1000
 
 // Loop forever, converting the incoming GTH data to libpcap format
-//
-// Saves SUS_PER_FILE signal units to a file and then moves to the next file.
 static void convert_to_pcap(int data_socket,
 			    const char *base_name,
 			    const char *span1,
 			    const char *span2,
 			    const int timeslots[],
-			    const int n_timeslots
+			    const int n_timeslots,
+			    const int n_sus_per_file
 			    )
 {
   unsigned short length;
@@ -264,7 +265,9 @@ static void convert_to_pcap(int data_socket,
     file_number++;
     su_count = 0;
 
-    while ( (file == stdout) || (su_count++ < SUS_PER_FILE) ) {
+    while ( (file == stdout) 
+	    || n_sus_per_file == 0 
+	    || (su_count++ < n_sus_per_file) ) {
       read_exact(data_socket, (void*)&length, sizeof length);
       length = ntohs(length);
       assert(length <= sizeof signal_unit);
@@ -311,6 +314,7 @@ int main(int argc, char** argv)
   int verbose = 0;
   int timeslots[MAX_TIMESLOTS];
   int n_timeslots = 0;
+  int n_sus_per_file = 0;
   char *span1;
   char *span2;
 
@@ -325,6 +329,16 @@ int main(int argc, char** argv)
     case 'm': monitoring = 1; break;
 
     case 'v': verbose = 1; break;
+
+    case 'n': 
+      if (argc < 3) {
+	usage();
+      } else {
+	n_sus_per_file = atoi(argv[2]);
+	argc--;
+	argv++;
+      }
+      break;
 
     default: usage();
     }
@@ -361,7 +375,8 @@ int main(int argc, char** argv)
 
   data_socket = monitor_mtp2(&api, span1, span2, timeslots, n_timeslots);
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(data_socket, *argv, span1, span2, timeslots, n_timeslots);
+  convert_to_pcap(data_socket, *argv, span1, span2, timeslots, n_timeslots, 
+		  n_sus_per_file);
 
   return 0; // not reached
 }
