@@ -38,6 +38,8 @@
 #define strncpy(A,B,C) strcpy_s(A,C,B)
 #define strncat(A,B,C) strcat_s(A,C,B)
 #define snprintf sprintf_s
+
+#define HANDLE_OR_FILEPTR HANDLE
 #define PACK_SUFFIX
 
 //----------------------------------------------------------------------
@@ -59,9 +61,12 @@ int fopen_s(FILE **file, const char *filename, const char *mode);
 // only if we're cross compiling. (why?)
 #define ENETUNREACH WSAENETUNREACH
 #define ENOTSOCK    WSAENOTSOCK
+
+#define HANDLE_OR_FILEPTR HANDLE
 #endif
 //----------------------------------------------------------------------
 // Case 1
 #ifndef WIN32
 #define closesocket close
+#define HANDLE_OR_FILEPTR FILE*
 #endif

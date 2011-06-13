@@ -52,7 +52,7 @@ SS7 sniffer which saves to PCAP (wireshark) format files
 
   Typical use:
 
-    >./save_to_pcap 172.16.2.7 1A 2A 16 ss7.pcap
+    >./save_to_pcap 172.16.1.10 1A 2A 16 ss7.pcap
     capturing packets, press ^C to abort
     saving capture to file ss7.pcap.1
 
@@ -64,7 +64,16 @@ SS7 sniffer which saves to PCAP (wireshark) format files
   There's a WWW page which discusses this at 
 
      http://www.corelatus.com/gth/api/save_to_pcap/index.html
-  
+
+  On Unix-like systems, output can be piped directly to wireshark or
+  tshark for live capture, like this:
+
+    > ./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - 
+
+  On Windows systems, use 'named pipes' to do the same thing:
+
+    > start save_to_pcap 172.16.1.10 1A 2A 16 \\.\pipe\isup.1
+    > wireshark -k -i \\.\pipe\isup.1
 
 CAS line and register signalling sniffer
 ----------------------------------------

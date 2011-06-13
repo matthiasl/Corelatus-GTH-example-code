@@ -54,6 +54,7 @@
 
 #ifdef WIN32
 #include <winsock2.h>
+#include <windows.h>
 #else
 #include <sys/socket.h>
 #include <arpa/inet.h>
@@ -111,15 +112,112 @@ void usage() {
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<ts> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
-  fprintf(stderr, "Examples:\n");
-  fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
-  fprintf(stderr, "./save_to_pcap -m 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
-  fprintf(stderr, "./save_to_pcap -m -n 1000 172.16.1.10 1A 2A 16 isup_capture.pcap\n");
-  fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 - | tshark -V -i - \n");
-  fprintf(stderr, "./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n");
+  fprintf(stderr, 
+	  "Examples:\n"
+	  "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcap\n"
+	  "./save_to_pcap -m 172.16.1.10 1A 2A 16 isup_capture.pcap\n"
+	  "./save_to_pcap -m -n 1000 172.16.1.10 1A 2A 16 isup_capture.pcap\n"
+	  "./save_to_pcap 172.16.1.10 1A 2A 16 - | tshark -V -i - \n"
+	  "./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n"
+	  "./save_to_pcap 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
 
   exit(-1);
 }
+
+//----------------------------------------------------------------------
+// File IO functions which have to be different on Unix and Win32.
+//
+// (Win32 has fwrite, fclose and friends, but they can't be used to write
+// to a named pipe, hence these wrappers).
+#ifdef WIN32
+// Return 1 on success
+#define fwrite write_to_handle_or_file
+static int write_to_handle_or_file(void *buffer, 
+				   int length,
+				   int items,
+				   HANDLE_OR_FILEPTR file)
+{
+  int result;
+  DWORD written;
+
+  result = WriteFile(file, buffer, length * items, &written, 0);
+  if (written != length || !result ) {
+    return 0;
+  }
+  return 1;
+}
+
+static HANDLE_OR_FILEPTR stdout_handle_or_file()
+{
+  return GetStdHandle(STD_OUTPUT_HANDLE);
+}
+
+#define fclose CloseHandle
+
+#else
+static HANDLE_OR_FILEPTR stdout_handle_or_file()
+{
+  return stdout;
+}
+
+#endif
+
+static HANDLE_OR_FILEPTR open_windows_pipe(const char *filename)
+{
+  #ifdef WIN32
+  HANDLE pipe;
+  int result;
+
+  pipe = CreateNamedPipe(filename, 
+			 PIPE_ACCESS_OUTBOUND,          // write-only
+			 PIPE_TYPE_MESSAGE | PIPE_WAIT, // blocking writes
+			 1,                             // only allow one pipe
+			 70000,          // write buffer. GTH max is 64k
+			 10000,          // read buffer. We don't read
+			 0,              // default timeout
+			 0);             // no security attributes
+
+  if (pipe == INVALID_HANDLE_VALUE) {
+    die("Unable to create a named pipe. Giving up.");
+  }
+
+  result = ConnectNamedPipe(pipe, 0);
+  if (!result) {
+    die("Unabled to connect the named pipe. Giving up.");
+  }
+			 
+  return pipe;
+  #else
+  die("Cannot open a windows named pipe on a non-windows OS. Giving up.");
+  return 0;
+  #endif
+}
+
+static void open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
+{
+  int result = 0;
+  #ifdef WIN32
+  *hf = CreateFile(filename, 
+		   GENERIC_WRITE, 
+		   0, 
+		   0, 
+		   CREATE_ALWAYS, 
+		   FILE_ATTRIBUTE_NORMAL,
+		   0);
+
+  if (*hf == INVALID_HANDLE_VALUE) {
+    *hf = 0;
+  }
+#else
+  result = fopen_s(hf, filename, "wb");
+#endif
+  if (*hf == 0 || result != 0) {
+    fprintf(stderr, "unable to open %s for writing. Aborting.\n", filename);
+    exit(-1);
+  }
+}
+
+//----------------------------------------------------------------------
 
 // Start up L1 on the given span. It defaults to E1/doubleframe. We
 // disable the TX pins since we're only listening.
@@ -193,7 +291,7 @@ void read_exact(int fd, char* buf, size_t count) {
 }
 
 // Write a PCAP global header
-static void write_pcap_header(FILE* file)
+static void write_pcap_header(HANDLE_OR_FILEPTR file)
 {
   int result;
   PCAP_global_header header;
@@ -210,15 +308,54 @@ static void write_pcap_header(FILE* file)
 
   result = fwrite((void*)&header, sizeof header, 1, file);
 
-  if (result != 1)
+  if (result != 1) {
     die("Unable to write PCAP header. (Is the file writeable?)");
+  }
 
   return;
 }
 
+// Write a PCAP per-packet header 
+static void write_packet_header(HANDLE_OR_FILEPTR file,
+				unsigned int timestamp_hi, 
+				unsigned int timestamp_lo, 
+				int length)
+{
+  PCAP_packet_header pcap_header;
+  unsigned long long ts_sec;
+  unsigned long long ts_us;
+  int result;
+
+  assert(sizeof ts_sec == 8);
+
+  ts_us = ntohs(timestamp_hi);
+  ts_us <<= 32;
+  ts_us += ntohl(timestamp_lo);
+
+  ts_sec = ts_us / 1000;
+  ts_us = (ts_us % 1000) * 1000;
+
+  pcap_header.ts_sec = (unsigned int)ts_sec;
+  pcap_header.ts_us =  (unsigned int)ts_us;
+  pcap_header.incl_len = length;
+  pcap_header.orig_len = length;
+
+  result = fwrite(&pcap_header, sizeof pcap_header, 1, file);
+  if (result != 1) {
+    die("Unable to write packet to the given file. (Is it writeable?)");
+  }
+}
+
+static void write_packet_payload(HANDLE_OR_FILEPTR file, char *payload, 
+				 int length) {
+  int result;
+
+  result = fwrite(payload, length, 1, file);
+  if (result != 1)
+    die("Unable to write packet to the given file. (Is it writeable?)");
+}
 
 #define MAX_FILENAME 100
-#define SUS_PER_FILE 1000
 
 // Loop forever, converting the incoming GTH data to libpcap format
 static void convert_to_pcap(int data_socket,
@@ -231,41 +368,41 @@ static void convert_to_pcap(int data_socket,
 			    )
 {
   unsigned short length;
-  int result;
   GTH_mtp2 signal_unit;
-  PCAP_packet_header pcap_header;
-  unsigned long long ts_sec;
-  unsigned long long ts_us;
   int su_count;
   int file_number = 1;
-  FILE *file;
-  int write_to_stdout = (strcmp(base_name, "-") == 0);
+  HANDLE_OR_FILEPTR file;
+  int write_to_stdout = 0;
+  const char pipe_prefix[] = "\\\\.\\pipe\\";
+  int write_to_pipe;
 
-  assert(sizeof ts_sec == 8);
+  write_to_stdout = (strcmp(base_name, "-") == 0);
+  write_to_pipe = (strncmp(pipe_prefix, base_name, strlen(pipe_prefix)) == 0);
 
   while (1) {
     char filename[MAX_FILENAME];
 
-    if (!write_to_stdout) {
+    if (!write_to_stdout && !write_to_pipe) {
       snprintf(filename, MAX_FILENAME, "%s_%s_%s.%d",
 	       base_name, span1, span2, file_number);
-      fopen_s(&file, filename, "wb");
-      if (file == 0) {
-	fprintf(stderr, "unable to open %s for writing. Aborting.\n", filename);
-	exit(-1);
-      }
+      open_file_for_writing(&file, filename);
       fprintf(stderr, "saving to file %s\n", filename);
-      write_pcap_header(file);
     }
-    else {
-      file = stdout;
+    else if (write_to_stdout) {
+      file = stdout_handle_or_file();
       fprintf(stderr, "saving capture to stdout\n");
     }
-
+    else {
+      fprintf(stderr, "saving capture to a windows named pipe\n");
+      file = open_windows_pipe(base_name);
+    }
+    
+    write_pcap_header(file);
     file_number++;
     su_count = 0;
 
-    while ( (file == stdout) 
+    while ( write_to_stdout
+	    || write_to_pipe
 	    || n_sus_per_file == 0 
 	    || (su_count++ < n_sus_per_file) ) {
       read_exact(data_socket, (void*)&length, sizeof length);
@@ -273,26 +410,15 @@ static void convert_to_pcap(int data_socket,
       assert(length <= sizeof signal_unit);
       read_exact(data_socket, (void*)&signal_unit, length);
 
-      ts_us = ntohs(signal_unit.timestamp_hi);
-      ts_us <<= 32;
-      ts_us += ntohl(signal_unit.timestamp_lo);
-
-      ts_sec = ts_us / 1000;
-      ts_us = (ts_us % 1000) * 1000;
-
-      pcap_header.ts_sec = (unsigned int)ts_sec;
-      pcap_header.ts_us =  (unsigned int)ts_us;
-      pcap_header.incl_len = length;
-      pcap_header.orig_len = length;
       assert(ntohs(signal_unit.tag) < n_timeslots);
 
-      result = fwrite(&pcap_header, sizeof pcap_header, 1, file);
-      if (result != 1)
-	die("Unable to write packet to the given file. (Is it writeable?)");
+      length -= (signal_unit.payload - (char*)&(signal_unit.tag));
 
-      result = fwrite(signal_unit.payload, length, 1, file);
-      if (result != 1)
-	die("Unable to write packet to the given file. (Is it writeable?)");
+      write_packet_header(file, 
+			  signal_unit.timestamp_hi, signal_unit.timestamp_lo,
+			  length);
+
+      write_packet_payload(file, signal_unit.payload, length);
 
       if (write_to_stdout)
 	{
