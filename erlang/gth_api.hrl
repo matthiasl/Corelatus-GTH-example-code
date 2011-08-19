@@ -196,7 +196,7 @@
 
 -record(mtp2_stats, {
 	  span, timeslot,
-	  owner,
+	  owner_pid,
 	  n_fisu, n_lssu, n_msu, n_esu, n_rsu,
 	  fisu_o, lssu_o, msu_o, esu_o, rsu_o,
 	  fib_inv, bib_inv,
@@ -207,7 +207,7 @@
 
 -record(lapd_stats, {
 	  span, timeslot,
-	  owner,
+	  owner_pid,
 	  state_name,
 	  n_su, su_o, n_esu, esu_o,
 	  n_up, n_down, t_up, t_down,
@@ -216,7 +216,7 @@
 
 -record(fr_stats, {
 	  span, timeslot,
-	  owner,
+	  owner_pid,
 	  state_name,
 	  n_su, su_o, n_esu, esu_o,
 	  n_up, n_down, t_up, t_down,
@@ -224,7 +224,7 @@
 
 -record(at0m_stats, {
 	  span, timeslot,
-	  owner,
+	  owner_pid,
 	  state_name,
 	  n_cell, n_idle, n_oam,
 	  n_sync, t_sync, t_hunt,
@@ -246,7 +246,7 @@
 	  cur_load, av_load, max_load
 	 }).
 
--record(sigmon_empty_stats, {owner, span, timeslot}).
+-record(sigmon_empty_stats, {owner_pid, span, timeslot}).
 
 %% speaker is here for backwards compatibility with earlier (GTH 1.x) releases.
 -record(speaker, {source}).                 % #pcm_source | #pcm_sink
