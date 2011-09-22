@@ -548,7 +548,7 @@ query_resource(Pid, Name, Attribute) when is_pid(Pid) ->
 %% Undocumented. Used for testing incorrect API commands.
 -spec raw_xml(pid(), binary() | iolist()) -> any().		
 raw_xml(Pid, XML) when is_pid(Pid) ->
-    gen_server:call(Pid, {raw_xml, XML}, 17000).
+    gen_server:call(Pid, {raw_xml, XML}, 30000).
 
 -spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
 set(Pid, Name, Attributes)
@@ -1088,7 +1088,7 @@ handle_call({query_resource, Name}, _From, State = #state{socket = S}) ->
 %% Undocumented. Used for testing incorrect API commands.
 handle_call({raw_xml, XML}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, XML),
-    Reply = next_non_event(State#state{command_timeout=16000}),
+    Reply = next_non_event(State#state{command_timeout=30000}),
     {reply, Reply, State};
 
 handle_call(reset, _From, State = #state{socket = S}) ->
@@ -1181,7 +1181,7 @@ handle_info({tcp_closed, S}, State = #state{socket = S}) ->
 terminate(_, #state{socket = none}) ->
     ok;
 
-terminate(_Reason, State = #state{socket = S}) ->
+terminate(Reason, State = #state{socket = S}) ->
     _ = gth_apilib:send(S, "<bye/>"),
 
     %% GTH returns <ok/> in response to bye and then closes the socket.
@@ -1196,7 +1196,7 @@ terminate(_Reason, State = #state{socket = S}) ->
 		    error_logger:error_report(
 		      "ignoring bad <bye/> on MS Windows\n");
 		_ ->
-		    exit(bad_bye)
+		    exit({bad_bye, Reason})
 	    end
     end,
 
