@@ -20,7 +20,7 @@ win_targets=$(addsuffix .exe, $(target_basenames))
 common_c_files=gth_apilib.c gth_client_xml_parse.c
 
 
-CC_WIN32=i586-mingw32msvc-gcc
+CC_WIN32=i686-w64-mingw32-gcc
 LIBS_WIN32=-lws2_32
 
 CC=gcc
