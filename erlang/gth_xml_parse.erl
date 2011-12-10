@@ -326,6 +326,28 @@ new_child({player, A, C, _}) ->
 	     end,
     #player{loop = Loop, sources = T_or_C, sink = pcm_sink(Sink), nsync= NSync};
 
+new_child({raw_monitor, A, C, _}) ->
+    Attrs = ["ip_addr", "ip_port", "buffer_limit", "tag", "header_version"],
+    [IP_addr, IP_port, Buf_limit, Tag, Header_version] =
+	multiple_extract(A, Attrs),
+
+    N_port = list_to_integer(IP_port),
+    IP_addr_safe = case IP_addr of
+		       IPA when is_list(IPA) -> IP_addr;
+		       _ -> ""
+		   end,
+    Sources = lists:map(fun pcm_source/1, C),
+
+    #sigmon{buffer_limit = f_i_def_num(Buf_limit, ?MTP2_BUFLIM),
+	    load_limit = 0,
+	    average_period = 1,
+	    ip_addr = IP_addr_safe,
+	    ip_port = N_port,
+	    tag = f_i_def_num(Tag, 0),
+	    header_version = f_i_def_num(Header_version, 0),
+	    proto = #raw_mon{},
+	    sources = Sources};
+
 new_child({recorder, A, [Source, Sink], _}) ->
     NSync = integer_attribute("nsync", 0, A),
     #recorder{source = pcm_source(Source), nsync=NSync, sink = tcp_sink(Sink)};

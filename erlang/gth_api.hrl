@@ -139,6 +139,7 @@
 
 -record(ss5_ls_mon, {}).
 -record(ss5_rs_mon, {}).
+-record(raw_mon, {}).
 
 %%--------------------
 %% Full-duplex signalling

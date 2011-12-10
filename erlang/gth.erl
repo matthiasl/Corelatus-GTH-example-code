@@ -110,6 +110,7 @@
 	 new_level_detector/4, new_level_detector/6,
 	 new_mtp2_monitor/3, new_mtp2_monitor/4,
 	 new_player/4, new_player/5,
+	 new_raw_monitor/3, new_raw_monitor/4,
 	 new_recorder/3, new_recorder/4,
 	 new_ss5_linesig_monitor/3, new_ss5_linesig_monitor/4,
 	 new_ss5_registersig_monitor/3, new_ss5_registersig_monitor/4,
@@ -437,6 +438,17 @@ new_player(Pid, Clips, Span, Ts, Loop)
        is_list(Clips),
        Clips =/= [] ->
     gen_server:call(Pid, {new_player, Clips, Span, Ts, Loop}).
+
+%% Raw monitors are experimental (unsupported & undocumented, 2011-12-09)
+-spec new_raw_monitor(pid(), string(), 0..31, keyval_list()) ->
+			 {ok, string(), Raw_socket::port()} | {error, any()}.
+new_raw_monitor(Pid, Span, Ts) ->
+    new_raw_monitor(Pid, Span, Ts, []).
+
+new_raw_monitor(Pid, Span, Ts, Options)
+  when is_pid(Pid), is_integer(Ts), is_list(Options) ->
+    gen_server:call(Pid, {new_raw_monitor, Span, Ts, Options}).
+
 
 %% The 'Raw_socket' is a socket in {packet, 0} mode, delivering timeslot data.
 -spec new_recorder(pid(), string(), 0..31, keyval_list()) ->
@@ -890,6 +902,10 @@ handle_call({new_player, Clips, Span, Ts, Loop},
     Attrs = [{"loop", atom_to_list(Loop)}],
     ok = gth_apilib:send(S, xml:player(Clips, Attrs, Span, Ts)),
     Reply = receive_job_id(State),
+    {reply, Reply, State};
+
+handle_call({new_raw_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
+    Reply = new_signalling_monitor(Pid, State, Span, Ts, "raw_monitor", Opts),
     {reply, Reply, State};
 
 handle_call({new_ss5_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->

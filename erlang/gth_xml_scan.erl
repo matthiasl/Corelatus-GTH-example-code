@@ -120,8 +120,8 @@ xml_tags() ->
 
      state, controller, error, job, player, resource,
      atm_aal0_monitor, atm_aal2_monitor, atm_aal5_monitor,
-     f_relay_monitor, lapd_monitor, mtp2_monitor, ebs, module,
-     attribute
+     f_relay_monitor, lapd_monitor, mtp2_monitor, raw_monitor,
+     ebs, module, attribute
     ].
 
 %% Return: {[Tree], Leftover_tokens} 
