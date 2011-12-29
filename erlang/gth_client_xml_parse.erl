@@ -137,7 +137,8 @@ state_child({Name, A, C, T})
        Name == cas_r2_mfc_detector;
        Name == f_relay_monitor;
        Name == lapd_monitor;
-       Name == mtp2_monitor ->
+       Name == mtp2_monitor;
+       Name == raw_monitor ->
     Map = lists:map(fun attribute/1, C),
     #resp_tuple{name=Name, attributes=A, children=Map, clippings=T};
 

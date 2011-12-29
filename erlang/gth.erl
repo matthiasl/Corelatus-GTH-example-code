@@ -1517,6 +1517,7 @@ when Monitor == atm_aal0_monitor;
      Monitor == f_relay_monitor;
      Monitor == lapd_monitor;
      Monitor == mtp2_monitor;
+     Monitor == raw_monitor;
      Monitor == ss5_linesig_monitor;
      Monitor == ss5_registersig_monitor
      ->
