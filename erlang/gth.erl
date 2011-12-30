@@ -681,7 +681,7 @@ handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
 	    ok = gen_tcp:send(S, gth_apilib:header(Type, Length)),
 	    stream_install(S, Fun)
     end,
-				
+
     Reply = expect_ok(State#state{command_timeout = 60000}),
     {reply, Reply, State};
 
@@ -1455,7 +1455,10 @@ next_non_event(State = #state{socket = S, command_timeout = T}) ->
 			_ ->
 			    Parsed
 		    end
-	    end
+	    end;
+	
+	{tcp_closed, S} ->
+	    exit(api_socket_closed_remotely)
 
     after T ->
 	    exit(reply_timeout)
