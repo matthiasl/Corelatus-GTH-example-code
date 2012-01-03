@@ -291,12 +291,13 @@ stream_rest(S, Bytes, Timeout, Fun) ->
     erlang:garbage_collect(),
     case gen_tcp:recv(S, Read_now, Timeout) of
 	{ok, Lump} ->
+	    Remaining = Bytes - Read_now,
 	    case (catch Fun(Lump)) of
 		ok ->
-		    stream_rest(S, Bytes - Read_now, Timeout, Fun);
+		    stream_rest(S, Remaining, Timeout, Fun);
 		Other ->
 		    error_logger:error_report({"stream fun failed", Other}),
-		    dump_rest(S, Bytes, Timeout)
+		    dump_rest(S, Remaining, Timeout)
 	    end;
 	X = {error, _Reason} ->
 	    X
