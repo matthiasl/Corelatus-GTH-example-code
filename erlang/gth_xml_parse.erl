@@ -96,6 +96,10 @@ checked({'query', [], C, _}) ->
 	end,
     #cmd_tuple{command = 'query', args = lists:map(F, C)};
 
+checked({'query_jobs', [], C, _}) -> 
+    F = fun({job,      [{"id", Id}],     _, _}) -> Id end,
+    #cmd_tuple{command = 'query_jobs', args = lists:map(F, C)};
+
 checked({reset, [], C,_}) -> 
     [{resource, [{"name", Name}], [], _}] = C,
     #cmd_tuple{command= reset, args = Name};

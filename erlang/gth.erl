@@ -119,7 +119,7 @@
 	 new_tone_detector/3, new_tone_detector/4,
 	 new_tone_detector/5, new_tone_detector/6,
 	 nop/1,
-	 query_job/2,
+	 query_jobs/2, query_job/2,
 	 query_resource/2, query_resource/3,
 	 raw_xml/2,
 	 reset/1,
@@ -529,6 +529,13 @@ new_tone_detector(Pid, Span, Ts, Freq, Length, Event_handler)
 nop(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, nop).
 
+-spec query_jobs(pid(), [string()]) ->
+			[#resp_tuple{} | {error, any()}].
+query_jobs(Pid, Ids) ->
+    gen_server:call(Pid, {query_jobs, Ids}).
+
+%% query_job is deprecated, but retained for compatibility. Use query_jobs
+%% in new code, it returns much more information.
 -spec query_job(pid(), string()) ->
 		       {ok, {job, ID::string(), Owner::string(),
 			     keyval_list() | [string()]}}
@@ -1044,6 +1051,22 @@ handle_call(nop, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, "<nop/>"),
     #resp_tuple{name='ok'} = next_non_event(State),
     {reply, ok, State};
+
+handle_call({query_jobs, Ids}, _From, State = #state{socket = S}) ->
+    ok = gth_apilib:send(S, xml:query_jobs(Ids)),
+    #resp_tuple{name='jobs', children=Cs}
+	= next_non_event(State),
+    Reply = [begin case C of
+		       #resp_tuple{name='error',
+				   clippings=Clippings,
+				   attributes=[{"reason", R}]} ->
+			   {error, {atomise_error_reason(R), Clippings}};
+
+		       #resp_tuple{} ->
+			   C
+		   end
+	    end || C <- Cs],
+    {reply, Reply, State};
 
 handle_call({query_job, Id}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_job(Id)),

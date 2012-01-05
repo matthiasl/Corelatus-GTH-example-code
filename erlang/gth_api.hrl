@@ -36,7 +36,7 @@
 
 %% Sources and sinks
 -record(pcm_source, {module, 
-		     span,                  % string(), e.g. "1a"
+		     span,                  % string(), e.g. "1A"
 		     timeslot,              % integer()
 		     first_bit,             % integer()
 		     bandwidth}).           % integer()
@@ -171,12 +171,13 @@
 -record(player, {sources,                   % #tcp_source | [string()]
 		 sink,                      % #pcm_sink
 		 loop,                      % boolean()
-		 nsync = 0                  % undocumented hack for TLE
+		 octets_played,             % integer() | undefined
+		 nsync = 0                  % undocumented extension
 		 }
 	).
 -record(recorder, {source,                  % pcm_source
 		   sink,                    % tcp_sink
-		   nsync = 0                % undocumented hack for TLE
+		   nsync = 0                % undocumented extension
 		 }
 	).
 

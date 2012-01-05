@@ -89,6 +89,10 @@ checked({state, [], C, T}) ->
     Map = lists:map(fun state_child/1, C),
     {ok, #resp_tuple{name=state, children=Map, clippings=T}};
 
+checked({jobs, [], C, T}) ->  
+    Map = lists:map(fun job_child/1, C),
+    {ok, #resp_tuple{name=jobs, children=Map, clippings=T}};
+
 checked(_) -> 
     {error, unknown_tle}.
 
@@ -145,6 +149,12 @@ state_child({Name, A, C, T})
 state_child({ebs, A, C, T}) ->
     Map = lists:map(fun module/1, C),
     #resp_tuple{name=ebs, attributes=A, children=Map, clippings=T}.
+
+job_child({Name, A, [], T}) 
+  when Name == error;
+       Name == connection;
+       Name == clip ->
+    #resp_tuple{name=Name, attributes=A, clippings=T}.
 
 attribute({attribute, A, [], []}) ->
     #resp_tuple{name=attribute, attributes=A}.

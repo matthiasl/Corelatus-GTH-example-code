@@ -17,7 +17,7 @@
 	 pcm_sink/3, 
 	 pcm_source/2,
 	 player/3, player/4,
-	 query_job/1,
+	 query_jobs/1, query_job/1,
 	 query_resource/1,
 	 recorder/4, recorder/5,
 	 reset/1,
@@ -82,6 +82,10 @@ pcm_sink(IP, Span, Timeslot) when is_integer(Timeslot) ->
     ST = integer_to_list(Timeslot),
     tag("pcm_sink", [{"ip_addr", IP}, {"span", Span}, {"timeslot", ST}], []).
 
+query_jobs(Ids) ->
+    tag("query_jobs", [], [tag("job", [{"id", Id}]) || Id <- Ids]).
+
+%% Deprecated as of 36a, use query_jobs/1 for new code
 query_job(Id) ->
     tag("query", [], tag("job", [{"id", Id}])).
 
