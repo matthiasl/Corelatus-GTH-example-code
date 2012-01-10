@@ -1176,6 +1176,24 @@ handle_call({update, ID = "ebsw"++_, IPs}, _From, State = #state{socket = S}) ->
     Reply = expect_ok(State),
     {reply, Reply, State};
 
+handle_call({update, ID, KVs}, _From, State = #state{socket = S}) ->
+    Job_types = [
+		 {"ldmo", "lapd_monitor"},
+		 {"m2mo", "mtp2_monitor"},
+		 {"ramo", "raw_monitor"}
+		],
+    case lists:keyfind(string:substr(ID, 1, 4), 1, Job_types) of
+	false ->
+	    {reply, bogus_job, State};
+
+	{_, Job_type} ->
+	    ok = gth_apilib:send(S,
+				 xml:tag("update", [],
+					 xml:tag(Job_type, [{"id", ID}|KVs]))),
+	    Reply = expect_ok(State),
+	    {reply, Reply, State}
+    end;
+
 handle_call({zero_job, Id}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:zero_job(Id)),
     Reply = expect_ok(State),
