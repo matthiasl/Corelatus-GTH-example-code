@@ -150,11 +150,11 @@ state_child({ebs, A, C, T}) ->
     Map = lists:map(fun module/1, C),
     #resp_tuple{name=ebs, attributes=A, children=Map, clippings=T}.
 
-job_child({Name, A, [], T}) 
+job_child({Name, A, C, T}) 
   when Name == error;
        Name == connection;
        Name == clip ->
-    #resp_tuple{name=Name, attributes=A, clippings=T}.
+    #resp_tuple{name=Name, attributes=A, children=C, clippings=T}.
 
 attribute({attribute, A, [], []}) ->
     #resp_tuple{name=attribute, attributes=A}.
