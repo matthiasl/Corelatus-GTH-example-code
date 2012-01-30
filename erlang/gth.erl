@@ -119,7 +119,7 @@
 	 new_tone_detector/3, new_tone_detector/4,
 	 new_tone_detector/5, new_tone_detector/6,
 	 nop/1,
-	 query_jobs/2, query_job/2,
+	 query_jobs/3, query_jobs/2, query_job/2, query_job/3,
 	 query_resource/2, query_resource/3,
 	 raw_xml/2,
 	 reset/1,
@@ -162,6 +162,9 @@
 -type subrate()::{'subrate', Timeslot::1..31, First_bit::0..7,
 		  Bandwidth::integer()}.
 -type hostname_or_address()::inet:hostname() | inet:ip_address().
+-type job()::{'job', Id::string(), Owner::string(), Counters::keyval_list()}
+	     |{'job', Id::string(), Owner::string(), Tree::#resp_tuple{},
+	       Counters::keyval_list()}.
 
 %% API for users
 -spec start_link( hostname_or_address() ) -> {'ok',pid()} | {'error', _}.
@@ -529,19 +532,31 @@ new_tone_detector(Pid, Span, Ts, Freq, Length, Event_handler)
 nop(Pid) when is_pid(Pid) ->
     gen_server:call(Pid, nop).
 
--spec query_jobs(pid(), [string()]) ->
-			[#resp_tuple{} | {error, any()}].
-query_jobs(Pid, Ids) ->
-    gen_server:call(Pid, {query_jobs, Ids}).
+%% If called with Verbose=false, the return tuple has the ID, Owner
+%% and counters/status indicators.
+%%
+%% If called with Verbose=true, the return tuple also has a
+%% representation of the arguments used to start the job. This is
+%% useful for debugging and serialisation. In this case, 
+%% -include("gth_api.hrl") to get the #resp_tuple{} definition.
+%%
+-spec query_jobs(pid(), [string()], true | false) ->
+			{ok, [{error, any()} | job()]}.
+query_jobs(Pid, Ids, Verbose) when is_pid(Pid) ->
+    {ok, gen_server:call(Pid, {query_jobs, Ids, Verbose})}.
 
-%% query_job is deprecated, but retained for compatibility. Use query_jobs
-%% in new code, it returns much more information.
--spec query_job(pid(), string()) ->
-		       {ok, {job, ID::string(), Owner::string(),
-			     keyval_list() | [string()]}}
-			   | {error, any()}.
-query_job(Pid, Id) when is_pid(Pid) ->
-    gen_server:call(Pid, {query_job, Id}).
+query_jobs(Pid, Ids) when is_pid(Pid) ->
+    query_jobs(Pid, Ids, false).
+
+query_job(Pid, Id, Verbose) ->
+    case query_jobs(Pid, [Id], Verbose) of
+	{ok, [Error = {error, _}]} -> Error;
+	{ok, [Reply]} -> {ok, Reply}
+    end.
+
+query_job(Pid, Id) ->
+    query_job(Pid, Id, false).
+
 
 -spec query_resource(pid(), Name::string()) ->
 			    {ok, keyval_list()}                 % normal
@@ -1052,10 +1067,9 @@ handle_call(nop, _From, State = #state{socket = S}) ->
     #resp_tuple{name='ok'} = next_non_event(State),
     {reply, ok, State};
 
-handle_call({query_jobs, Ids}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:query_jobs(Ids)),
-    #resp_tuple{name='jobs', children=Cs}
-	= next_non_event(State),
+handle_call({query_jobs, Ids, Verbose}, _From, State = #state{socket = S}) ->
+    ok = gth_apilib:send(S, xml:query_jobs(Ids, Verbose)),
+    #resp_tuple{name='state', children=Cs} = next_non_event(State),
     Reply = [begin case C of
 		       #resp_tuple{name='error',
 				   clippings=Clippings,
@@ -1063,24 +1077,9 @@ handle_call({query_jobs, Ids}, _From, State = #state{socket = S}) ->
 			   {error, {atomise_error_reason(R), Clippings}};
 
 		       #resp_tuple{} ->
-			   C
+			   gth_client_xml_parse:job_state(Verbose, C)
 		   end
 	    end || C <- Cs],
-    {reply, Reply, State};
-
-handle_call({query_job, Id}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:query_job(Id)),
-    #resp_tuple{name='state', children=[C]}
-      = next_non_event(State),
-    Reply = case C of
-		#resp_tuple{name='error',
-			    clippings=Clippings,
-			    attributes=[{"reason", R}]} ->
-		    {error, {atomise_error_reason(R), Clippings}};
-
-		_ ->
-		    {ok, decode_job_state(C)}
-	    end,
     {reply, Reply, State};
 
 handle_call({query_resource, "inventory"}, _From, State = #state{socket = S}) ->
@@ -1107,9 +1106,8 @@ handle_call({query_resource, Name}, _From, State = #state{socket = S}) ->
 		
     Reply = case C of
 		#resp_tuple{name=resource, children=A} ->
-		    KV = [{K, V} || #resp_tuple{name=attribute,
-						attributes=[{"name", K},
-							    {"value",V}]} <- A],
+		    KV = attributes_to_kv(A),
+
 		    case get_text_trailer(S, Name) of
 			none ->
 			    {ok, KV};
@@ -1398,6 +1396,10 @@ handle_gth_event(E = #resp_tuple{}, State) ->
     error_logger:error_report({"received an unexpected event from the GTH", E}),
     State.
 
+attributes_to_kv(A) ->
+    [{K, V} || #resp_tuple{name=attribute,
+			   attributes=[{"name", K}, {"value",V}]} <- A].
+
 listen() ->
     listen([]).
 
@@ -1536,68 +1538,6 @@ atomise_error_reason(Other) -> exit({"must handle error reason", Other}).
 
 'GTH_API_PORT'() ->
     2089.
-
-%% Query of "self" only returns an ID
-decode_job_state(#resp_tuple{name=job, attributes=[{"id", I}]}) ->
-    {job, I, I, []};
-
-%% Query of a controller
-decode_job_state(#resp_tuple{name=controller, attributes=A}) ->
-    ID = case proplists:get_value("id", A) of
-	     undefined -> "";     %% Prior to 33a, no ID in apic query return
-	     X -> X
-	 end,
-    {job, ID, ID, A};
-
-%% Some jobs have attributes, but they're not nested
-decode_job_state(#resp_tuple{name=Monitor,
-			     attributes=[{"id", I}|Possible_owner],
-			     children=C})
-when Monitor == atm_aal0_monitor;
-     Monitor == atm_aal2_monitor;
-     Monitor == atm_aal5_monitor;
-     Monitor == cas_r2_linesig_monitor;
-     Monitor == cas_r2_mfc_detector;
-     Monitor == f_relay_monitor;
-     Monitor == lapd_monitor;
-     Monitor == mtp2_monitor;
-     Monitor == raw_monitor;
-     Monitor == ss5_linesig_monitor;
-     Monitor == ss5_registersig_monitor
-     ->
-    KVs = [{K,V} || #resp_tuple{name=attribute,
-				attributes=[{"name", K}, {"value", V}]}
-		       <- C],
-    Owner = case Possible_owner of
-		[{"owner", O}] -> O;
-		[] -> no_owner_prior_to_33a
-	    end,
-    {job, I, Owner, KVs};
-
-decode_job_state(#resp_tuple{name=player,
-			     attributes=[{"id", I}, {"owner", O}|T]}) ->
-    {job, I, O, T};
-
-
-%% EBS has nested information
-decode_job_state(#resp_tuple{name=ebs,
-			     attributes=[{"id", I}, {"owner", O}],
-			     children=C}) ->
-    Info = [Attrs || #resp_tuple{name = module, attributes = Attrs} <- C],
-    {job, I, O, Info};
-
-%% Catch-all for the rest, which don't have any attributes
-decode_job_state(#resp_tuple{name=job,
-			     attributes=[{"id", I}, {"owner", O}],
-			     children=C}) ->
-    case C of
-	[] -> ok;
-	undefined -> ok;
-	_ ->
-	    error_logger:error_report(
-	      {"Discarding info in decode_job_state", I, C})
-    end,
-    {job, I, O, []}.
 
 %% Consume all messages which came from this API instance
 flush(Pid) ->

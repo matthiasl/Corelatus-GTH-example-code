@@ -90,15 +90,16 @@ checked({new, [], [C], _}) ->
 checked({nop,    _,_,_}) -> 
     #cmd_tuple{command = nop};
 
-checked({'query', [], C, _}) -> 
+checked({'query', Attrs, C, _}) -> 
+    Verbose = case lists:keyfind("verbose", 1, Attrs) of
+		  false -> false;
+		  {"verbose", "true"} -> true;
+		  {"verbose", "false"} -> false
+	      end,
     F = fun({resource, [{"name", Name}], _, _}) -> {resource, Name};
 	   ({job,      [{"id", Id}],     _, _}) -> {job, Id}
 	end,
-    #cmd_tuple{command = 'query', args = lists:map(F, C)};
-
-checked({'query_jobs', [], C, _}) -> 
-    F = fun({job,      [{"id", Id}],     _, _}) -> Id end,
-    #cmd_tuple{command = 'query_jobs', args = lists:map(F, C)};
+    #cmd_tuple{command = 'query', args = {Verbose, lists:map(F, C)}};
 
 checked({reset, [], C,_}) -> 
     [{resource, [{"name", Name}], [], _}] = C,
@@ -257,9 +258,9 @@ new_child({fr_layer, A, C, _}) ->
     _Sources =  [pcm_source(X) || X = {pcm_source, _,_,_} <- C],
     Sinks    =  [pcm_sink(X)   || X = {pcm_sink, _,_,_} <- C],
     (length(_Sources)+length(Sinks) == length(C)) orelse exit("bogus sources"),
-    #f_relay_layer{ip_addr = IP,
-		   ip_port = list_to_integer(SPort),
-		   sinks = Sinks};
+    #fr_layer{ip_addr = IP,
+	      ip_port = list_to_integer(SPort),
+	      sinks = Sinks};
 
 new_child({fr_monitor, A, C, _}) ->
     L = multiple_extract(A, fr_attributes()),
@@ -268,10 +269,11 @@ new_child({fr_monitor, A, C, _}) ->
 
 new_child({lapd_layer, A, [Source, Sink], _}) ->
     To_extract = [{"side", "network"}, {"sapi", "0"}, {"tei", "0"},
-		 {"ip_addr", error}, {"ip_port", error}, {"tag", error}],
+		  {"ip_addr", error}, {"ip_port", error}, {"tag", error}],
     [Side, Sapi, Tei, IP, Port, ATag] = multiple_extract(A, To_extract),
     true = (IP =/= error) and (Port =/= error),
-    #lapd_layer{side = Side, sapi = list_to_integer(Sapi),
+    true = lists:member(Side, ["network", "user"]),
+    #lapd_layer{side = list_to_atom(Side), sapi = list_to_integer(Sapi),
 		tei = list_to_integer(Tei),
 		ip_addr = IP, ip_port = list_to_integer(Port),
 		tag = list_to_integer(ATag),
@@ -549,9 +551,9 @@ fr_fill_in([Su, Esu, IP_addr, IP_port, Load_limit,
 		       IPA when is_list(IPA) -> IP_addr;
 		       _ -> ""
 		   end,
-    FR = #f_relay_mon{esu  = f_i_def_yn(Esu, false),
-		     su  = f_i_def_yn(Su, true),
-		     timeout = f_i_def_num(Timeout, 0)},
+    FR = #fr_mon{esu  = f_i_def_yn(Esu, false),
+		 su  = f_i_def_yn(Su, true),
+		 timeout = f_i_def_num(Timeout, 0)},
 
     #sigmon{load_limit = f_i_def_num(Load_limit, ?FR_LOADLIM),
 	    buffer_limit = f_i_def_num(Buf_limit, ?FR_BUFLIM),

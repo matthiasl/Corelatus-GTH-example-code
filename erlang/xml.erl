@@ -17,7 +17,7 @@
 	 pcm_sink/3, 
 	 pcm_source/2,
 	 player/3, player/4,
-	 query_jobs/1, query_job/1,
+	 query_jobs/2, query_job/1,
 	 query_resource/1,
 	 recorder/4, recorder/5,
 	 reset/1,
@@ -33,7 +33,10 @@
 %% XML generation
 
 attribute(N, V) when is_list(N), is_list(V) ->
-    tag("attribute", [{"name", N}, {"value", V}], "").
+    tag("attribute", [{"name", N}, {"value", V}], "");
+
+attribute(N, V) when is_list(N), is_integer(V) ->
+    tag("attribute", [{"name", N}, {"value", integer_to_list(V)}], "").
 
 clip(Id) when is_list(Id) ->
     tag("clip", [{"id", Id}], []).
@@ -82,12 +85,15 @@ pcm_sink(IP, Span, Timeslot) when is_integer(Timeslot) ->
     ST = integer_to_list(Timeslot),
     tag("pcm_sink", [{"ip_addr", IP}, {"span", Span}, {"timeslot", ST}], []).
 
-query_jobs(Ids) ->
-    tag("query_jobs", [], [tag("job", [{"id", Id}]) || Id <- Ids]).
+query_jobs(Ids, Verbose) ->
+    Attrs = case Verbose of
+		true -> [{"verbose", "true"}];
+		false -> []
+	    end,
+    tag("query", Attrs, [tag("job", [{"id", Id}]) || Id <- Ids]).
 
-%% Deprecated as of 36a, use query_jobs/1 for new code
 query_job(Id) ->
-    tag("query", [], tag("job", [{"id", Id}])).
+    query_jobs([Id], false).
 
 query_resource(Name) ->
     tag("query", [], tag("resource", [{"name", Name}])).

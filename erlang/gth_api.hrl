@@ -26,7 +26,7 @@
 	  args                              % term()
        }).
 
-%% Responses from the GTH. Basically a general XML tuple
+%% Responses from the GTH. A general XML tuple.
 -record(resp_tuple, {
 	  name,                             % ok | error | job | state | event
 	  attributes = [],                  % [{key, value}]
@@ -38,8 +38,8 @@
 -record(pcm_source, {module, 
 		     span,                  % string(), e.g. "1A"
 		     timeslot,              % integer()
-		     first_bit,             % integer()
-		     bandwidth}).           % integer()
+		     first_bit = 0,         % integer()
+		     bandwidth = 64}).      % integer()
 
 -record(pcm_sink, {module,                  % quad tuple | localhost
 		   span,                    % string()
@@ -73,7 +73,7 @@
 	  average_period,                   % integer(), in seconds
 	  header_version,                   % integer()
 	  proto}).                          %   #mtp2_mon
-                                            % | #f_relay_mon
+                                            % | #fr_mon
                                             % | #atm_aal0_mon
                                             % | #atm_aal5_mon
                                             % | #atm_aal2_mon
@@ -89,7 +89,7 @@
 		   esnf                     % boolean()
 		  }).                              
 
--record(f_relay_mon, {
+-record(fr_mon, {
 	  su,                               % boolean()
 	  esu,                              % boolean()
 	  timeout                           % integer(), in seconds
@@ -144,7 +144,7 @@
 %%--------------------
 %% Full-duplex signalling
 
--record(f_relay_layer, {
+-record(fr_layer, {
 	  ip_addr, ip_port,                 % string(), integer()
 	  sources,                          % [#pcm_source]
 	  sinks                             % [#pcm_sink]
