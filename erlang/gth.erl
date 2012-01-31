@@ -163,6 +163,7 @@
 		  Bandwidth::integer()}.
 -type hostname_or_address()::inet:hostname() | inet:ip_address().
 -type job()::{'job', Id::string(), Owner::string(), Counters::keyval_list()}
+	     |{'job', Id::string(), Owner::string(), Modules::[string()]}
 	     |{'job', Id::string(), Owner::string(), Tree::#resp_tuple{},
 	       Counters::keyval_list()}.
 
