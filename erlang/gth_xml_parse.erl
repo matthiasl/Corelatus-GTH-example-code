@@ -157,7 +157,7 @@ update({controller, A, [], _}) ->
 
 update({mtp2_monitor, A, [],_}) ->
     L = multiple_extract([{"ip_port", "0"}|A], mtp2_attributes()),
-    {value, {_, ID}} = lists:keysearch("id", 1, A),
+    {_, ID} = lists:keyfind("id", 1, A),
     #cmd_tuple{command = update, id = ID, args = mtp2_fill_in(L, [])};
 
 update({ebs, [{"id", Id}], C, _}) ->
@@ -167,7 +167,7 @@ update({ebs, [{"id", Id}], C, _}) ->
 
 update({lapd_monitor, A, [], _}) ->
     L = multiple_extract([{"ip_port", "0"}|A], lapd_attributes()),
-    {value, {_, ID}} = lists:keysearch("id", 1, A),
+    {_, ID} = lists:keyfind("id", 1, A),
     #cmd_tuple{command = update, id = ID, args = lapd_fill_in(L, [])}.
 
 %%======================================================================
@@ -442,14 +442,14 @@ level_detector_backwards_compat(ALev) ->
 %% Returns just the values
 multiple_extract(Att, Wanted) ->
     F = fun({W,D}) ->
-		case lists:keysearch(W, 1, Att) of
-		    {value, {_, V}} -> V;
-		    _ -> D
+		case lists:keyfind(W, 1, Att) of
+		    {_, V} -> V;
+		    false -> D
 		end;
 	   (W) ->
-		case lists:keysearch(W, 1, Att) of
-		    {value, {_, V}} -> V;
-		    _ -> error
+		case lists:keyfind(W, 1, Att) of
+		    {_, V} -> V;
+		    false -> error
 		end
 	   end,
     lists:map(F, Wanted).
@@ -625,8 +625,8 @@ mtp2_fill_in([Fisu, Dup_fisu, Lssu, Dup_lssu, Msu, Esu,
 
 %% Returns: {ok, #pcm_source, Leftover}
 pcm_source({pcm_source, A, [], _}) ->
-    {value, {_, Span}} = lists:keysearch("span", 1, A),
-    {value, {_, Timeslot}} = lists:keysearch("timeslot", 1, A),
+    {_, Span} = lists:keyfind("span", 1, A),
+    {_, Timeslot} = lists:keyfind("timeslot", 1, A),
     Bandwidth = integer_attribute("bandwidth", 64, A),
     First_bit = integer_attribute("first_bit", 0, A),
     #pcm_source{span = pcm_id(Span), module = localhost, 
@@ -639,12 +639,12 @@ pcm_id("pcm" ++ N) -> pcm_id(N);
 pcm_id(X) -> X.
 
 pcm_sink({pcm_sink, A, [], _}) ->
-    {value, {_, Span}} = lists:keysearch("span", 1, A),
-    {value, {_, Timeslot}} = lists:keysearch("timeslot", 1, A),
-    Module = case lists:keysearch("ip_addr", 1, A) of
-		 {value, {_, Quad}} ->
+    {_, Span} = lists:keyfind("span", 1, A),
+    {_, Timeslot} = lists:keyfind("timeslot", 1, A),
+    Module = case lists:keyfind("ip_addr", 1, A) of
+		 {_, Quad} ->
 		     ip_to_tuple(Quad);
-		 _ ->
+		 false ->
 		     localhost
 	     end,
     #pcm_sink{span = pcm_id(Span),
@@ -652,20 +652,20 @@ pcm_sink({pcm_sink, A, [], _}) ->
 	      module = Module}.
 
 tcp_sink({tcp_sink, A, [], _}) ->
-    {value, {_, Address}} = lists:keysearch("ip_addr", 1, A),
-    {value, {_, Port}} = lists:keysearch("ip_port", 1, A),
+    {_, Address} = lists:keyfind("ip_addr", 1, A),
+    {_, Port} = lists:keyfind("ip_port", 1, A),
     NPort = list_to_integer(Port),
     #tcp_sink{address = ip_to_tuple(Address), port = NPort}.
 
 tcp_source({tcp_source, A, [], _}) ->
-    {value, {_, Address}} = lists:keysearch("ip_addr", 1, A),
-    {value, {_, Port}} = lists:keysearch("ip_port", 1, A),
+    {_, Address} = lists:keyfind("ip_addr", 1, A),
+    {_, Port} = lists:keyfind("ip_port", 1, A),
     NPort = list_to_integer(Port),
     #tcp_source{address = ip_to_tuple(Address), port = NPort}.
 
 udp_sink({udp_sink, A, [], _}) ->
-    {value, {_, Address}} = lists:keysearch("ip_addr", 1, A),
-    {value, {_, Port}} = lists:keysearch("ip_port", 1, A),
+    {_, Address} = lists:keyfind("ip_addr", 1, A),
+    {_, Port} = lists:keyfind("ip_port", 1, A),
     NPort = list_to_integer(Port),
     #udp_sink{address = ip_to_tuple(Address), port = NPort}.
 
@@ -673,8 +673,8 @@ udp_sink({udp_sink, A, [], _}) ->
 %% Default: integer()
 %% List: [{string(), string()}]
 integer_attribute(Name, Default, List) ->
-    case lists:keysearch(Name, 1, List) of
-	{value, {_, V}} -> list_to_integer(V);
+    case lists:keyfind(Name, 1, List) of
+	{_, V} -> list_to_integer(V);
 	_ -> Default
     end.
 
@@ -683,11 +683,11 @@ integer_attribute(Name, Default, List) ->
 %% Default: atom()
 %% List: [{string(), string()]
 atom_attribute(Name, Possibilities, Default, List) ->
-    case lists:keysearch(Name, 1, List) of
-	{value, {_, V}} -> 
+    case lists:keyfind(Name, 1, List) of
+	{_, V} -> 
 	    true = lists:member(V, Possibilities),
 	    list_to_atom(V);
-	_ -> 
+	false -> 
 	    Default
     end.
 
