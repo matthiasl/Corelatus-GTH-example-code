@@ -85,7 +85,7 @@
 %%%-------------------------------------------------------------------
 -module(gth).
 -behaviour(gen_server).
--include("gth_api.hrl").
+-include("gth_xml.hrl").
 
 %% API
 -export([start_link/1, start_link/2,
@@ -137,7 +137,7 @@
 
 -record(state,
 	{socket :: port() | none,
-	 debug_remote_ip,
+	 debug_remote_ip :: hostname_or_address(),
 
 	 %% pre-opened listen socket for players
 	 player_ls :: {integer(), port()},

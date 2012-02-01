@@ -10,6 +10,9 @@
 %%%
 %%% In either case, the sockets you pass to this module must have the
 %%% 'binary' option set.
+%%%
+%%% If you're unsure whether you should be using this module, then
+%%% you probably don't want to. Take a look at gth.erl instead.
 %%%----------------------------------------------------------------------
 -module(gth_apilib).
 -author("matthias@corelatus.com").
@@ -33,7 +36,7 @@
 %% should be streamed.
 -define(MAX_CONTENT_SIZE, 500002).
 
--include("gth_api.hrl").
+-include("gth_xml.hrl").
 
 %%======================================================================
 %% API

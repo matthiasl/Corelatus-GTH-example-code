@@ -37,7 +37,7 @@
 %%----------------------------------------------------------------------
 -module(gth_client_xml_parse).
 -export([string/1, job_state/2]).
--include("gth_api.hrl").
+-include("gth_xml.hrl").
 
 %% for debugging
 -export([step/0, trace/0, tracer/0]).
