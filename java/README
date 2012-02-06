@@ -40,7 +40,7 @@ What you get is
    3. Demo code which demonstrates fault tolerance in the MTP-2
       monitoring system: mtp2_api.java and mtp2_receiver.java.
 
-   4. Logging code which demonstrates a periodically sampling 
+   4. Logging code which demonstrates a periodically sampling
       L1 and L2 counters: timeseries.java
 
 Problems? Fixes? Questions? Send us some mail. Please keep

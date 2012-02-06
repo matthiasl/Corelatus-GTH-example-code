@@ -25,7 +25,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -54,9 +54,9 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "record [-v] [-T] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Save bit-exact data from a timeslot to a file\n\n"
 	  "-v: print the API commands and responses (verbose)\n"
@@ -69,14 +69,14 @@ static void usage()
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./record    172.16.1.10 1A 1 my_capture.wav\n\n");
   fprintf(stderr, "./record -T 172.16.1.10 1A 1 my_capture.wav\n\n");
-  
+
   exit(-1);
 }
 
 typedef unsigned int   u32;
 typedef unsigned short u16;
 
-// The WAV header format, as described in 
+// The WAV header format, as described in
 //
 // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 #pragma pack(1)
@@ -84,7 +84,7 @@ struct WAV_header {
   char ckID[4];
   u32 cksize;         // always 20 + the number of samples
   char WAVEID[4];
-  
+
   //----
   char format_id[4];
   u32 format_size;    // always 16 for this minimal header
@@ -107,13 +107,13 @@ struct WAV_header {
 // tool will still work, but the .wav header will be corrupt.
 #endif
 
-static void possibly_prepend_wav_header(const char *filename, 
+static void possibly_prepend_wav_header(const char *filename,
 					FILE *file,
 					const int mulaw)
 {
   int len = strlen(filename);
 
-  if (len < 4) 
+  if (len < 4)
     return;
 
   if (strcmp(filename + len - 4, ".wav") == 0)
@@ -145,16 +145,16 @@ static void possibly_prepend_wav_header(const char *filename,
       header.data_size = 80000;
 
       result = fwrite(&header, sizeof(header), 1, file);
-      
+
       assert(result == 1);
     }
 }
 
-static void record_a_file(GTH_api *api, 
-			  const char *span, 
+static void record_a_file(GTH_api *api,
+			  const char *span,
 			  const int timeslot,
 			  const char *filename,
-			  const int mulaw) 
+			  const int mulaw)
 {
   int data_socket;
   char buffer[2000];
@@ -215,7 +215,7 @@ static void setup_layer_1(GTH_api *api, const char *pcm_name, const int mulaw) {
   int result;
   const char e1[] = "E1";
   const char t1[] = "T1";
-  
+
   result = gth_set_single(api, pcm_name, "mode", (mulaw)?t1:e1);
 
   if (result != 0) {
@@ -224,8 +224,8 @@ static void setup_layer_1(GTH_api *api, const char *pcm_name, const int mulaw) {
 }
 
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   int result;
   GTH_api api;

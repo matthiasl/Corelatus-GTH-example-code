@@ -31,7 +31,7 @@ public class Resource {
     public String to_string() {
 	String s = name;
 	ListIterator i = attributes.listIterator(0);
-	
+
 	while (i.hasNext()) {
 	    KeyValue kv = (KeyValue)i.next();
 	    s += " " + kv.key + "=" + kv.value;
@@ -49,7 +49,7 @@ public class Resource {
 
 	while (child != null) {
 	    if (child.getNodeType() != Node.TEXT_NODE) {
-		NamedNodeMap attrs = child.getAttributes();		
+		NamedNodeMap attrs = child.getAttributes();
 		String key = attrs.getNamedItem("name").getNodeValue();
 		String value = attrs.getNamedItem("value").getNodeValue();
 		attributes.add(new KeyValue(key, value));

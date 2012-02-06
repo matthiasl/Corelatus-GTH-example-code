@@ -3,7 +3,7 @@ Title: README file for Perl example code
 ----------------------------------------------------------------------
 
 This is example code in Perl for a Corelatus GTH. The examples were
-tested on Perl 5.10.0 on linux. 
+tested on Perl 5.10.0 on linux.
 
 Keep in mind that I'm a Perl dabbler, i.e. if it looks weird, then
 that's most likely because I didn't know better. Suggestions for
@@ -29,7 +29,7 @@ Recorded file playback
 E1 timeslot dump to a file
 --------------------------
 
-  This is the opposite of the first example, it copies the 
+  This is the opposite of the first example, it copies the
   data on the given E1 to a file on your PC. Typical use:
 
     >./record.pl 172.16.2.7 1A 16 4000 signalling.raw

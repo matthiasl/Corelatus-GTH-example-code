@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Title: Record E1/T1 timeslot data from a Corelatus GTH 
+# Title: Record E1/T1 timeslot data from a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)
 
 import sys
@@ -73,7 +73,7 @@ def main():
     if len(sys.argv) != 6:
         usage()
         sys.exit(-1)
-        
+
     # We only check the number of arguments. If the GTH doesn't like
     # the contents, it'll say so.
 

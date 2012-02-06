@@ -24,7 +24,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,17 +80,17 @@ static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
 				 int *n_attributes);
-static int query_inventory(GTH_api *api, 
-			   GTH_attribute **attributes, 
+static int query_inventory(GTH_api *api,
+			   GTH_attribute **attributes,
 			   int *n_attributes);
 
 static void my_ip_address(GTH_api *api);
 
 static int recv_job_id(GTH_api *api, char *id);
 static void api_write(GTH_api *api, const char* command);
-static void api_write_non_xml(int s, 
-				  const char* type, 
-				  const char* data, 
+static void api_write_non_xml(int s,
+				  const char* type,
+				  const char* data,
 				  int len);
 
 // Read the next GTH response from the given API connection.
@@ -101,22 +101,22 @@ static void api_write_non_xml(int s,
 // Return: 0 on success, anything else is an error
 //
 static int next_api_response(GTH_api *api,
-			     char* response, 
+			     char* response,
 			     const int max_response_length);
 
 // Use the XML parser to parse the next response
 //
 // Return 0 if the response was as expected
 //
-// If the response is not as expected and **actual is non-null, 
+// If the response is not as expected and **actual is non-null,
 // the actual response is left in **actual. The caller must then free it.
 //
-static int check_api_response(GTH_api *api, GTH_resp_type expected, 
+static int check_api_response(GTH_api *api, GTH_resp_type expected,
 			      GTH_resp **actual);
 
 //----------------------------------------------------------------------
 
-void die(const char* message) 
+void die(const char* message)
 {
   fprintf(stderr, "%s\n", message);
   exit(-1);
@@ -133,7 +133,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
   assert(resp->n_children == 1);
 
   child = resp->children + 0;
-  
+
   switch (child->type) {
 
   case GTH_RESP_INFO: {
@@ -148,16 +148,16 @@ void gth_event_handler(void *data, GTH_resp *resp)
   }
 
   case GTH_RESP_L1_MESSAGE: {
-    gth_print_tree(resp);    
+    gth_print_tree(resp);
     break;
   }
 
   case GTH_RESP_SYNC_MESSAGE: {
-    gth_print_tree(resp);    
+    gth_print_tree(resp);
     break;
   }
 
-  case GTH_RESP_TONE: 
+  case GTH_RESP_TONE:
     if (api->tone_handler) {
       const char *name = attribute_value(child, "name");
       const char *length = attribute_value(child, "length");
@@ -168,7 +168,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
 
   default:
     printf("gth_event_handler got an event, handling with default handler\n");
-    gth_print_tree(resp);    
+    gth_print_tree(resp);
     break;
   }
 
@@ -176,7 +176,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
 }
 
 
-int gth_connect(GTH_api *api, const char *address, const int verbose) 
+int gth_connect(GTH_api *api, const char *address, const int verbose)
 {
   struct sockaddr_in gth_addr;
   struct hostent* host;
@@ -214,11 +214,11 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
   }
 
   my_ip_address(api);
-  
+
   return 0;
 }
 
-int gth_bye(GTH_api *api) 
+int gth_bye(GTH_api *api)
 {
   api_write(api, "<bye/>");
 
@@ -227,10 +227,10 @@ int gth_bye(GTH_api *api)
       return -1;
     }
 
-  return 0;  
+  return 0;
 }
 
-int gth_make_listen_socket(int* port) 
+int gth_make_listen_socket(int* port)
 {
   int s = -1;
   int result;
@@ -258,7 +258,7 @@ int gth_make_listen_socket(int* port)
   return s;
 }
 
-int gth_wait_for_accept(int listen_socket) 
+int gth_wait_for_accept(int listen_socket)
 {
   int data_socket = -1;
 
@@ -289,8 +289,8 @@ static int gth_wait_for_install_complete(GTH_api *api)
       return -1;
     }
 
-    resp = gth_parse(buffer); 
-  
+    resp = gth_parse(buffer);
+
     if (resp == 0) {
       return -1;
     }
@@ -298,7 +298,7 @@ static int gth_wait_for_install_complete(GTH_api *api)
     assert(resp->n_children == 1);
 
     child = resp->children + 0;
-  
+
     if (child->type == GTH_RESP_INFO) {
       if (!strcmp("install_done", attribute_value(child, "reason"))) {
 	gth_free_resp(resp);
@@ -310,12 +310,12 @@ static int gth_wait_for_install_complete(GTH_api *api)
 	return -1;
       }
     }
-    
+
     assert(api->event_handler);
     (*api->event_handler)(api, resp);
   }
 
-  return 0;  
+  return 0;
 }
 
 int gth_install(GTH_api *api,
@@ -332,10 +332,10 @@ int gth_install(GTH_api *api,
   snprintf(buffer, MAX_COMMAND, "<install name='%s'/>", name);
   api_write(api, buffer);
   api_write_non_xml(api->fd, type, data, length);
-  
+
   if (check_api_response(api, GTH_RESP_OK, &resp))
     {
-      if (resp) 
+      if (resp)
 	{
 	  gth_print_tree(resp);
 	  gth_free_resp(resp);
@@ -361,12 +361,12 @@ int gth_new_cas_r2_mfc_detector(GTH_api *api,
 {
   int result;
   char command[MAX_COMMAND];
-  const char* command_template = 
+  const char* command_template =
     "<new><cas_r2_mfc_detector tag='%d' direction='forward' "
     "ip_addr='%s' ip_port='%d'><pcm_source span='%s' timeslot='%d'/>"
     "</cas_r2_mfc_detector></new>";
 
-  snprintf(command, MAX_COMMAND, command_template, 
+  snprintf(command, MAX_COMMAND, command_template,
 	   tag, ip, port, span, timeslot);
   api_write(api, command);
 
@@ -385,7 +385,7 @@ int gth_new_cas_r2_linesig_monitor(GTH_api *api,
 {
   int result;
   char command[MAX_COMMAND];
-  const char* command_template = 
+  const char* command_template =
     "<new><cas_r2_linesig_monitor tag='%d' "
     "ip_addr='%s' ip_port='%d'><pcm_source span='%s' timeslot='%d'/>"
     "</cas_r2_linesig_monitor></new>";
@@ -407,7 +407,7 @@ int gth_new_connection(GTH_api *api,
 {
   int result;
   char command[MAX_COMMAND];
-  const char* command_template = 
+  const char* command_template =
     "<new><connection>"
     "<pcm_source span='%s' timeslot='%d'/>"
     "<pcm_sink   span='%s' timeslot='%d'/>"
@@ -445,7 +445,7 @@ int gth_new_lapd_layer(GTH_api *api,
     "<pcm_sink span='%s' timeslot='%d'/>"
     "</lapd_layer></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, side, sapi, 
+  result = snprintf(command, MAX_COMMAND, template, side, sapi,
 		    tei, ip, port, tag, span, ts, span, ts);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -457,7 +457,7 @@ int gth_new_lapd_layer(GTH_api *api,
 
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
-			 const char *span, 
+			 const char *span,
 			 const int ts,
 			 char *job_id,
 			 const char *ip,
@@ -482,8 +482,8 @@ int gth_new_mtp2_monitor(GTH_api *api,
 }
 
 
-int gth_new_player(GTH_api *api, 
-		   const char *span, 
+int gth_new_player(GTH_api *api,
+		   const char *span,
 		   int timeslot,
 		   char *job_id)
 {
@@ -502,7 +502,7 @@ int gth_new_player(GTH_api *api,
   template = "<new><player><tcp_source ip_addr='%s' ip_port='%d'/>"
     "<pcm_sink span='%s' timeslot='%d'/></player></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, 
+  result = snprintf(command, MAX_COMMAND, template,
 		    api->my_ip, listen_port, span, timeslot);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -515,8 +515,8 @@ int gth_new_player(GTH_api *api,
   return (result == 0)?data_socket:-1;
 }
 
-int gth_new_recorder(GTH_api *api, 
-		     const char *span, 
+int gth_new_recorder(GTH_api *api,
+		     const char *span,
 		     int timeslot,
 		     char *job_id)
 {
@@ -536,7 +536,7 @@ int gth_new_recorder(GTH_api *api,
     "<tcp_sink ip_addr='%s' ip_port='%d'/>"
     "</recorder></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, 
+  result = snprintf(command, MAX_COMMAND, template,
 		    span, timeslot, api->my_ip, listen_port);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -549,8 +549,8 @@ int gth_new_recorder(GTH_api *api,
   return (result == 0)?data_socket:-1;
 }
 
-int gth_new_tone_detector(GTH_api *api, 
-			  const char *span, 
+int gth_new_tone_detector(GTH_api *api,
+			  const char *span,
 			  int timeslot,
 			  char *job_id,
 			  GTH_tone_handler* handler)
@@ -570,7 +570,7 @@ int gth_new_tone_detector(GTH_api *api,
   if (result == 0) {
     api->tone_handler = handler;
   }
-  
+
   return result;
 }
 
@@ -609,14 +609,14 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
     if (result != 0) {
       return 0;
     }
-    resp = gth_parse(buffer); 
-  
+    resp = gth_parse(buffer);
+
     assert(resp);
     assert(resp->type == GTH_RESP_EVENT);
     assert(resp->n_children == 1);
 
     child = resp->children + 0;
-  
+
     if (child->type == GTH_RESP_MESSAGE_ENDED) {
       event_job_id = attribute_value(child, "id");
       if (!strcmp(event_job_id, job_id)) {
@@ -624,13 +624,13 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
 	return 0;
       }
     }
-    
+
     assert(api->event_handler);
     (*api->event_handler)(api, resp);
     gth_free_resp(resp);
   }
 
-  return 0;  
+  return 0;
 }
 
 // There's a job ID coming back on the command socket. Parse it.
@@ -647,8 +647,8 @@ static int recv_job_id(GTH_api *api, char *id)
 
   resp = gth_next_non_event(api);
   if (resp == 0) return -1;
-  
-  if (resp->type == GTH_RESP_JOB) 
+
+  if (resp->type == GTH_RESP_JOB)
     {
       id_attr = attribute_value(resp, "id");
       assert(id_attr && strlen(id_attr) < MAX_JOB_ID);
@@ -705,7 +705,7 @@ static int read_header_line(int fd, char *line) {
 static int definite_read(int fd,
 			 int length,
 			 char *response,
-			 const int max_response_length) 
+			 const int max_response_length)
 {
   size_t to_read;
   int result;
@@ -748,7 +748,7 @@ static int definite_read(int fd,
 
 //----------------------------------------------------------------------
 static int next_api_response(GTH_api *api,
-			     char *response, 
+			     char *response,
 			     const int max_response_length)
 {
   char content_type[GTH_HEADER_BUFFER_LEN];
@@ -759,7 +759,7 @@ static int next_api_response(GTH_api *api,
   int result2;
 
   assert(api);
-  assert(response);  
+  assert(response);
 
   result1 = read_header_line(api->fd, content_type);
   result2 = read_header_line(api->fd, content_length);
@@ -778,7 +778,7 @@ static int next_api_response(GTH_api *api,
     return -2;
   }
 
-  if (strcmp(type, "text/xml") != 0 
+  if (strcmp(type, "text/xml") != 0
       && strcmp(type, "text/plain") != 0) {
     closesocket(api->fd);
     api->fd = -1;
@@ -823,7 +823,7 @@ static int check_api_response(GTH_api *api, GTH_resp_type expected,
     *actual = resp;
     return -2;
   }
-  
+
   same = (resp->type == expected);
   gth_free_resp(resp);
 
@@ -841,19 +841,19 @@ static GTH_resp *gth_next_non_event(GTH_api *api) {
   for (;;) {
     result = next_api_response(api, buffer, sizeof(buffer));
 
-    if (result != 0) 
+    if (result != 0)
       {
 	return 0;
       }
 
     resp = gth_parse(buffer);
-    
+
     if (!resp)
       {
 	return 0;
       }
 
-    if (resp->type != GTH_RESP_EVENT) 
+    if (resp->type != GTH_RESP_EVENT)
       {
 	return resp;
       }
@@ -864,19 +864,19 @@ static GTH_resp *gth_next_non_event(GTH_api *api) {
   }
 }
 
-static void string_write(int s, const char* string) 
+static void string_write(int s, const char* string)
 {
   size_t result;
 
   assert(string);
-  
+
   result = send(s, string, strlen(string), 0);
   if (result != strlen(string)) {
     die("unexpected failure writing a string to the GTH");
   }
 }
 
-static void api_write(GTH_api *api, const char* command) 
+static void api_write(GTH_api *api, const char* command)
 {
   const char *CT = "Content-type: text/xml\r\n";
   char CL[GTH_HEADER_BUFFER_LEN];
@@ -884,7 +884,7 @@ static void api_write(GTH_api *api, const char* command)
 
   assert(api);
   assert(command);
-  
+
   len = strlen(command);
 
   snprintf(CL, GTH_HEADER_BUFFER_LEN, "Content-length: %d\r\n\r\n", len);
@@ -897,9 +897,9 @@ static void api_write(GTH_api *api, const char* command)
   string_write(api->fd, command);
 }
 
-static void api_write_non_xml(int s, 
-			      const char* type, 
-			      const char* data, 
+static void api_write_non_xml(int s,
+			      const char* type,
+			      const char* data,
 			      int len)
 {
   char CL[GTH_HEADER_BUFFER_LEN];
@@ -959,8 +959,8 @@ static char *attribute_value_and_clear(GTH_resp *resp, const char *key) {
 }
 
 
-int gth_query_resource_attribute(GTH_api *api, 
-				 const char *name, 
+int gth_query_resource_attribute(GTH_api *api,
+				 const char *name,
 				 const char *key,
 				 char *result,
 				 int max_result) {
@@ -977,17 +977,17 @@ int gth_query_resource_attribute(GTH_api *api,
 
   assert(max_result > 1);
   *result = 0;
-  
+
   snprintf(buffer, MAX_COMMAND, "<query><resource name='%s'/></query>", name);
   api_write(api, buffer);
 
   resp = gth_next_non_event(api);
-  
+
   if (resp == 0) return -9;
 
-  if (resp->type == GTH_RESP_STATE 
+  if (resp->type == GTH_RESP_STATE
       && resp->n_children == 1
-      && resp->children[0].type == GTH_RESP_RESOURCE) 
+      && resp->children[0].type == GTH_RESP_RESOURCE)
     {
       resource = resp->children;
 
@@ -1017,7 +1017,7 @@ int gth_query_resource_attribute(GTH_api *api,
     {
       retval = -1;
     }
- 
+
   gth_free_resp(resp);
 
   return retval;
@@ -1039,7 +1039,7 @@ static int is_text_following_resource_query(const char *name)
 static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
-				 int *n_attributes) 
+				 int *n_attributes)
 {
   char buffer[MAX_COMMAND];
   GTH_resp *resp;
@@ -1084,14 +1084,14 @@ static int query_single_resource(GTH_api *api,
 
 	  (*n_attributes)++;
 	  *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
-	  assert(*attributes);      
+	  assert(*attributes);
 	  (*attributes)[*n_attributes - 1].key = "log_body";
 	  (*attributes)[*n_attributes - 1].value = text_buffer;
 	}
       else
 	{
 	  *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
-	  assert(*attributes);      
+	  assert(*attributes);
 	}
 
       for (x = 0; x < resource->n_children; x++) {
@@ -1100,7 +1100,7 @@ static int query_single_resource(GTH_api *api,
 	char *value;
 
 	attribute = resource->children+x;
-	if (attribute->type != GTH_RESP_ATTRIBUTE) 
+	if (attribute->type != GTH_RESP_ATTRIBUTE)
 	  die("invalid response from GTH");
 
 	name  = attribute_value_and_clear(attribute, "name");
@@ -1111,7 +1111,7 @@ static int query_single_resource(GTH_api *api,
       }
     }
   else
-    { 
+    {
       retval = -1;
     }
 
@@ -1119,9 +1119,9 @@ static int query_single_resource(GTH_api *api,
   return retval;
 }
 
-static int query_inventory(GTH_api *api, 
-			   GTH_attribute **attributes, 
-			   int *n_attributes) 
+static int query_inventory(GTH_api *api,
+			   GTH_attribute **attributes,
+			   int *n_attributes)
 {
   GTH_resp *resp;
   GTH_resp *resource;
@@ -1134,10 +1134,10 @@ static int query_inventory(GTH_api *api,
 
   api_write(api, "<query><resource name='inventory'/></query>");
   resp = gth_next_non_event(api);
-  
+
   if (resp == 0) return -9;
 
-  if (resp->type == GTH_RESP_STATE) 
+  if (resp->type == GTH_RESP_STATE)
     {
       *attributes = malloc(sizeof(GTH_attribute) * resp->n_children);
       assert(*attributes);
@@ -1147,7 +1147,7 @@ static int query_inventory(GTH_api *api,
 	char *name;
 
 	resource = resp->children+x;
-	if (resource->type != GTH_RESP_RESOURCE) 
+	if (resource->type != GTH_RESP_RESOURCE)
 	  die("invalid response from GTH");
 
 	name  = attribute_value_and_clear(resource, "name");
@@ -1160,7 +1160,7 @@ static int query_inventory(GTH_api *api,
     {
       retval = -1;
     }
- 
+
   gth_free_resp(resp);
 
   return retval;
@@ -1169,7 +1169,7 @@ static int query_inventory(GTH_api *api,
 int gth_query_resource(GTH_api *api,
 		       const char *name,
 		       GTH_attribute **attributes,
-		       int *n_attributes) 
+		       int *n_attributes)
 {
   if (!strcmp(name, "inventory"))
     return query_inventory(api, attributes, n_attributes);
@@ -1190,11 +1190,11 @@ int gth_set(GTH_api *api,
   assert(api);
   assert(resource);
   assert(attributes);
-  
+
   used = snprintf(buffer, MAX_COMMAND, "<set name='%s'>", resource);
 
   while (n_attributes > 0) {
-    used += snprintf(buffer + used, MAX_COMMAND - used, 
+    used += snprintf(buffer + used, MAX_COMMAND - used,
 		     "<attribute name='%s' value='%s'/>",
 		     attributes->key, attributes->value);
     n_attributes--;
@@ -1202,7 +1202,7 @@ int gth_set(GTH_api *api,
   }
 
   used += snprintf(buffer + used, MAX_COMMAND - used, "</set>");
-  
+
   api_write(api, buffer);
 
   if (check_api_response(api, GTH_RESP_OK, &resp))
@@ -1214,7 +1214,7 @@ int gth_set(GTH_api *api,
 	}
       return -1;
     }
-  
+
   return 0;
 }
 
@@ -1222,7 +1222,7 @@ int gth_set(GTH_api *api,
 int gth_set_single(GTH_api *api,
 		   const char *resource,
 		   const char *attribute,
-		   const char *value) 
+		   const char *value)
 {
   const GTH_attribute a = {(char*)attribute, (char*)value};
   return gth_set(api, resource, &a, 1);
@@ -1233,7 +1233,7 @@ int gth_reset(GTH_api *api, const char *resource)
   assert(api);
   assert(resource);
 
-  if (strcmp(resource, "cpu")) 
+  if (strcmp(resource, "cpu"))
     return -1;
 
   api_write(api, "<reset><resource name='cpu'/></reset>");
@@ -1261,7 +1261,7 @@ GTH_resp *gth_raw_xml(GTH_api *api, const char* string)
 
 // Figure out this machine's IP address. We ask the GTH, that way
 // the answer is correct even on multihomed machines.
-static void my_ip_address(GTH_api *api) 
+static void my_ip_address(GTH_api *api)
 {
   GTH_resp *resp;
   char buffer[1000];
@@ -1277,14 +1277,14 @@ static void my_ip_address(GTH_api *api)
   // needed so that we get an answer even in 'system' mode).
 
   gth_nop(api);
-  
+
   if (api->is_failsafe) {
     api->my_ip[0] = 0;
     return;
   }
 
   api_write(api, "<query><job id='self'/></query>");
-  
+
   resp = gth_next_non_event(api);
 
   assert(resp && resp->type == GTH_RESP_STATE);
@@ -1297,7 +1297,7 @@ static void my_ip_address(GTH_api *api)
 
   resp = gth_next_non_event(api);
   assert(resp && resp->type == GTH_RESP_STATE);
-  assert(resp->n_children == 1 
+  assert(resp->n_children == 1
 	 && resp->children[0].type == GTH_RESP_CONTROLLER);
   ip_addr = attribute_value(resp->children+0, "ip_addr");
   assert(strlen(ip_addr) < sizeof(api->my_ip));
@@ -1354,14 +1354,14 @@ int gth_wait_for_reboot(const char *hostname) {
     sleep_seconds(1);
   }
 
-  return -1;  
+  return -1;
 }
 
 #define MAX_QUERY_LENGTH 1000
 
-void gth_switch_to(const char *hostname, 
-		   const char *system_name, 
-		   const int verbose) 
+void gth_switch_to(const char *hostname,
+		   const char *system_name,
+		   const int verbose)
 {
   char response[MAX_QUERY_LENGTH];
   char imagename[50];
@@ -1370,16 +1370,16 @@ void gth_switch_to(const char *hostname,
 
   assert(hostname);
   assert(system_name);
-  
+
   result = gth_connect(&api, hostname, 0);
 
   if (verbose) {
     fprintf(stderr, "switching to %s\n", system_name);
   }
 
-  snprintf(imagename, sizeof(imagename), "%s_image", system_name);  
+  snprintf(imagename, sizeof(imagename), "%s_image", system_name);
 
-  result = gth_query_resource_attribute(&api, imagename, 
+  result = gth_query_resource_attribute(&api, imagename,
 					"busy", response, MAX_QUERY_LENGTH);
 
   if (strcmp(response, "false") == 0) {
@@ -1409,7 +1409,7 @@ void gth_switch_to(const char *hostname,
   if (result != 0) {
     die("Unable to (re)connect to the GTH");
   }
-  gth_query_resource_attribute(&api, imagename, "busy", response, 
+  gth_query_resource_attribute(&api, imagename, "busy", response,
 			       MAX_QUERY_LENGTH);
 
   if (strcmp(response, "true")) {
@@ -1443,7 +1443,7 @@ int fopen_s(FILE **file, const char *filename, const char *mode)
   *file = fopen(filename, mode);
   if (!file)
     return errno;
-  else 
+  else
     return 0;
 }
 #endif

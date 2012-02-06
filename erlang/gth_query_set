@@ -18,7 +18,7 @@
 %%   temperature=34.5
 %%   power consumption=5.7
 %%   power source=A
-%%   
+%%
 
 main(Args) ->
     set_up_path(escript:script_name()),

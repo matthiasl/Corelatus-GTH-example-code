@@ -19,7 +19,7 @@
 %%     * Neither the name of Corelatus nor the
 %%       names of its contributors may be used to endorse or promote products
 %%       derived from this software without specific prior written permission.
-%% 
+%%
 %% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 %% EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -30,7 +30,7 @@
 %% ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 %% (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 %% SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-%% 
+%%
 %%----------------------------------------------------------------------
 -module(gth_xml_scan).
 -export([scan/1, scan_and_parse/1]).
@@ -75,7 +75,7 @@ strip(" " ++ T) -> strip(T);
 strip("\r" ++ T) -> strip(T);
 strip("\n" ++ T) -> strip(T);
 strip("\t" ++ T) -> strip(T);
-strip(X) -> X.     
+strip(X) -> X.
 
 %% Discard all whitespace
 whitespace(L) ->
@@ -93,7 +93,7 @@ name(T) ->
     case End of
 	0 -> exit("zero-length name");
 	_ -> ok
-    end,    
+    end,
     S = string:substr(T, 1, End),
     [{name, S}|in_tag(string:substr(T, End+1))].
 
@@ -106,30 +106,30 @@ name(T) ->
 %% function exists to make sure all the legal atoms already exist. You
 %% don't need to call it, ever.
 %%
-%% One way to generate the list is 
+%% One way to generate the list is
 %%
 %%  grep ELEMENT gth_out.dtd | cut -f 2 -d ' ' | sort | uniq
-%% 
+%%
 xml_tags() ->
-    [error, job, ok, 
+    [error, job, ok,
 
      event, alarm, alert, atm_message, backup, fatality, fault,
      f_relay_message, info, l1_message, l2_alarm, l2_socket_alert,
      lapd_message, level, message_ended, mtp2_message, slip,
      sync_message, ebs, tone, module, attribute,
 
-     state, 
+     state,
 
      atm_aal0_layer, atm_aal0_monitor, atm_aal2_monitor,
      atm_aal5_monitor, cas_r2_linesig_monitor, cas_r2_mfc_detector, controller,
      fr_layer, fr_monitor, lapd_layer, lapd_monitor, level_detector,
-     mtp2_monitor, player, raw_monitor, resource, ss5_linesig_monitor, 
+     mtp2_monitor, player, raw_monitor, resource, ss5_linesig_monitor,
      ss5_registersig_monitor, tone_detector,
 
      pcm_sink
     ].
 
-parse_trees([]) -> 
+parse_trees([]) ->
     {[], []};
 parse_trees(Tokens = [open, slash|_]) ->
     {[], Tokens};
@@ -138,7 +138,7 @@ parse_trees(Tokens) ->
     {Trees, Tokens_after_trees} = parse_trees(Tokens_after_tree),
     {[Tree|Trees], Tokens_after_trees}.
 
-%% Return: {Tree, Leftover_tokens} 
+%% Return: {Tree, Leftover_tokens}
 parse_tree([open, {name, Name}|Tokens]) ->
     {Attributes, Tokens_after_attributes} = attributes(Tokens),
     Atomic = list_to_existing_atom(Name),

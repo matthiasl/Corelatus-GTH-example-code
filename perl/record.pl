@@ -1,6 +1,6 @@
 #!/usr/bin/perl -Igth_control/lib/
 #
-# Title: Record E1/T1 timeslot data from a Corelatus GTH 
+# Title: Record E1/T1 timeslot data from a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)
 #
 

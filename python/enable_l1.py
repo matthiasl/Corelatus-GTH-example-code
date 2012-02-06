@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Title: Enable an E1 on a Corelatus GTH 
+# Title: Enable an E1 on a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)
 
 import sys
@@ -23,9 +23,9 @@ def main():
     if len(sys.argv) != 3:
         usage()
         sys.exit(-1)
-        
+
     api = gth.apilib.API(sys.argv[1])
-    api.send("<set name='pcm%s'><attribute name='mode' value='E1'/></set>" % 
+    api.send("<set name='pcm%s'><attribute name='mode' value='E1'/></set>" %
              sys.argv[2])
 
 main()

@@ -49,16 +49,16 @@ sub decode_mtp2 {
     #     next 3 octets is MTP-2 FSN, BSN and LI, which we can ignore
     #     next 1 octet SIO and at least 4 octets of SIF
     #     finally 2 octets of CRC
-    # 
+    #
     # So ignore anything shorter than 20 octets
     length($packet) >= 20 || return;
 
-    my ($_tag, $_flags, $_reserved, $_ts_high, 
-	$_ts_low, $_fsn, $_bsn, $_li, $sio, $sif_crc) 
+    my ($_tag, $_flags, $_reserved, $_ts_high,
+	$_ts_low, $_fsn, $_bsn, $_li, $sio, $sif_crc)
 	= unpack("nCCnN" . "CCC" . "Ca*", $packet);
 
     my $masked = $sio & 0x0f;
-    
+
     my $sif = substr($sif_crc, 0, -2);
     decode_mtp3($sio, $sif);
 }
@@ -90,7 +90,7 @@ sub decode_isup {
 sub isup_iam {
     my ($ignore, $CIC, $sif) = @_;
     # First 5 octets can be ignored
-    my ($_ignore, $_ignore2, $bnum_pointer, $anum_pointer) 
+    my ($_ignore, $_ignore2, $bnum_pointer, $anum_pointer)
 	= unpack("NCCC", $sif);
     my $bnum = substr($sif, 5 + $bnum_pointer);
     my $anum = substr($sif, 7 + $anum_pointer);
@@ -156,7 +156,7 @@ sub monitor_mtp2 {
 	read($data, my $packet, $length);
 	decode_mtp2($packet);
     }
-    
+
     $api->delete($mtp2_id);
     $data->close();
 

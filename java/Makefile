@@ -1,9 +1,9 @@
-# This Makefiles _is_ recursive and must work stand-alone (it is shipped). 
+# This Makefiles _is_ recursive and must work stand-alone (it is shipped).
 #
 # Title: Makefile for demonstration GTH api code in Java
 # Author: Matthias Lang (matthias@corelatus.com)
 # Created: January 2001
-# 
+#
 # Copyright (C) 2001 Corelatus AB Stockholm
 
 classpath=$(CLASSPATH)
@@ -43,7 +43,7 @@ gth_upgrade.jar: $(addsuffix .java, $(example_classes) $(library_classes))
 
 install:
 
-clean: 
+clean:
 	rm -f corelatus/gth/*.class *.jar *.zip
 
 # eof
