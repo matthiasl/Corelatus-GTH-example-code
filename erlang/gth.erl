@@ -161,6 +161,12 @@
 -type timeslot_or_timeslot_list()::1..31 | [1..31].
 -type subrate()::{'subrate', Timeslot::1..31, First_bit::0..7,
 		  Bandwidth::integer()}.
+
+%% The reuse_socket option sends the signalling to an existing socket
+%% instead of opening a new one.
+-type monitoring_options()::[{string(), integer() | string()}
+			     |{reuse_socket, port()}].
+
 -type hostname_or_address()::inet:hostname() | inet:ip_address().
 -type job()::{'job', Id::string(), Owner::string(), Counters::keyval_list()}
 	     |{'job', Id::string(), Owner::string(), Modules::[string()]}
@@ -172,25 +178,20 @@
 start_link(Host) ->
     start_link(Host, []).
 
-%% Options is a list. Things which can be in that list:
-%%
-%%   {connect_timeout, integer()}
-%%   {job_event_target, pid()}
-%%   {resource_event_target, pid()}
-%%
+-type startup_options() ::
+	[{connect_timeout, integer()}   %% milliseconds
+	 |{job_event_target, pid()}
+	 |{resource_event_target, pid()}
+	].
+
 %% Event handlers process GTH events. Whenever an event comes, a message
 %% is sent to the given PID. The event is always a tuple:
-%%
-%% {Type, API_instance, Details}
-%%
-%% Type = atom()
-%% API_instance = pid()
-%% Details = Tuple
-%%
+%% -type event() :: {Type::atom(), API::pid(), Details::any()}.
+
 %% Start_link connects to the API socket but then cedes control to
 %% the newly started process. This is a bit complicated, but it allows
 %% us to fail without a crash when the remote socket can't be opened.
--spec start_link( hostname_or_address(), keyval_list()) ->
+-spec start_link( hostname_or_address(), startup_options()) ->
 			{'ok', pid()} | {'error', _}.
 start_link(Host, Options)
   when is_list(Options) ->
@@ -220,7 +221,7 @@ start_link(Host, Options)
     end.
 
 -spec bye(pid()) -> 'ok'.
-		
+
 %% Terminate gracefully.
 bye(Pid)
   when is_pid(Pid) ->
@@ -243,26 +244,21 @@ get_ip(Pid)
   when is_pid(Pid) ->
     gen_server:call(Pid, get_ip).
 
-%% Install_fun = fun() -> {binary(), fun() | eof}
-%%
+-type install_fun() :: fun(() -> {binary(), fun() | eof}).
 %% If called with a fun() as the third argument, the install process
 %% will call fun() to obtain some data and a new fun, and then call the
 %% new fun. That continues until eof is returned instead of a new fun.
-%-spec install(pid(), string(), binary() | {integer(), fun()}) -> ok_or_error().
+-spec install(pid(), string(), binary() | {integer(), install_fun()}) ->
+		     ok_or_error().
 install(Pid, Name, Bin_or_fun)
   when is_pid(Pid), is_list(Name) ->
     %% Use a long timeout, install takes time
     gen_server:call(Pid, {install, Name, Bin_or_fun}, 60000).
 
-%% Options = {string(), integer() | string()}
-%%         | {reuse_socket, port()}
-
 -spec new_cas_r2_mfc_detector(pid(), string(), 1..31,
 			      Direction::'forward' | 'backward',
-			      keyval_list()) ->
+			      monitoring_options()) ->
 				     {ok, string(), port()} | {'error', any()}.
-new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction) ->
-    new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, []).
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
   when is_pid(Pid),
        is_integer(Timeslot),
@@ -270,9 +266,11 @@ new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
        is_list(Options) ->
     gen_server:call(Pid, {new_cas_r2_mfc_detector, Span, Timeslot,
 			  Direction, Options}).
+new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction) ->
+    new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, []).
 
 -spec new_cas_r2_linesig_monitor(pid(), string(), 1..31,
-				 keyval_list()) ->
+				 monitoring_options()) ->
 					{ok, string(), port()}
 					    | {'error', any()}.
 new_cas_r2_linesig_monitor(Pid, Span, Timeslot) ->
@@ -322,22 +320,16 @@ new_lapd_layer(Pid, Span, Ts, Side, {SAPI, TEI}, Tag, Options)
     gen_server:call(Pid, {new_lapd_layer, Span, Ts, Side, {SAPI, TEI},
 			  Tag, Options}).
 
-%% Return: {ok, Job_id, Signalling_socket} | {error, Reason}
-%%
 %% Signalling_socket: a socket in {packet, 2} mode
 %%
-%% Options: all of the XML options, except ip_port and ip_addr,
-%%          plus {reuse_socket, S}.
-%%
-%% The reuse_socket option sends the signalling to an existing socket
-%% instead of opening a new one.
 new_mtp2_monitor(Pid, Span, Ts) ->
     new_mtp2_monitor(Pid, Span, Ts, []).
 
 -spec new_mtp2_monitor(pid(), string(),
 		       timeslot_or_timeslot_list() | subrate(),
-		       keyval_list()) ->
-			      {'ok', string(), port()} | {'error', any()}.
+		       monitoring_options()) ->
+			      {'ok', Id::string(), Signalling_socket::port()}
+				  | {'error', any()}.
 new_mtp2_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_mtp2_monitor, Span, Ts, Options}).
@@ -346,13 +338,13 @@ new_lapd_monitor(Pid, Span, Ts) ->
     new_lapd_monitor(Pid, Span, Ts, []).
 -spec new_lapd_monitor(pid(), string(),
 		       1..31 | subrate(),
-		       keyval_list()) ->
+		       monitoring_options()) ->
 			      {'ok', string(), port()} | {'error', any()}.
 new_lapd_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_lapd_monitor, Span, Ts, Options}).
 
-%% Level: integer()  % level in dB
+%% The threshold is given in db
 new_level_detector(Pid, Span, Ts, Threshold) ->
     new_level_detector(Pid, Span, Ts, Threshold, [], default).
 
@@ -365,7 +357,7 @@ new_level_detector(Pid, Span, Ts, Threshold, Options, EH)
     gen_server:call(Pid, {new_level_detector, Span, Ts, Threshold,
 			  Options, EH}).
 
--spec new_atm_aal0_monitor(pid(), string(), [1..31], keyval_list()) ->
+-spec new_atm_aal0_monitor(pid(), string(), [1..31], monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
 new_atm_aal0_monitor(Pid, Span, Timeslots) ->
@@ -377,7 +369,7 @@ new_atm_aal0_monitor(Pid, Span, Timeslots, Options)
 
 -spec new_atm_aal2_monitor(pid(), string(), [1..31],
 			   {VPI::integer(), VCI::integer()},
-			   keyval_list()) ->
+			   monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
 new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}) ->
@@ -391,7 +383,7 @@ new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 
 -spec new_atm_aal5_monitor(pid(), string(), [1..31],
 			   {VPI::integer(), VCI::integer()},
-			   keyval_list()) ->
+			   monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
 
@@ -408,7 +400,7 @@ new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 		    {new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI},
 		     Options}).
 
--spec new_fr_monitor(pid(), string(), [1..31], keyval_list()) ->
+-spec new_fr_monitor(pid(), string(), [1..31], monitoring_options()) ->
 			    {ok, string(), Signalling_socket::port()}
 				| {error, any()}.
 new_fr_monitor(Pid, Span, Timeslots) ->
@@ -429,7 +421,6 @@ new_atm_aal0_layer(Pid, Span, Timeslots, Options)
   when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
     gen_server:call(Pid, {new_atm_aal0_layer, Span, Timeslots, Options}).
 
-%% Return: {ok, Id} | {error, Reason}
 -spec new_player(pid(), Clips::[string()], Span::string(), Ts::1..31) ->
 			id_or_error().
 new_player(Pid, Clips, Span, Ts) ->
@@ -444,7 +435,7 @@ new_player(Pid, Clips, Span, Ts, Loop)
     gen_server:call(Pid, {new_player, Clips, Span, Ts, Loop}).
 
 %% Raw monitors are experimental (unsupported & undocumented, 2011-12-09)
--spec new_raw_monitor(pid(), string(), 0..31, keyval_list()) ->
+-spec new_raw_monitor(pid(), string(), 0..31, monitoring_options()) ->
 			 {ok, string(), Raw_socket::port()} | {error, any()}.
 new_raw_monitor(Pid, Span, Ts) ->
     new_raw_monitor(Pid, Span, Ts, []).
@@ -473,7 +464,7 @@ new_recorder(Pid, Span, Ts, Options)
 new_wide_recorder(Pid, Span, Options) when is_pid(Pid) ->
     gen_server:call(Pid, {new_wide_recorder, Span, Options}).
 
--spec new_ss5_linesig_monitor(pid(), string(), 1..31, keyval_list()) ->
+-spec new_ss5_linesig_monitor(pid(), string(), 1..31, monitoring_options()) ->
 				     {ok, string(), Signalling_socket::port()}
 					 | {error, any()}.
 new_ss5_linesig_monitor(Pid, Span, Ts) ->
@@ -483,7 +474,7 @@ new_ss5_linesig_monitor(Pid, Span, Ts, Options)
   when is_pid(Pid), is_integer(Ts), is_list(Options) ->
     gen_server:call(Pid, {new_ss5_linesig_monitor, Span, Ts, Options}).
 
--spec new_ss5_registersig_monitor(pid(), string(), 1..31, keyval_list()) ->
+-spec new_ss5_registersig_monitor(pid(), string(), 1..31, monitoring_options()) ->
 				     {ok, string(), Signalling_socket::port()}
 					 | {error, any()}.
 new_ss5_registersig_monitor(Pid, Span, Ts) ->
@@ -538,7 +529,7 @@ nop(Pid) when is_pid(Pid) ->
 %%
 %% If called with Verbose=true, the return tuple also has a
 %% representation of the arguments used to start the job. This is
-%% useful for debugging and serialisation. In this case, 
+%% useful for debugging and serialisation. In this case,
 %% -include("gth_api.hrl") to get the #resp_tuple{} definition.
 %%
 -spec query_jobs(pid(), [string()], true | false) ->
@@ -581,7 +572,7 @@ query_resource(Pid, Name, Attribute) when is_pid(Pid) ->
     end.
 
 %% Undocumented. Used for testing incorrect API commands.
--spec raw_xml(pid(), binary() | iolist()) -> any().		
+-spec raw_xml(pid(), binary() | iolist()) -> any().
 raw_xml(Pid, XML) when is_pid(Pid) ->
     gen_server:call(Pid, {raw_xml, XML}, 30000).
 
@@ -729,7 +720,7 @@ handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
     {reply, Reply, State};
 
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
-	    {Pid, _tag}, 	
+	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
     Options = User_options ++ [{"scramble", "true"}],
     Scramble = proplists:get_value("scramble", Options),
@@ -804,7 +795,7 @@ handle_call({new_fr_monitor, Span, Timeslots, Options},
     {reply, Reply, State};
 
 handle_call({new_fr_layer, Span, Timeslots},
-	    {Pid, _tag}, 	
+	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
@@ -844,7 +835,7 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 				       {"sapi", SAPI},
 				       {"tag", Tag},
 				       {"tei",  TEI}|Options], Source_sink)),
-	
+
 	    case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
@@ -900,7 +891,7 @@ handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From,
 
     ok = gth_apilib:send(S, xml:new("level_detector", Attrs_and_period,
 				    xml:pcm_source(Span, Ts))),
-	
+
     case receive_job_id(State) of
 	{ok, Job} ->
 	    New_ED = case EH of
@@ -943,7 +934,7 @@ handle_call({new_ss5_registersig_monitor, Span, Ts, Options},
     {reply, Rep, State};
 
 handle_call({new_tcp_player, Span, Ts, Options},
-	    {Pid, _}, 	
+	    {Pid, _},
 	    State = #state{socket = S, my_ip = Hostname,
 			   player_ls = {Portno, L}}) ->
 
@@ -954,7 +945,7 @@ handle_call({new_tcp_player, Span, Ts, Options},
     Reply = case receive_job_id(State) of
 		{error, Reason} ->
 		    {error, Reason};
-		{ok, Job} -> 		
+		{ok, Job} ->
 		    {ok, Data} = gen_tcp:accept(L, 1000),
 		    ok = gen_tcp:controlling_process(Data, Pid),
 		    {ok, Job, Data}
@@ -963,7 +954,7 @@ handle_call({new_tcp_player, Span, Ts, Options},
     {reply, Reply, State};
 
 handle_call({new_tone_detector, Span, Ts, Event_handler},
-	    _From, 	
+	    _From,
 	    State = #state{socket = S,
 			   event_dict = ED,
 			   job_event_target = JET}) ->
@@ -1104,7 +1095,7 @@ handle_call({query_resource, "schedule"}, _From, State = #state{socket = S}) ->
 handle_call({query_resource, Name}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_resource(Name)),
     #resp_tuple{name='state', children=[C]} = next_non_event(State),
-		
+
     Reply = case C of
 		#resp_tuple{name=resource, children=A} ->
 		    KV = attributes_to_kv(A),
@@ -1500,7 +1491,7 @@ next_non_event(State = #state{socket = S, command_timeout = T}) ->
 			    Parsed
 		    end
 	    end;
-	
+
 	{tcp_closed, S} ->
 	    exit(api_socket_closed_remotely)
 
@@ -1571,7 +1562,7 @@ get_text_trailer_body(S) ->
     {ok, _blank_line} = gen_tcp:recv(S, 0, 1000),
     {ok, [Length], _} = io_lib:fread("~d", binary_to_list(BLength)),
     Bin = case Length of
-	      0 -> 
+	      0 ->
 		  <<>>;
 	      _ ->
 		  ok = inet:setopts(S, [{packet, 0}]),
