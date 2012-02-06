@@ -1062,16 +1062,15 @@ handle_call(nop, _From, State = #state{socket = S}) ->
 handle_call({query_jobs, Ids, Verbose}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_jobs(Ids, Verbose)),
     #resp_tuple{name='state', children=Cs} = next_non_event(State),
-    Reply = [begin case C of
-		       #resp_tuple{name='error',
-				   clippings=Clippings,
-				   attributes=[{"reason", R}]} ->
-			   {error, {atomise_error_reason(R), Clippings}};
+    Reply = [case C of
+		 #resp_tuple{name='error',
+			     clippings=Clippings,
+			     attributes=[{"reason", R}]} ->
+		     {error, {atomise_error_reason(R), Clippings}};
 
-		       #resp_tuple{} ->
-			   gth_client_xml_parse:job_state(Verbose, C)
-		   end
-	    end || C <- Cs],
+		 #resp_tuple{} ->
+		     gth_client_xml_parse:job_state(Verbose, C)
+	     end || C <- Cs],
     {reply, Reply, State};
 
 handle_call({query_resource, "inventory"}, _From, State = #state{socket = S}) ->
