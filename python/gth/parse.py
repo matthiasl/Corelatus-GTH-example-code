@@ -37,7 +37,7 @@ def _empty_tag(tagname, expect_attrs = 1):
 
 # This is ugly but works. There must be a better way. In Erlang, I'd
 # do this
-# 
+#
 #  collapse_attributes(_, []) -> [];
 #  collapse_attributes(_, ['attribute', ['name', K], ['value', V] | T]) ->
 #    [{K,V}|collapse_attributes(T)]

@@ -69,7 +69,7 @@ sub write_pcap_global_header {
     $snaplen = 65535;
     $network = 140;   # 140 == MTP-2
 
-    my $header = pack("LSSLLLL", $magic, $major_version, $minor_version, 
+    my $header = pack("LSSLLLL", $magic, $major_version, $minor_version,
 		      $GMT_to_localtime, $sigfigs, $snaplen, $network);
 
     print $file $header;
@@ -99,7 +99,7 @@ sub monitor_mtp2 {
 	my $length = unpack("n", $b);
 	read($data, my $packet, $length);
 
-	my ($tag, $flags, $timestamp_hi, $timestamp_lo) 
+	my ($tag, $flags, $timestamp_hi, $timestamp_lo)
 	    = unpack("nnnN", $packet);
 	my ($ts_sec, $ts_us);
 
@@ -117,7 +117,7 @@ sub monitor_mtp2 {
 	my $payload = substr($packet, 10);  # strip the GTH header
 	print $file $payload;
     }
-    
+
     $api->delete($mtp2_id);
     $data->close();
 

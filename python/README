@@ -2,7 +2,7 @@ Author: matthias@corelatus.se
 ----------------------------------------------------------------------
 
 This is example code in Python for a Corelatus GTH. The examples were
-tested on python 2.5.4 on linux. 
+tested on python 2.5.4 on linux.
 
 Keep in mind that I'm a python beginner, i.e. if it looks weird, then
 that's most likely because I didn't know better. Suggestions for
@@ -28,7 +28,7 @@ Recorded file playback
 E1 timeslot dump to a file
 --------------------------
 
-  This is the opposite of the first example, it copies the 
+  This is the opposite of the first example, it copies the
   data on the given E1 to a file on your PC. Typical use:
 
     >./record.py 172.16.2.7 1A 16 4000 signalling.raw

@@ -30,7 +30,7 @@ CCCDLFLAGS = -fPIC
 CCDLFLAGS = -Wl,-E
 DLEXT = so
 DLSRC = dl_dlopen.xs
-EXE_EXT = 
+EXE_EXT =
 FULL_AR = /usr/bin/ar
 LD = cc
 LDDLFLAGS = -shared -O2 -g -L/usr/local/lib
@@ -70,7 +70,7 @@ INST_MAN3DIR = blib/man3
 MAN1EXT = 1p
 MAN3EXT = 3pm
 INSTALLDIRS = site
-DESTDIR = 
+DESTDIR =
 PREFIX = /usr
 PERLPREFIX = $(PREFIX)
 SITEPREFIX = $(PREFIX)/local
@@ -143,20 +143,20 @@ MM_REVISION = 41145
 MAKE = make
 FULLEXT = gth_control
 BASEEXT = gth_control
-PARENT_NAME = 
+PARENT_NAME =
 DLBASE = $(BASEEXT)
 VERSION_FROM = lib/gth_control.pm
-OBJECT = 
+OBJECT =
 LDFROM = $(OBJECT)
 LINKTYPE = dynamic
-BOOTDEP = 
+BOOTDEP =
 
 # Handy lists of source code files:
-XS_FILES = 
-C_FILES  = 
-O_FILES  = 
-H_FILES  = 
-MAN1PODS = 
+XS_FILES =
+C_FILES  =
+O_FILES  =
+H_FILES  =
+MAN1PODS =
 MAN3PODS = lib/gth_control.pm
 
 # Where is the Config information that we are using/depend on
@@ -169,14 +169,14 @@ INST_ARCHLIBDIR  = $(INST_ARCHLIB)
 INST_AUTODIR     = $(INST_LIB)/auto/$(FULLEXT)
 INST_ARCHAUTODIR = $(INST_ARCHLIB)/auto/$(FULLEXT)
 
-INST_STATIC      = 
-INST_DYNAMIC     = 
-INST_BOOT        = 
+INST_STATIC      =
+INST_DYNAMIC     =
+INST_BOOT        =
 
 # Extra linker info
-EXPORT_LIST        = 
-PERL_ARCHIVE       = 
-PERL_ARCHIVE_AFTER = 
+EXPORT_LIST        =
+PERL_ARCHIVE       =
+PERL_ARCHIVE_AFTER =
 
 
 TO_INST_PM = lib/gth_control.pm \
@@ -225,8 +225,8 @@ MOD_INSTALL = $(ABSPERLRUN) -MExtUtils::Install -e 'install({@ARGV}, '\''$(VERBI
 DOC_INSTALL = $(ABSPERLRUN) "-MExtUtils::Command::MM" -e perllocal_install
 UNINSTALL = $(ABSPERLRUN) "-MExtUtils::Command::MM" -e uninstall
 WARN_IF_OLD_PACKLIST = $(ABSPERLRUN) "-MExtUtils::Command::MM" -e warn_if_old_packlist
-MACROSTART = 
-MACROEND = 
+MACROSTART =
+MACROEND =
 USEMAKEFILE = -f
 FIXIN = $(PERLRUN) "-MExtUtils::MY" -e "MY->fixin(shift)"
 
@@ -407,7 +407,7 @@ POD2MAN = $(POD2MAN_EXE)
 manifypods : pure_all  \
 	lib/gth_control.pm
 	$(NOECHO) $(POD2MAN) --section=$(MAN3EXT) --perm_rw=$(PERM_RW) \
-	  lib/gth_control.pm $(INST_MAN3DIR)/gth_control.$(MAN3EXT) 
+	  lib/gth_control.pm $(INST_MAN3DIR)/gth_control.$(MAN3EXT)
 
 
 
@@ -448,9 +448,9 @@ clean :: clean_subdirs
 	  core.[0-9][0-9][0-9] mon.out \
 	  lib$(BASEEXT).def perlmain.c \
 	  perl.exe so_locations \
-	  $(BASEEXT).exp 
+	  $(BASEEXT).exp
 	- $(RM_RF) \
-	  blib 
+	  blib
 	- $(MV) $(FIRST_MAKEFILE) $(MAKEFILE_OLD) $(DEV_NULL)
 
 
@@ -463,9 +463,9 @@ realclean_subdirs :
 # Delete temporary files (via clean) and also delete dist files
 realclean purge ::  clean realclean_subdirs
 	- $(RM_F) \
-	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE) 
+	  $(MAKEFILE_OLD) $(FIRST_MAKEFILE)
 	- $(RM_RF) \
-	  $(DISTVNAME) 
+	  $(DISTVNAME)
 
 
 # --- MakeMaker metafile section:
@@ -506,7 +506,7 @@ manifest :
 	$(PERLRUN) "-MExtUtils::Manifest=mkmanifest" -e mkmanifest
 
 veryclean : realclean
-	$(RM_F) *~ */*~ *.orig */*.orig *.bak */*.bak *.old */*.old 
+	$(RM_F) *~ */*~ *.orig */*.orig *.bak */*.bak *.old */*.old
 
 
 
@@ -552,14 +552,14 @@ create_distdir :
 	$(PERLRUN) "-MExtUtils::Manifest=manicopy,maniread" \
 		-e "manicopy(maniread(),'$(DISTVNAME)', '$(DIST_CP)');"
 
-distdir : create_distdir distmeta 
+distdir : create_distdir distmeta
 	$(NOECHO) $(NOOP)
 
 
 
 # --- MakeMaker dist_test section:
 disttest : distdir
-	cd $(DISTVNAME) && $(ABSPERLRUN) Makefile.PL 
+	cd $(DISTVNAME) && $(ABSPERLRUN) Makefile.PL
 	cd $(DISTVNAME) && $(MAKE) $(PASTHRU)
 	cd $(DISTVNAME) && $(MAKE) test $(PASTHRU)
 
@@ -696,7 +696,7 @@ $(FIRST_MAKEFILE) : Makefile.PL $(CONFIGDEP)
 	-$(NOECHO) $(RM_F) $(MAKEFILE_OLD)
 	-$(NOECHO) $(MV)   $(FIRST_MAKEFILE) $(MAKEFILE_OLD)
 	- $(MAKE) $(USEMAKEFILE) $(MAKEFILE_OLD) clean $(DEV_NULL)
-	$(PERLRUN) Makefile.PL 
+	$(PERLRUN) Makefile.PL
 	$(NOECHO) $(ECHO) "==> Your Makefile has been rebuilt. <=="
 	$(NOECHO) $(ECHO) "==> Please rerun the $(MAKE) command.  <=="
 	false
@@ -768,7 +768,7 @@ ppd :
 pm_to_blib : $(TO_INST_PM)
 	$(NOECHO) $(ABSPERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', '\''$(PM_FILTER)'\'')' -- \
 	  lib/old blib/lib/old \
-	  lib/gth_control.pm blib/lib/gth_control.pm 
+	  lib/gth_control.pm blib/lib/gth_control.pm
 	$(NOECHO) $(TOUCH) pm_to_blib
 
 

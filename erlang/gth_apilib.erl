@@ -23,7 +23,7 @@
 	 next_non_event/1, next_non_event/2, next_non_event/3]).
 
 %%% Functions you can ONLY use with sockets set up with
-%%% [{active, once}, {packet, line}, binary] 
+%%% [{active, once}, {packet, line}, binary]
 -export([active_content/3]).
 
 %%% Functions which don't care which sort of socket is passed in
@@ -236,14 +236,14 @@ collect_entire_content(S, <<"Content-type: ", Type/binary>>,
 	    {error, content_too_large};
 	_ ->
 	    case gen_tcp:recv(S, Length, Timeout) of
-		{ok, <<_:16, Packet/binary>>} 
-		when Atomic_type =/= invalid_content_type -> 
+		{ok, <<_:16, Packet/binary>>}
+		when Atomic_type =/= invalid_content_type ->
 		    {Atomic_type, Packet};
 
 		{ok, _} ->
 		    {error, invalid_content_type};
 
-		{error, Reason} -> 
+		{error, Reason} ->
 		    {error, Reason}
 	    end
     end;
@@ -252,9 +252,9 @@ collect_entire_content(_S, _, _, _) ->
     {error, invalid_xml_header}.
 
 %%--------------------
-%% Returns ok 
-%%       | {error, fun_failed} 
-%%       | {error, content_type_mismatch} 
+%% Returns ok
+%%       | {error, fun_failed}
+%%       | {error, content_type_mismatch}
 %%       | {error, Reason}
 %%
 stream_entire_content(S, Expected_type, <<"Content-type: ", Sent_type/binary>>,

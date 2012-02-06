@@ -2,7 +2,7 @@
 // Title: GTH Image Installer demo code
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: June 2002
-// 
+//
 // Copyright (c) 2002 Corelatus AB Stockholm
 //
 // This is demonstration code. Use at your own risk. Permission granted to
@@ -51,17 +51,17 @@ public class install {
 	NodeList fsafe = image_info("failsafe_image");
 
 	failsafe_version = Client_conn.extract_att(fsafe, "version");
-	
-	System.out.println("System: " + 
+
+	System.out.println("System: " +
 			   Client_conn.extract_att(sys, "version") +
 			   ". Failsafe: " + failsafe_version);
-	
-	if (Client_conn.extract_att(sys, "busy").equals("true")) 
+
+	if (Client_conn.extract_att(sys, "busy").equals("true"))
 	    current = "system";
-	else 
+	else
 	    current = "failsafe";
 
-	System.out.println("Currently running image: " + current);       
+	System.out.println("Currently running image: " + current);
 	return current;
     }
 
@@ -102,10 +102,10 @@ public class install {
 		    g.info();
 		else if (args.length == 2)
 		    g.go("system", args[1]);
-		else if (args.length == 3 && args[2].equals("failsafe")) 
+		else if (args.length == 3 && args[2].equals("failsafe"))
 		    g.go("failsafe", args[1]);
 		else install.usage();
-	    } else 
+	    } else
 		install.usage();
 	}
 	catch (IOException e) {
@@ -120,15 +120,15 @@ public class install {
     private void reboot(String how) throws IOException
     {
 	System.out.println("Rebooting, new mode: " + how);
-	c.send_command("<set name='os'>" 
-				 + "<attribute name='boot mode' value='" 
+	c.send_command("<set name='os'>"
+				 + "<attribute name='boot mode' value='"
 				 + how + "'/></set>");
 	Client_conn.assert_name(c.next_non_event(), "ok");
 	c.send_command("<reset><resource name='cpu'/></reset>");
 	try {
 	    // if the GTH is quick, it might get an ok back. Usually it
 	    // reboots before getting the response out.
-	    Client_conn.assert_name(c.next_non_event(true), "ok"); 
+	    Client_conn.assert_name(c.next_non_event(true), "ok");
 	}
 	catch (IOException e) {
 	    // this is meant to happen
@@ -140,7 +140,7 @@ public class install {
     private void unlock(String which) throws IOException
     {
 	System.out.println("Unlocking " + which);
-	c.send_command("<set name='" + which + "'>" 
+	c.send_command("<set name='" + which + "'>"
 		       + "<attribute name='locked' value='false'/>"
 		       + "</set>");
 	Client_conn.assert_name(c.next_non_event(), "ok");
@@ -177,22 +177,22 @@ public class install {
     // Do the actual upgrade. Assumes
     //        1. We're booted to the right system
     //        2. The target image is unlocked
-    private void upgrade(String filename, String system) 
+    private void upgrade(String filename, String system)
 	throws FileNotFoundException, IOException
     {
 	File file = new File(filename);
-	if (!file.exists() || !file.canRead()) 
+	if (!file.exists() || !file.canRead())
 	    die("Unable to read image file: " + filename);
 
-	if (file.length() < 1000000 || file.length() > 10000000) 
+	if (file.length() < 1000000 || file.length() > 10000000)
 	    die("Image file is an unreasonable length");
 
 	FileInputStream fis = new FileInputStream(file);
 	int length = (new Long(file.length())).intValue();
-	
+
 	byte image[] = new byte[length];
 	int result = fis.read(image, 0, length);
-	
+
 	if (result != length) die("failed to read the image file");
 
 	watchdog w = new watchdog(180, true);
@@ -201,11 +201,11 @@ public class install {
 	c.send_binary("binary/filesystem", image, length);
 
 	Element ok = c.next_non_event();
-	if (ok.getNodeName().equals("ok")) 
+	if (ok.getNodeName().equals("ok"))
 	    wait_for_completed();
-	else 
+	else
 	    fail(ok);
-	w.die(); 
+	w.die();
     }
 
     // An install is fully completed when we get an "install_done" event
@@ -213,7 +213,7 @@ public class install {
     {
 	Element e = c.next_reply(true);
 	if (e == null) die("response was empty");
-	    
+
 	if (e.getNodeName().equals("event")) {
 	    Node i = e.getChildNodes().item(0);
 	    if (i != null && i.getNodeName().equals("info")) {

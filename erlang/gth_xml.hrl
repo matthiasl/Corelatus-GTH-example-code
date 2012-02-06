@@ -15,7 +15,7 @@
 %%    <a><b p='q'/></a>
 %%
 %%   is equivalent to
-%% 
+%%
 %%    #resp_tuple{name=a, attributes=[], clippings=[],
 %%                children=[#resp_tuple{name=b, attributes=[{"p", "q"}]}]}
 %%

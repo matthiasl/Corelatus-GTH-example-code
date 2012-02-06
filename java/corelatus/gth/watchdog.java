@@ -2,7 +2,7 @@
 // Title: Watchdog timer
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: June 2002
-// 
+//
 // Copyright (c) 2002 Corelatus AB Stockholm
 //
 // This is demonstration code. Use at your own risk. Permission granted to
@@ -46,7 +46,7 @@ public class watchdog extends Thread {
 		Thread.sleep(100);
 		if (verbose && timeout % 10 == 1) System.out.print(".");
 	    }
-	} 
+	}
 	catch (java.lang.InterruptedException e) {
 	    System.out.println("watchdog sleep interrupted");
 	}

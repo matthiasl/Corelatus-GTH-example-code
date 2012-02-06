@@ -91,7 +91,7 @@ sub new_recorder {
 		"<tcp_sink ip_addr='$my_ip' ip_port='$my_port'/>".
 		"</recorder></new>");
 
-    
+
     my $data_socket = $listen_socket->accept();
     my $job_id = parse_job_id($self->next_non_event());
 
@@ -163,7 +163,7 @@ sub parse_job_id {
     my ($parsed) = @_;
 
     defined($parsed->{'job'}) || die(Dumper($parsed));
-    
+
     my $hashref= $parsed->{'job'};
     return (keys %$hashref)[0];
 }
@@ -174,7 +174,7 @@ sub send {
 
     if (! defined($type)) {
 	$type = "text/xml";
-    } 
+    }
 
     $s->send("Content-type: $type\r\n");
     $s->send("Content-length: " . length($data) . "\r\n\r\n");
@@ -184,7 +184,7 @@ sub send {
 sub receive_raw {
     my ($self) = @_;
     my $s = $self->{SOCKET};
-    
+
     my $first = <$s>;
     my $second = <$s>;
     my $blank = <$s>;
@@ -202,7 +202,7 @@ sub receive_raw {
 sub receive {
     my ($self) = @_;
     my $s = $self->{SOCKET};
-    
+
     my $parsed = XMLin($self->receive_raw(), KeepRoot => 1, ForceArray => 1);
 
     return $parsed;
@@ -223,9 +223,9 @@ sub next_event {
     my ($self) = @_;
     my $parsed = $self->receive();
 
-    defined $parsed->{"event"} 
+    defined $parsed->{"event"}
     || die("expected event, got " . Dumper($parsed) );
-    
+
     return $parsed;
 }
 
@@ -279,7 +279,7 @@ module wraps that text protocol in a Perl API.
   Commands the GTH to start decoding MTP-2 on the given timeslot.
 
   Returns a job identifier (needed to delete the MTP-2 decoding job)
-  and a socket with the signalling on it. The socket uses the 
+  and a socket with the signalling on it. The socket uses the
   format described in the GTH API manual, under new_fr_monitor.
 
 =item new_player (Span, Timeslot)
@@ -304,7 +304,7 @@ module wraps that text protocol in a Perl API.
 
 =item query_resource (Name)
 
-  Queries the given resource. 
+  Queries the given resource.
 
   For most values of <Name>, returns a hash of all the attributes.
 

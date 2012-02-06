@@ -19,7 +19,7 @@ Getting started
 ---------------
 
   erl -make
-  
+
   Then either read gth.erl or look at the ss7_sniffer.erl example.
 
 save_to_pcap.erl Example

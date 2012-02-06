@@ -20,7 +20,7 @@
 %%     * Neither the name of Corelatus nor the
 %%       names of its contributors may be used to endorse or promote products
 %%       derived from this software without specific prior written permission.
-%% 
+%%
 %% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 %% EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -31,7 +31,7 @@
 %% ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 %% (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 %% SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-%% 
+%%
 
 %%
 %%----------------------------------------------------------------------
@@ -55,7 +55,7 @@ string(S) ->
 	    error_logger:error_report(xml_command, {exit, Reason}),
 	    error_logger:error_report(xml_command, {bad_reply, S}),
 	    {error, parse};
-	
+
 	X ->
 	    {error, X}
     end.
@@ -70,11 +70,11 @@ do_string(S) ->
 %%
 %% The mapping from plain tuples to records is partly for backwards
 %% compatibility (with earlier versions of this parser) and partly
-%% for readability. 
+%% for readability.
 %%
 %% If you want to skip the records, you can, by just using
 %% gth_xml_scan:scan_and_parse(), in which case this module is unnecessary.
-%% 
+%%
 
 checked({N, A, C, T})
   when N == error;
@@ -83,44 +83,44 @@ checked({N, A, C, T})
     [] = C,
     {ok, #resp_tuple{name=N, attributes=A, clippings=T}};
 
-checked({event, [], C, T}) ->  
+checked({event, [], C, T}) ->
     Map = lists:map(fun event_child/1, C),
     {ok, #resp_tuple{name=event, children = Map, clippings=T}};
 
-checked({state, [], C, T}) ->  
+checked({state, [], C, T}) ->
     Map = lists:map(fun state_child/1, C),
     {ok, #resp_tuple{name=state, children=Map, clippings=T}};
 
-checked({jobs, [], C, T}) ->  
+checked({jobs, [], C, T}) ->
     Map = lists:map(fun job_child/1, C),
     {ok, #resp_tuple{name=jobs, children=Map, clippings=T}};
 
-checked(_) -> 
+checked(_) ->
     {error, unknown_tle}.
 
-event_child({Name, A, [], T}) 
-  when Name == alarm; 
-       Name == alert; 
-       Name == atm_message; 
-       Name == ebs; 
-       Name == fatality; 
-       Name == fault; 
-       Name == f_relay_message; 
-       Name == info; 
-       Name == l1_message; 
-       Name == l2_alarm; 
-       Name == l2_socket_alert; 
-       Name == lapd_message; 
-       Name == level; 
-       Name == message_ended; 
-       Name == mtp2_message; 
-       Name == slip; 
-       Name == sync_message; 
+event_child({Name, A, [], T})
+  when Name == alarm;
+       Name == alert;
+       Name == atm_message;
+       Name == ebs;
+       Name == fatality;
+       Name == fault;
+       Name == f_relay_message;
+       Name == info;
+       Name == l1_message;
+       Name == l2_alarm;
+       Name == l2_socket_alert;
+       Name == lapd_message;
+       Name == level;
+       Name == message_ended;
+       Name == mtp2_message;
+       Name == slip;
+       Name == sync_message;
        Name == tone ->
     #resp_tuple{name=Name, attributes=A, children=[], clippings=T};
 
 event_child({backup, [], C, T}) ->
-    F = fun({job, A, [], []}) -> #resp_tuple{name=job, attributes=A} end, 
+    F = fun({job, A, [], []}) -> #resp_tuple{name=job, attributes=A} end,
     #resp_tuple{name=backup, children=lists:map(F, C), clippings=T}.
 
 state_child({Name, A, C, T}) ->
@@ -130,14 +130,14 @@ state_child({Name, A, C, T}) ->
 state_grandchild({Name, A, [], []}) ->
     #resp_tuple{name=Name, attributes=A}.
 
-job_child({Name, A, C, T}) 
+job_child({Name, A, C, T})
   when Name == error;
        Name == connection;
        Name == clip ->
     #resp_tuple{name=Name, attributes=A, children=C, clippings=T}.
 
 %%--------------------
-%% job_state: Parse the output of <query>. 
+%% job_state: Parse the output of <query>.
 
 %% Query of "self" only returns an ID
 job_state(Verbose, #resp_tuple{name=job, attributes=[{"id", I}]}) ->
@@ -162,7 +162,7 @@ job_state(Verbose, RT = #resp_tuple{attributes=A}) ->
     {Tree, Status} = job_state_split_rt(RT),
     case Verbose of
 	true ->
-	    Simple_tree = Tree#resp_tuple{attributes=Attributes}, 
+	    Simple_tree = Tree#resp_tuple{attributes=Attributes},
 	    {job, I, O, Simple_tree, Status};
 	false when RT#resp_tuple.name == player -> %% Special case used by MA/GB
 	    {job, I, O, Attributes};
@@ -173,8 +173,8 @@ job_state(Verbose, RT = #resp_tuple{attributes=A}) ->
 %% All the counters are 'attribute' children. Parse those into
 %% a key-value list. Leave the rest of the tree alone.
 job_state_split_rt(RT = #resp_tuple{children = C}) ->
-    F = fun(#resp_tuple{name=attribute, 
-			attributes=[{"name", K}, {"value", V}]}, 
+    F = fun(#resp_tuple{name=attribute,
+			attributes=[{"name", K}, {"value", V}]},
 	    {KVs, Other}) ->
 		{[{K, V}|KVs], Other};
 

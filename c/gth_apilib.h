@@ -7,13 +7,13 @@
 // Typical use:
 //
 //     #include "gth_apilib.h"
-// 
+//
 //     GTH_api api;
 //     char buffer[MAX_JOB_ID];
-// 
+//
 //     gth_connect(&api, "172.16.1.10", 0);
 //     gth_new_player(&api, "3A", 16, buffer);
-// 
+//
 // This API supports a subset of the GTH's features.
 // Corelatus will extend that subset on request.
 //
@@ -35,7 +35,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -46,7 +46,7 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 //----------------------------------------------------------------------
 
 #include "gth_client_xml_parse.h"
@@ -62,7 +62,7 @@ typedef void(GTH_tone_handler)(const char *name, const int length);
 // filled in by gth_connect().
 //
 // For most uses, consider this structure to be opaque.
-// 
+//
 // Exceptions to the opaqueness:
 //
 //     - if you use poll/select to multiplex IO, then you probably want
@@ -90,7 +90,7 @@ typedef struct {
   GTH_tone_handler *tone_handler;
 } GTH_api;
 
-// Close an API connection to the GTH, cleanly. 
+// Close an API connection to the GTH, cleanly.
 //
 // Return: 0 on success.
 int gth_bye(GTH_api *api);
@@ -105,13 +105,13 @@ int gth_connect(GTH_api *api, const char *address, const int verbose);
 
 // Make a TCP socket and put it in the listening state.
 //
-// Return: the socket file descriptor 
+// Return: the socket file descriptor
 //
 // This function also writes the port number to the *port argument so that
 //   you know which port the OS selected.
 int gth_make_listen_socket(int *port);
 
-// Given a socket, wait for an accept on it. 
+// Given a socket, wait for an accept on it.
 //
 // Return: the accepted socket.
 int gth_wait_for_accept(int listen_socket);
@@ -133,14 +133,14 @@ int gth_install(GTH_api *api,
 		const char *data,
 		const int length); // in octets (bytes)
 
-// Start CAS MFC monitoring. 
+// Start CAS MFC monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
-// listening state before entering this function, e.g. by 
+// listening state before entering this function, e.g. by
 // calling gth_make_listen_socket() first.
 //
 // This function writes the resulting job-id to job_id.
-// 
+//
 // Return: 0 on success
 int gth_new_cas_r2_mfc_detector(GTH_api *api,
 				const int tag,
@@ -174,13 +174,13 @@ int gth_new_connection(GTH_api *api,
 // Start a LAPD layer.
 //
 // The TCP port specified by (ip/port) is expected to be in a
-// listening state before entering this function, e.g. by 
+// listening state before entering this function, e.g. by
 // calling gth_make_listen_socket() first.
 //
 // 0 is a reasonable default value for 'sapi' and 'tei'
 //
 // This function writes the resulting job-id to job_id.
-// 
+//
 // Return: 0 on success
 int gth_new_lapd_layer(GTH_api *api,
 		       const int tag,
@@ -193,14 +193,14 @@ int gth_new_lapd_layer(GTH_api *api,
 		       const char *ip,
 		       const int port);
 
-// Start MTP-2 monitoring. 
+// Start MTP-2 monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
-// listening state before entering this function, e.g. by 
+// listening state before entering this function, e.g. by
 // calling gth_make_listen_socket() first.
 //
 // This function writes the resulting job-id to job_id.
-// 
+//
 // Return: 0 on success
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
@@ -211,27 +211,27 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const int port);
 
 
-// Return: the file descriptor (>= 0) on success. 
+// Return: the file descriptor (>= 0) on success.
 //
 // The file descriptor is a socket to write the player data to.
-int gth_new_player(GTH_api *api, 
-		   const char *span, 
+int gth_new_player(GTH_api *api,
+		   const char *span,
 		   int timeslot,      // E1: 1--31   T1: 1--24
 		   char *job_id);     // function writes the job-id here
-		   
-// Return: the file descriptor (>= 0) on success. 
+
+// Return: the file descriptor (>= 0) on success.
 //
 // The file descriptor is a socket the recorder data gets written to
-int gth_new_recorder(GTH_api *api, 
-		     const char *span, 
+int gth_new_recorder(GTH_api *api,
+		     const char *span,
 		     int timeslot,      // E1: 1--31   T1: 1--24
 		     char *job_id);     // function writes the job-id here
 
 // Return: 0 on success
 //
 // The file descriptor is a socket the recorder data gets written to
-int gth_new_tone_detector(GTH_api *api, 
-			  const char *span, 
+int gth_new_tone_detector(GTH_api *api,
+			  const char *span,
 			  int timeslot,      // E1: 1--31   T1: 1--24
 			  char *job_id,      // function writes the job-id here
 			  GTH_tone_handler* handler); // callback
@@ -262,15 +262,15 @@ int gth_reset(GTH_api *api, const char *resource);
 // Query one attribute on a resource. Returns the value in result, using up
 // to max_size characters, including the terminating 0.
 //
-// On error, result is set to the empty string and the function 
+// On error, result is set to the empty string and the function
 // return value is nonzero.
-int gth_query_resource_attribute(GTH_api *api, 
-				 const char *resource, 
+int gth_query_resource_attribute(GTH_api *api,
+				 const char *resource,
 				 const char *attribute,
 				 char *result,
 				 int max_size);
 
-// Query a resource. 
+// Query a resource.
 //
 // **attributes is set to an array of attributes. The caller is responsible
 // for calling gth_free_attributes() to free the attributes.
@@ -292,11 +292,11 @@ GTH_resp *gth_raw_xml(GTH_api *api, const char* string);
 // Free an array of attributes, typically obtained from gth_query_resource()
 void gth_free_attributes(GTH_attribute *attributes, int n_attributes);
 
-// Return an ascii representation of this machine's IP address as 
+// Return an ascii representation of this machine's IP address as
 // observed by the GTH.
 const char *gth_my_ip_address(GTH_api *api);
 
-// Wait for a GTH to reboot. Assumes that the GTH has just been 
+// Wait for a GTH to reboot. Assumes that the GTH has just been
 // given a boot command or just plugged in.
 //
 // Return: 0 on success
@@ -308,8 +308,8 @@ int gth_wait_for_reboot(const char *hostname);
 //
 // system_name: either 'failsafe' or 'system'
 //     verbose: if nonzero, a couple of progress reports are printed on stderr
-void gth_switch_to(const char *hostname, 
-		   const char *system_name, 
+void gth_switch_to(const char *hostname,
+		   const char *system_name,
 		   const int verbose);
 
 // The Win32 socket library needs some startup actions before it works.

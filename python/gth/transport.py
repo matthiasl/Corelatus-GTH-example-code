@@ -11,9 +11,9 @@
 #    1. Poll the receive() method, catching the transport error
 #       when nothing arrives. Requires the poll loop to be in a
 #       thread of its own.
-# 
-#    2. Rewrite/extend this code to be non-blocking. 
-#       This doesn't look that hard. We could just call 
+#
+#    2. Rewrite/extend this code to be non-blocking.
+#       This doesn't look that hard. We could just call
 #       select on the API socket or sockets whenever we've
 #       got nothing else to do and then read from the ones
 #       which are readable.
@@ -91,11 +91,11 @@ class API_socket:
     data = self._file.read(length)
 
     # Python seems to guarantee that we get the requested number of
-    # octets from the file descriptor above, as long as we're in 
+    # octets from the file descriptor above, as long as we're in
     # blocking IO mode. So the code below is a placeholder.
     if len(data) != length:
       data.extend(_definite_read(self, length - len(data)))
-      
+
     return data
 
 class TransportError(Exception):

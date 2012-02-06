@@ -1,6 +1,6 @@
 #!/usr/bin/python
 #
-# Title: Play a file to an E1/T1 timeslot using a Corelatus GTH 
+# Title: Play a file to an E1/T1 timeslot using a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)
 
 import sys
@@ -73,7 +73,7 @@ def main():
     if len(sys.argv) != 5:
         usage()
         sys.exit(-1)
-        
+
     # We only check the number of arguments. If the GTH doesn't like
     # the contents, it'll say so.
 

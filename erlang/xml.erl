@@ -13,15 +13,15 @@
 	 job/1,
 	 new/3,
 	 new_clip/1,
-	 pcm_sink/2, 
-	 pcm_sink/3, 
+	 pcm_sink/2,
+	 pcm_sink/3,
 	 pcm_source/2,
 	 player/3, player/4,
 	 query_jobs/2, query_job/1,
 	 query_resource/1,
 	 recorder/4, recorder/5,
 	 reset/1,
-	 set/2, 
+	 set/2,
 	 tag/3, tag/2,
 	 takeover/1,
 	 tcp_sink/2, tcp_source/2,
@@ -61,12 +61,12 @@ new(Child, Attrs, Children) ->
     tag("new", [], tag(Child, Attrs, Children)).
 
 new_clip(Id) when is_list(Id) ->
-    tag("new", [], tag("clip", [{"id", Id}], [])).    
+    tag("new", [], tag("clip", [{"id", Id}], [])).
 
 player(Clip_list, Span, Timeslot) ->
     player(Clip_list, [], Span, Timeslot).
 
-player(Clipnames, Attrs, Span, Timeslot) 
+player(Clipnames, Attrs, Span, Timeslot)
   when is_list(Clipnames), is_list(hd(Clipnames)) ->
     Clips = [tag("clip", [{"id", Clipname}], "") || Clipname <- Clipnames],
     Sink = pcm_sink(Span, Timeslot),
@@ -100,7 +100,7 @@ query_resource(Name) ->
 
 recorder(Span, Timeslot, Host, Port) ->
     recorder(Span, Timeslot, Host, Port, []).
-    
+
 recorder(Span, Timeslot, Host, Port, Opts) ->
     new("recorder", Opts, [pcm_source(Span, Timeslot), tcp_sink(Host, Port)]).
 
@@ -142,7 +142,7 @@ udp_sink(IP, Port) when is_integer(Port) ->
     tag("udp_sink", [{"ip_addr", IP}, {"ip_port", integer_to_list(Port)}]).
 
 wide_recorder(Span, Host, Port, Tag) ->
-    new("wide_recorder", [{"span", Span}, {"tag", Tag}], 
+    new("wide_recorder", [{"span", Span}, {"tag", Tag}],
 	[udp_sink(Host, Port)]).
 
 

@@ -61,7 +61,7 @@ def decode_mtp2(packet):
     #     next 3 octets is MTP-2 FSN, BSN and LI, which we can ignore
     #     next 1 octet SIO and at least 4 octets of SIF
     #     finally 2 octets of CRC
-    # 
+    #
     # So ignore anything shorter than 20 octets
     if len(packet) < 20:
         return
@@ -134,7 +134,7 @@ def monitor_mtp2(host, span, timeslot):
         length = ord(b[0]) * 256 + ord(b[1])
         packet = _definite_read(data, length)
         decode_mtp2(packet)
-        
+
     api.delete(mtp2_id)
     data.close()
 
@@ -144,7 +144,7 @@ def main():
     if len(sys.argv) != 4:
         usage()
         sys.exit(-1)
-        
+
     monitor_mtp2(argv[1], argv[2], int(argv[3]))
 
 main()

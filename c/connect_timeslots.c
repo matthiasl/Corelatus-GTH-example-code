@@ -2,7 +2,7 @@
 // Minimal program to connect one or more timeslots
 //
 // Doesn't attempt any error handling.
-// 
+//
 // Author: Matt Lang (matthias@corelatus.se)
 //
 // Copyright (c) 2011, Corelatus AB Stockholm
@@ -21,7 +21,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -49,7 +49,7 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage() 
+static void usage()
 {
   fprintf(stderr, "connect_timeslots [-v] <GTH-IP> <src span> <src ts> <dst span> <dest ts> ...\n"
 	  "Connect the given timeslot a GTH.\n\n"
@@ -72,8 +72,8 @@ static void usage()
 
 #define MAX_CONNECTIONS 100
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
@@ -102,23 +102,23 @@ int main(int argc, char** argv)
   argv += 2;
   argc -= 2;
 
-  while (argc >= 4) 
+  while (argc >= 4)
     {
       char job_id[MAX_JOB_ID];
 
-      result = gth_new_connection(&api, 
-				  argv[0], atoi(argv[1]), 
-				  argv[2], atoi(argv[3]), 
+      result = gth_new_connection(&api,
+				  argv[0], atoi(argv[1]),
+				  argv[2], atoi(argv[3]),
 				  job_id);
-      
-      fprintf(stderr, "connecting %s:%s -> %s:%s. ", 
+
+      fprintf(stderr, "connecting %s:%s -> %s:%s. ",
 	      argv[0], argv[1], argv[2], argv[3]);
 
       if (result == 0)
 	fprintf(stderr, "Ok.\n");
       else
 	fprintf(stderr, "Unable to set up connection. Skipping.\n");
-      
+
       argv += 4;
       argc -= 4;
     }

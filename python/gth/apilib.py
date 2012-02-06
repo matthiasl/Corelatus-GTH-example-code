@@ -24,7 +24,7 @@ class API:
         """Return a tuple (answer, events).
         Answer is the next reply from the GTH and events is a list of all
         asynchronous data before that"""
-    
+
         events = []
 
         while True:
@@ -44,7 +44,7 @@ class API:
         Create a timeslot player on a GTH."""
 
         IP, _api_port = self.socket._socket.getsockname()
-    
+
         port, ls = self.listen()
         self.socket.send("<new><player>" \
                                 "<tcp_source ip_addr='%s' ip_port='%d'/>"\
@@ -54,7 +54,7 @@ class API:
         player_id, _ignored_events = self.receive_job_id()
         data, _remote_address = ls.accept()
         ls.close()
-    
+
         return (player_id, data)
 
 
@@ -62,7 +62,7 @@ class API:
         """Returns a (job_id, socket) tuple.
         Create a timeslot recorder on a GTH."""
 
-        IP, _api_port = self.socket._socket.getsockname()    
+        IP, _api_port = self.socket._socket.getsockname()
         port, ls = self.listen()
         self.socket.send("<new><recorder>"\
                                 "<pcm_source span='%s' timeslot='%d'/>"\
@@ -72,7 +72,7 @@ class API:
         recorder_id, _ignored_events = self.receive_job_id()
         data, _remote_address = ls.accept()
         ls.close()
-    
+
         return (recorder_id, data)
 
     def new_mtp2_monitor(self, span, timeslot):
@@ -80,7 +80,7 @@ class API:
         Monitor MTP-2 on a GTH. Socket returned uses the format defined in
         the GTH API manual, under new_fr_monitor."""
 
-        IP, _api_port = self.socket._socket.getsockname()    
+        IP, _api_port = self.socket._socket.getsockname()
         port, ls = self.listen()
         self.socket.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
                                 "<pcm_source span='%s' timeslot='%d'/>"\
@@ -89,7 +89,7 @@ class API:
         mtp2_id, _ignored_events = self.receive_job_id()
         data, _remote_address = ls.accept()
         ls.close()
-    
+
         return (mtp2_id, data)
 
     def delete(self, ID):

@@ -119,11 +119,11 @@ void usage() {
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<channels> is a list of spans and timeslots:"
 	  "\n  <span> [<span>...] <timeslot> [<timeslot>...]"
-	  "\n  e.g. 1A 2A 1 2 3 will monitor timeslots 1, 2 and 3 on span 1A and 2A."  
+	  "\n  e.g. 1A 2A 1 2 3 will monitor timeslots 1, 2 and 3 on span 1A and 2A."
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<timeslot> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "Examples:\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcap\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 3A 4A 1 2 3 4 isup_capture.pcap\n"
@@ -145,7 +145,7 @@ void usage() {
 #ifdef WIN32
 // Return 1 on success
 #define fwrite write_to_handle_or_file
-static int write_to_handle_or_file(void *buffer, 
+static int write_to_handle_or_file(void *buffer,
 				   int length,
 				   int items,
 				   HANDLE_OR_FILEPTR file)
@@ -181,7 +181,7 @@ static HANDLE_OR_FILEPTR open_windows_pipe(const char *filename)
   HANDLE pipe;
   int result;
 
-  pipe = CreateNamedPipe(filename, 
+  pipe = CreateNamedPipe(filename,
 			 PIPE_ACCESS_OUTBOUND,          // write-only
 			 PIPE_TYPE_MESSAGE | PIPE_WAIT, // blocking writes
 			 1,                             // only allow one pipe
@@ -198,7 +198,7 @@ static HANDLE_OR_FILEPTR open_windows_pipe(const char *filename)
   if (!result) {
     die("Unabled to connect the named pipe. Giving up.");
   }
-			 
+
   return pipe;
   #else
   die("Cannot open a windows named pipe on a non-windows OS. Giving up.");
@@ -210,11 +210,11 @@ static void open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
 {
   int result = 0;
   #ifdef WIN32
-  *hf = CreateFile(filename, 
-		   GENERIC_WRITE, 
-		   0, 
-		   0, 
-		   CREATE_ALWAYS, 
+  *hf = CreateFile(filename,
+		   GENERIC_WRITE,
+		   0,
+		   0,
+		   CREATE_ALWAYS,
 		   FILE_ATTRIBUTE_NORMAL,
 		   0);
 
@@ -271,7 +271,7 @@ static void monitor_mtp2(GTH_api *api,
 				job_id, api->my_ip, listen_port);
   if (result != 0)
     die("Setting up MTP2 monitoring failed. (-v gives more information)");
-  
+
   return;
 }
 
@@ -314,10 +314,10 @@ static void write_pcap_header(HANDLE_OR_FILEPTR file)
   return;
 }
 
-// Write a PCAP per-packet header 
+// Write a PCAP per-packet header
 static void write_packet_header(HANDLE_OR_FILEPTR file,
-				unsigned int timestamp_hi, 
-				unsigned int timestamp_lo, 
+				unsigned int timestamp_hi,
+				unsigned int timestamp_lo,
 				int length)
 {
   PCAP_packet_header pcap_header;
@@ -345,7 +345,7 @@ static void write_packet_header(HANDLE_OR_FILEPTR file,
   }
 }
 
-static void write_packet_payload(HANDLE_OR_FILEPTR file, char *payload, 
+static void write_packet_payload(HANDLE_OR_FILEPTR file, char *payload,
 				 int length) {
   int result;
 
@@ -391,14 +391,14 @@ static void convert_to_pcap(int data_socket,
       fprintf(stderr, "saving capture to a windows named pipe\n");
       file = open_windows_pipe(base_name);
     }
-    
+
     write_pcap_header(file);
     file_number++;
     su_count = 0;
 
     while ( write_to_stdout
 	    || write_to_pipe
-	    || n_sus_per_file == 0 
+	    || n_sus_per_file == 0
 	    || (su_count++ < n_sus_per_file) ) {
       read_exact(data_socket, (void*)&length, sizeof length);
       length = ntohs(length);
@@ -407,7 +407,7 @@ static void convert_to_pcap(int data_socket,
 
       length -= (signal_unit.payload - (char*)&(signal_unit.tag));
 
-      write_packet_header(file, 
+      write_packet_header(file,
 			  signal_unit.timestamp_hi, signal_unit.timestamp_lo,
 			  length);
 
@@ -468,7 +468,7 @@ int main(int argc, char** argv)
 
     case 'v': verbose = 1; break;
 
-    case 'n': 
+    case 'n':
       if (argc < 3) {
 	usage();
       } else {
@@ -529,14 +529,14 @@ int main(int argc, char** argv)
   if (!n_channels){
     die("No timeslots given (or, perhaps, no output filename given).");
   }
-  
+
   tag = 0;
   listen_socket = gth_make_listen_socket(&listen_port);
   for (i = 0; i < n_channels; i++){
-    monitor_mtp2(&api, channels[i].pcm, channels[i].timeslot, 
+    monitor_mtp2(&api, channels[i].pcm, channels[i].timeslot,
 		 tag, listen_port, listen_socket);
     if (!tag) {
-      data_socket = gth_wait_for_accept(listen_socket);	      
+      data_socket = gth_wait_for_accept(listen_socket);
     }
     tag++;
   }
