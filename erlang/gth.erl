@@ -532,9 +532,9 @@ nop(Pid) when is_pid(Pid) ->
 %% useful for debugging and serialisation. In this case,
 %% -include("gth_api.hrl") to get the #resp_tuple{} definition.
 %%
--spec query_jobs(pid(), [string()], true | false) ->
+-spec query_jobs(pid(), [string()], boolean()) ->
 			{ok, [{error, any()} | job()]}.
-query_jobs(Pid, Ids, Verbose) when is_pid(Pid) ->
+query_jobs(Pid, Ids, Verbose) when is_pid(Pid), is_boolean(Verbose) ->
     {ok, gen_server:call(Pid, {query_jobs, Ids, Verbose})}.
 
 query_jobs(Pid, Ids) when is_pid(Pid) ->
@@ -560,15 +560,20 @@ query_job(Pid, Id) ->
 query_resource(Pid, Name) when is_pid(Pid) ->
     gen_server:call(Pid, {query_resource, Name}, 15000).
 
-query_resource(Pid, Name, Attribute) when is_pid(Pid) ->
+query_resource(Pid, Name, Attribute) when is_pid(Pid), Name =/= "inventory" ->
     case query_resource(Pid, Name) of
-	{ok, Dict} ->
-	    case [V || {K, V} <- Dict, K == Attribute] of
-		[Value] ->
-		    {ok, Value};
-		_ ->
-		    {error, badarg}
-	    end
+	{ok, KVs} ->
+	    query_resource_find(Attribute, KVs);
+	{ok, KVs, _bin} ->
+	    query_resource_find(Attribute, KVs);
+	Error = {error, _} ->
+	    Error
+    end.
+
+query_resource_find(Key, KVs) ->
+    case lists:keyfind(Key, 1, KVs) of
+	{_, V} -> {ok, V};
+	_ -> {error, badarg}
     end.
 
 %% Undocumented. Used for testing incorrect API commands.
