@@ -112,6 +112,7 @@
 	 new_player/4, new_player/5,
 	 new_raw_monitor/3, new_raw_monitor/4,
 	 new_recorder/3, new_recorder/4,
+	 new_sdh_span/5, new_sdh_span/6,
 	 new_ss5_linesig_monitor/3, new_ss5_linesig_monitor/4,
 	 new_ss5_registersig_monitor/3, new_ss5_registersig_monitor/4,
 	 new_tcp_player/3, new_tcp_player/4,
@@ -463,6 +464,15 @@ new_recorder(Pid, Span, Ts, Options)
 				   | {error, any()}.
 new_wide_recorder(Pid, Span, Options) when is_pid(Pid) ->
     gen_server:call(Pid, {new_wide_recorder, Span, Options}).
+
+-spec new_sdh_span(pid(), byte(), byte(), byte(), byte(), list()) ->
+			  {ok, string()}
+			      | {error, any()}.
+new_sdh_span(Pid, B, A_k, L, M) ->
+    new_sdh_span(Pid, B, A_k, L, M, []).
+
+new_sdh_span(Pid, B, A_k, L, M, Options) ->
+    gen_server:call(Pid, {new_sdh_span, B, A_k, L, M, Options}).
 
 -spec new_ss5_linesig_monitor(pid(), string(), 1..31, monitoring_options()) ->
 				     {ok, string(), Signalling_socket::port()}
@@ -920,6 +930,18 @@ handle_call({new_player, Clips, Span, Ts, Loop},
 
 handle_call({new_raw_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Ts, "raw_monitor", Opts),
+    {reply, Reply, State};
+
+handle_call({new_sdh_span, B, A_k, L, M, Options},
+	    _From,
+	    State = #state{socket = S}) ->
+    ok = gth_apilib:send(S, xml:new("sdh_span",
+				    [{"b", B},
+				     {"a_k", integer_to_list(A_k)},
+				     {"l", integer_to_list(L)},
+				     {"m", integer_to_list(M)}] ++ Options,
+				    [])),
+    Reply = receive_job_id(State),
     {reply, Reply, State};
 
 handle_call({new_ss5_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
