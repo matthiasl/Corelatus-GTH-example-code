@@ -164,7 +164,8 @@ job_state(Verbose, RT = #resp_tuple{attributes=A}) ->
 	true ->
 	    Simple_tree = Tree#resp_tuple{attributes=Attributes},
 	    {job, I, O, Simple_tree, Status};
-	false when RT#resp_tuple.name == player -> %% Special case used by MA/GB
+	false when RT#resp_tuple.name == player;
+		   RT#resp_tuple.name == sdh_span ->
 	    {job, I, O, Attributes};
 	false ->
 	    {job, I, O, Status}
