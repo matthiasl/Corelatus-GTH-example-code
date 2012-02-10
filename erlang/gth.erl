@@ -783,8 +783,8 @@ handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
     {reply, Reply, State};
 
 handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:new_clip(Name)),
-    ok = gth_apilib:send(S, Bin),
+    ok = gth_apilib:sendv(S, [{"text/xml", xml:new_clip(Name)},
+			      {"binary/audio", Bin}]),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
