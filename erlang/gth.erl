@@ -222,7 +222,8 @@ start_link(Host, Options)
 
 -spec bye(pid()) -> 'ok'.
 
-%% Terminate gracefully.
+%% Terminate gracefully. This is the only graceful way to shut down;
+%% if you just kill the process, we don't attempt to send <bye/>.
 bye(Pid)
   when is_pid(Pid) ->
     Result = gen_server:call(Pid, bye),
@@ -640,9 +641,27 @@ init(Options) ->
 
     {ok, State}.
 
-handle_call(bye, _From, State) ->
-    %% The actual <bye/> is sent in terminate()
-    {stop, normal, ok, State};
+handle_call(bye, _From, State = #state{socket = S}) ->
+    _ = gth_apilib:send(S, "<bye/>"),
+
+    %% GTH returns <ok/> in response to bye and then closes the socket.
+    %% According to T/J, Erlang on MS Windows sometimes drops that OK.
+    %% So we ignore this error on windows.
+    case next_non_event(State) of
+	#resp_tuple{name = ok} ->
+	    fine;
+	_ ->
+	    case os:type() of
+		{win32, _} ->
+		    error_logger:error_report(
+		      "ignoring bad <bye/> on MS Windows\n");
+		_ ->
+		    exit(bad_bye)
+	    end
+    end,
+
+    gen_tcp:close(S),
+    {stop, normal, ok, State#state{socket = none}};
 
 handle_call({custom, Name, Attributes}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:custom(Name, Attributes)),
@@ -1229,29 +1248,7 @@ handle_info({tcp_closed, S}, State = #state{socket = S}) ->
     {stop, {"API socket closed unexpectedly", State#state.debug_remote_ip},
      State#state{socket = none}}.
 
-terminate(_, #state{socket = none}) ->
-    ok;
-
-terminate(Reason, State = #state{socket = S}) ->
-    _ = gth_apilib:send(S, "<bye/>"),
-
-    %% GTH returns <ok/> in response to bye and then closes the socket.
-    %% According to T/J, Erlang on MS Windows sometimes drops that OK.
-    %% So we ignore this error on windows.
-    case next_non_event(State) of
-	#resp_tuple{name = ok} ->
-	    fine;
-	_ ->
-	    case os:type() of
-		{win32, _} ->
-		    error_logger:error_report(
-		      "ignoring bad <bye/> on MS Windows\n");
-		_ ->
-		    exit({bad_bye, Reason})
-	    end
-    end,
-
-    gen_tcp:close(S),
+terminate(_Reason, _State) ->
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
