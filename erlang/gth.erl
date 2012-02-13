@@ -746,15 +746,15 @@ handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
 	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
-    Options = User_options ++ [{"scramble", "true"}],
-    Scramble = proplists:get_value("scramble", Options),
+    Options = User_options ++ [{"scrambling", "true"}],
+    Scrambling = proplists:get_value("scrambling", Options),
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
     Sinks = [xml:pcm_sink(Span, Ts) || Ts <- Timeslots ],
     ok = gth_apilib:send(S, xml:new("atm_aal0_layer",
 				    [{"ip_addr", Hostname},
 				     {"ip_port", Portno},
-				     {"scramble", Scramble}],
+				     {"scrambling", Scrambling}],
 				    [Sources, Sinks])),
     Reply = case receive_job_id(State) of
 		{ok, Job} ->
