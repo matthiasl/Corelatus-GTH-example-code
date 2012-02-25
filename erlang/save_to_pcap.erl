@@ -1,5 +1,5 @@
 -module(save_to_pcap).
-%% 
+%%
 %% Start up signalling (MTP-2, frame relay or AAL5) monitoring on the given
 %% E1 interface/timeslots and save the signal units to a file in
 %% libpcap format, suitable for viewing with wireshark or tcpdump.
@@ -36,7 +36,7 @@
 %%     * Neither the name of Corelatus nor the
 %%       names of its contributors may be used to endorse or promote products
 %%       derived from this software without specific prior written permission.
-%% 
+%%
 %% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 %% EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -49,35 +49,43 @@
 %% SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %%
 %%
--export([mtp2/4, frame_relay/4, aal5/5, from_file/2]).
+-export([mtp2/4, frame_relay/4, aal5/5, lapd/4, from_file/2]).
 
 -type host() :: {byte(), byte(), byte(), byte()} | string().
--spec mtp2(GTH_IP::host(), 
-	   Span::string(), 
-	   Timeslot::integer(), 
+-spec mtp2(GTH_IP::host(),
+	   Span::string(),
+	   Timeslot::integer(),
 	   Filename::string()) -> no_return().
 mtp2(GTH_IP, Span, Timeslot, Filename) ->
     go(GTH_IP, Span, Filename, mtp2,
        fun(A) -> gth:new_mtp2_monitor(A, Span, Timeslot) end).
 
--spec frame_relay(GTH_IP::host(), 
-		  Span::string(), 
-		  Timeslots::[integer()], 
+-spec lapd(GTH_IP::host(),
+	   Span::string(),
+	   Timeslot::integer(),
+	   Filename::string()) -> no_return().
+lapd(GTH_IP, Span, Timeslot, Filename) ->
+    go(GTH_IP, Span, Filename, lapd,
+       fun(A) -> gth:new_lapd_monitor(A, Span, Timeslot) end).
+
+-spec frame_relay(GTH_IP::host(),
+		  Span::string(),
+		  Timeslots::[integer()],
 		  Filename::string()) -> no_return().
 frame_relay(GTH_IP, Span, Timeslots, Filename) ->
     go(GTH_IP, Span, Filename, frame_relay,
        fun(A) -> gth:new_fr_monitor(A, Span, Timeslots) end).
 
--spec aal5(GTH_IP::host(), 
-		  Span::string(), 
-		  Timeslots::[integer()], 
+-spec aal5(GTH_IP::host(),
+		  Span::string(),
+		  Timeslots::[integer()],
 		  ATM_addr::{integer(), integer()},
 		  Filename::string()) -> no_return().
 aal5(GTH_IP, Span, Timeslots, {VPI, VCI}, Filename) ->
     go(GTH_IP, Span, Filename, aal5,
        fun(A) -> gth:new_atm_aal5_monitor(A, Span, Timeslots, {VPI, VCI}) end).
 
--spec go(GTH_IP::host(), 
+-spec go(GTH_IP::host(),
 	 Span::string(),
 	 Filename::string(),
 	 Protocol::atom(),
@@ -87,18 +95,18 @@ go(GTH_IP, Span, Filename, Protocol, Fun) ->
     {ok, A} = gth:start_link(GTH_IP),
     {ok, Out} = file:open(Filename, [raw, write]),
     ok = file:write(Out, pcap_file_header(Protocol)),
-    ok = gth:set(A, "pcm" ++ Span, 
-		 [{"mode", "E1"}, 
-		  {"framing", "doubleframe"}, 
-		  {"tx_enabled", "false"}, 
-		  {"monitoring", "true"}, 
+    ok = gth:set(A, "pcm" ++ Span,
+		 [{"mode", "E1"},
+		  {"framing", "doubleframe"},
+		  {"tx_enabled", "false"},
+		  {"monitoring", "true"},
 		  {"status", "enabled"}]),
     {ok, _ID, D} = Fun(A),
 
     dump(Protocol, D, Out),
     ok = file:close(Out).
 
-dump(Protocol, D, Out) -> 
+dump(Protocol, D, Out) ->
     {ok, Packet} = gen_tcp:recv(D, 0),
     ok = file:write(Out, reformat_packet(Protocol, Packet)),
     dump(Protocol, D, Out).
@@ -106,12 +114,19 @@ dump(Protocol, D, Out) ->
 %% Take a packet in GTH format, return the same packet mangled to pcap format.
 %%
 %% Return: iolist()
-reformat_packet(mtp2, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>) 
+reformat_packet(mtp2, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 0 ->
     [pcap_packet_header(Timestamp, size(SU)), SU];
 
+%% Same as frame relay, pcap/wireshark wants the CRC removed.
+reformat_packet(lapd, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
+  when Protocol == 1 ->
+    Size = size(SU) - 2,
+    <<Payload:Size/binary, _CRC:16>> = SU,
+    [pcap_packet_header(Timestamp, Size), Payload];
+
 %% pcap/wireshark expects the CRC (FCS) to be stripped from frame relay packets
-reformat_packet(frame_relay, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>) 
+reformat_packet(frame_relay, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 2 ->
     Size = size(SU) - 2,
     <<Payload:Size/binary, _CRC:16>> = SU,
@@ -130,42 +145,46 @@ reformat_packet(frame_relay, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binar
 %%        5    ILMI           0/16
 %%        6    Q.SAAL         0/5
 %%
-%% See sunatmpos.h in the libpcap distribution. 
+%% See sunatmpos.h in the libpcap distribution.
 %%
 reformat_packet(aal5, <<_Tag:16, Protocol:3, _:13, Timestamp:48, _GFC:4, VPI:8, VCI:16, _PTC:4,
-		       _CPCS_UU:8, _CPU:8, _CPCS_length:16, _CPCS_CRC:32, 
-		       Payload/binary>>) 
+		       _CPCS_UU:8, _CPU:8, _CPCS_length:16, _CPCS_CRC:32,
+		       Payload/binary>>)
   when Protocol == 5 ->
     PCAP_protocol = case Payload of
 			_ when VPI == 0, VCI == 5 -> 6;         % SAAL
 			<<16#aa, 16#aa, 16#03, _/binary>> -> 2  % LLC
 		    end,
-		   
-    [pcap_packet_header(Timestamp, size(Payload) + 4), 
+
+    [pcap_packet_header(Timestamp, size(Payload) + 4),
      <<1:1, 0:3, PCAP_protocol:4>>, VPI, <<VCI:16>>, Payload].
 
 %% Write a pcap file header. The pcap header file bpf.h defines network type constants:
 -define(PCAP_NETWORK_FRAME_RELAY, 107).
 -define(PCAP_NETWORK_SUNATM, 123).
 -define(PCAP_NETWORK_MTP2, 140).
+-define(PCAP_NETWORK_LAPD, 203).
 
-pcap_file_header(frame_relay) -> 
+pcap_file_header(frame_relay) ->
     pcap_file_header(?PCAP_NETWORK_FRAME_RELAY);
 
-pcap_file_header(mtp2) -> 
+pcap_file_header(mtp2) ->
     pcap_file_header(?PCAP_NETWORK_MTP2);
 
-pcap_file_header(aal5) -> 
+pcap_file_header(lapd) ->
+    pcap_file_header(?PCAP_NETWORK_LAPD);
+
+pcap_file_header(aal5) ->
     pcap_file_header(?PCAP_NETWORK_SUNATM);
 
-pcap_file_header(Network) when is_integer(Network) -> 
+pcap_file_header(Network) when is_integer(Network) ->
     Magic = 16#a1b2c3d4,
     Major = 2,
     Minor = 4,
     GMT_to_localtime = 0,
     Sigfigs = 0,
     Snaplen = 65535,   %% the maximum allowed
-    <<Magic:32, Major:16, Minor:16, GMT_to_localtime:32, 
+    <<Magic:32, Major:16, Minor:16, GMT_to_localtime:32,
      Sigfigs:32, Snaplen:32, Network:32>>.
 
 pcap_packet_header(Timestamp_ms, Payload_len) ->
@@ -206,7 +225,7 @@ guess_file_protocol(In) ->
 	2 -> frame_relay;
 	5 -> aal5
     end.
-    
+
 file_to_file(In, Out, Guess) ->
     case file:read(In, 2) of
 	{ok, <<Size:16>>} ->
