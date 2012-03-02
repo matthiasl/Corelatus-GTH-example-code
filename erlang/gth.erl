@@ -222,7 +222,8 @@ start_link(Host, Options)
 
 -spec bye(pid()) -> 'ok'.
 
-%% Terminate gracefully.
+%% Terminate gracefully. This is the only graceful way to shut down;
+%% if you just kill the process, we don't attempt to send <bye/>.
 bye(Pid)
   when is_pid(Pid) ->
     Result = gen_server:call(Pid, bye),
@@ -532,9 +533,9 @@ nop(Pid) when is_pid(Pid) ->
 %% useful for debugging and serialisation. In this case,
 %% -include("gth_api.hrl") to get the #resp_tuple{} definition.
 %%
--spec query_jobs(pid(), [string()], true | false) ->
+-spec query_jobs(pid(), [string()], boolean()) ->
 			{ok, [{error, any()} | job()]}.
-query_jobs(Pid, Ids, Verbose) when is_pid(Pid) ->
+query_jobs(Pid, Ids, Verbose) when is_pid(Pid), is_boolean(Verbose) ->
     {ok, gen_server:call(Pid, {query_jobs, Ids, Verbose})}.
 
 query_jobs(Pid, Ids) when is_pid(Pid) ->
@@ -560,15 +561,20 @@ query_job(Pid, Id) ->
 query_resource(Pid, Name) when is_pid(Pid) ->
     gen_server:call(Pid, {query_resource, Name}, 15000).
 
-query_resource(Pid, Name, Attribute) when is_pid(Pid) ->
+query_resource(Pid, Name, Attribute) when is_pid(Pid), Name =/= "inventory" ->
     case query_resource(Pid, Name) of
-	{ok, Dict} ->
-	    case [V || {K, V} <- Dict, K == Attribute] of
-		[Value] ->
-		    {ok, Value};
-		_ ->
-		    {error, badarg}
-	    end
+	{ok, KVs} ->
+	    query_resource_find(Attribute, KVs);
+	{ok, KVs, _bin} ->
+	    query_resource_find(Attribute, KVs);
+	Error = {error, _} ->
+	    Error
+    end.
+
+query_resource_find(Key, KVs) ->
+    case lists:keyfind(Key, 1, KVs) of
+	{_, V} -> {ok, V};
+	_ -> {error, badarg}
     end.
 
 %% Undocumented. Used for testing incorrect API commands.
@@ -635,9 +641,27 @@ init(Options) ->
 
     {ok, State}.
 
-handle_call(bye, _From, State) ->
-    %% The actual <bye/> is sent in terminate()
-    {stop, normal, ok, State};
+handle_call(bye, _From, State = #state{socket = S}) ->
+    _ = gth_apilib:send(S, "<bye/>"),
+
+    %% GTH returns <ok/> in response to bye and then closes the socket.
+    %% According to T/J, Erlang on MS Windows sometimes drops that OK.
+    %% So we ignore this error on windows.
+    case next_non_event(State) of
+	#resp_tuple{name = ok} ->
+	    fine;
+	_ ->
+	    case os:type() of
+		{win32, _} ->
+		    error_logger:error_report(
+		      "ignoring bad <bye/> on MS Windows\n");
+		_ ->
+		    exit(bad_bye)
+	    end
+    end,
+
+    gen_tcp:close(S),
+    {stop, normal, ok, State#state{socket = none}};
 
 handle_call({custom, Name, Attributes}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:custom(Name, Attributes)),
@@ -722,15 +746,15 @@ handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
 	    {Pid, _tag},
 	    State = #state{socket = S, my_ip = Hostname}) ->
-    Options = User_options ++ [{"scramble", "true"}],
-    Scramble = proplists:get_value("scramble", Options),
+    Options = User_options ++ [{"scrambling", "true"}],
+    Scrambling = proplists:get_value("scrambling", Options),
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
     Sinks = [xml:pcm_sink(Span, Ts) || Ts <- Timeslots ],
     ok = gth_apilib:send(S, xml:new("atm_aal0_layer",
 				    [{"ip_addr", Hostname},
 				     {"ip_port", Portno},
-				     {"scramble", Scramble}],
+				     {"scrambling", Scrambling}],
 				    [Sources, Sinks])),
     Reply = case receive_job_id(State) of
 		{ok, Job} ->
@@ -759,8 +783,8 @@ handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
     {reply, Reply, State};
 
 handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:new_clip(Name)),
-    ok = gth_apilib:send(S, Bin),
+    ok = gth_apilib:sendv(S, [{"text/xml", xml:new_clip(Name)},
+			      {"binary/audio", Bin}]),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
@@ -1062,16 +1086,15 @@ handle_call(nop, _From, State = #state{socket = S}) ->
 handle_call({query_jobs, Ids, Verbose}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:query_jobs(Ids, Verbose)),
     #resp_tuple{name='state', children=Cs} = next_non_event(State),
-    Reply = [begin case C of
-		       #resp_tuple{name='error',
-				   clippings=Clippings,
-				   attributes=[{"reason", R}]} ->
-			   {error, {atomise_error_reason(R), Clippings}};
+    Reply = [case C of
+		 #resp_tuple{name='error',
+			     clippings=Clippings,
+			     attributes=[{"reason", R}]} ->
+		     {error, {atomise_error_reason(R), Clippings}};
 
-		       #resp_tuple{} ->
-			   gth_client_xml_parse:job_state(Verbose, C)
-		   end
-	    end || C <- Cs],
+		 #resp_tuple{} ->
+		     gth_client_xml_parse:job_state(Verbose, C)
+	     end || C <- Cs],
     {reply, Reply, State};
 
 handle_call({query_resource, "inventory"}, _From, State = #state{socket = S}) ->
@@ -1225,29 +1248,7 @@ handle_info({tcp_closed, S}, State = #state{socket = S}) ->
     {stop, {"API socket closed unexpectedly", State#state.debug_remote_ip},
      State#state{socket = none}}.
 
-terminate(_, #state{socket = none}) ->
-    ok;
-
-terminate(Reason, State = #state{socket = S}) ->
-    _ = gth_apilib:send(S, "<bye/>"),
-
-    %% GTH returns <ok/> in response to bye and then closes the socket.
-    %% According to T/J, Erlang on MS Windows sometimes drops that OK.
-    %% So we ignore this error on windows.
-    case next_non_event(State) of
-	#resp_tuple{name = ok} ->
-	    fine;
-	_ ->
-	    case os:type() of
-		{win32, _} ->
-		    error_logger:error_report(
-		      "ignoring bad <bye/> on MS Windows\n");
-		_ ->
-		    exit({bad_bye, Reason})
-	    end
-    end,
-
-    gen_tcp:close(S),
+terminate(_Reason, _State) ->
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
