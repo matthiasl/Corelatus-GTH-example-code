@@ -49,7 +49,7 @@
 %% SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 %%
 %%
--export([mtp2/4, frame_relay/4, aal5/5, from_file/2]).
+-export([mtp2/4, frame_relay/4, aal5/5, lapd/4, from_file/2]).
 
 -type host() :: {byte(), byte(), byte(), byte()} | string().
 -spec mtp2(GTH_IP::host(),
@@ -59,6 +59,14 @@
 mtp2(GTH_IP, Span, Timeslot, Filename) ->
     go(GTH_IP, Span, Filename, mtp2,
        fun(A) -> gth:new_mtp2_monitor(A, Span, Timeslot) end).
+
+-spec lapd(GTH_IP::host(),
+	   Span::string(),
+	   Timeslot::integer(),
+	   Filename::string()) -> no_return().
+lapd(GTH_IP, Span, Timeslot, Filename) ->
+    go(GTH_IP, Span, Filename, lapd,
+       fun(A) -> gth:new_lapd_monitor(A, Span, Timeslot) end).
 
 -spec frame_relay(GTH_IP::host(),
 		  Span::string(),
@@ -110,6 +118,13 @@ reformat_packet(mtp2, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 0 ->
     [pcap_packet_header(Timestamp, size(SU)), SU];
 
+%% Same as frame relay, pcap/wireshark wants the CRC removed.
+reformat_packet(lapd, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
+  when Protocol == 1 ->
+    Size = size(SU) - 2,
+    <<Payload:Size/binary, _CRC:16>> = SU,
+    [pcap_packet_header(Timestamp, Size), Payload];
+
 %% pcap/wireshark expects the CRC (FCS) to be stripped from frame relay packets
 reformat_packet(frame_relay, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 2 ->
@@ -148,12 +163,16 @@ reformat_packet(aal5, <<_Tag:16, Protocol:3, _:13, Timestamp:48, _GFC:4, VPI:8, 
 -define(PCAP_NETWORK_FRAME_RELAY, 107).
 -define(PCAP_NETWORK_SUNATM, 123).
 -define(PCAP_NETWORK_MTP2, 140).
+-define(PCAP_NETWORK_LAPD, 203).
 
 pcap_file_header(frame_relay) ->
     pcap_file_header(?PCAP_NETWORK_FRAME_RELAY);
 
 pcap_file_header(mtp2) ->
     pcap_file_header(?PCAP_NETWORK_MTP2);
+
+pcap_file_header(lapd) ->
+    pcap_file_header(?PCAP_NETWORK_LAPD);
 
 pcap_file_header(aal5) ->
     pcap_file_header(?PCAP_NETWORK_SUNATM);
