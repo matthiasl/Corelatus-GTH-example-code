@@ -469,11 +469,11 @@ new_wide_recorder(Pid, Span, Options) when is_pid(Pid) ->
 -spec new_sdh_span(pid(), string(), byte(), byte(), byte(), byte(), list()) ->
 			  {ok, string()}
 			      | {error, any()}.
-new_sdh_span(Pid, Resource, B, A_k, L, M) ->
-    new_sdh_span(Pid, Resource, B, A_k, L, M, []).
+new_sdh_span(Pid, Resource, L1, L2, L3, L4) ->
+    new_sdh_span(Pid, Resource, L1, L2, L3, L4, []).
 
-new_sdh_span(Pid, Resource, B, A_k, L, M, Options) ->
-    gen_server:call(Pid, {new_sdh_span, Resource, B, A_k, L, M, Options}).
+new_sdh_span(Pid, Resource, L1, L2, L3, L4, Options) ->
+    gen_server:call(Pid, {new_sdh_span, Resource, L1, L2, L3, L4, Options}).
 
 -spec new_ss5_linesig_monitor(pid(), string(), 1..31, monitoring_options()) ->
 				     {ok, string(), Signalling_socket::port()}
@@ -956,15 +956,16 @@ handle_call({new_raw_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Ts, "raw_monitor", Opts),
     {reply, Reply, State};
 
-handle_call({new_sdh_span, Resource, B, A_k, L, M, Options},
+handle_call({new_sdh_span, Resource, L1, L2, L3, L4, Options},
 	    _From,
 	    State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:new("sdh_span",
-				    [{"resource", Resource}, %% FIXME
-				     {"b", B},
-				     {"a_k", integer_to_list(A_k)},
-				     {"l", integer_to_list(L)},
-				     {"m", integer_to_list(M)}] ++ Options,
+				    [{"resource", Resource},
+				     {"LOP", [integer_to_list(L1), " ",
+					      integer_to_list(L2), " ",
+					      integer_to_list(L3), " ",
+					      integer_to_list(L4)]}]
+				    ++ Options,
 				    [])),
     Reply = receive_job_id(State),
     {reply, Reply, State};
