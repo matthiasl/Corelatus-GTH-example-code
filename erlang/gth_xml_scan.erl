@@ -126,7 +126,7 @@ xml_tags() ->
      mtp2_monitor, player, raw_monitor, resource, ss5_linesig_monitor,
      ss5_registersig_monitor, tone_detector,
 
-     pcm_sink, sdh_span
+     pcm_sink
     ].
 
 parse_trees([]) ->
