@@ -18,7 +18,7 @@
 	 pcm_source/2,
 	 player/3, player/4,
 	 query_jobs/2, query_job/1,
-	 query_resource/1,
+	 query_resource/1, query_resource/2,
 	 recorder/4, recorder/5,
 	 reset/1,
 	 set/2,
@@ -96,7 +96,12 @@ query_job(Id) ->
     query_jobs([Id], false).
 
 query_resource(Name) ->
-    tag("query", [], tag("resource", [{"name", Name}])).
+    query_resource(Name, []).
+
+query_resource(Name, Attrs) ->
+    tag("query", [], [tag("resource",
+			  [{"name", Name}],
+			  [attribute(N, stringify(V)) || {N, V} <- Attrs])]).
 
 recorder(Span, Timeslot, Host, Port) ->
     recorder(Span, Timeslot, Host, Port, []).
