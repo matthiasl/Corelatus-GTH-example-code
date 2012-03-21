@@ -27,7 +27,7 @@
 	 tcp_sink/2, tcp_source/2,
 	 wide_recorder/4,
 	 zero_job/1,
-	 zero_resource/2]).
+	 zero_resource/1]).
 
 %%----------------------------------------------------------------------
 %% XML generation
@@ -150,10 +150,9 @@ wide_recorder(Span, Host, Port, Tag) ->
     new("wide_recorder", [{"span", Span}, {"tag", Tag}],
 	[udp_sink(Host, Port)]).
 
+
 zero_job(Id) ->
     tag("zero", [], tag("job", [{"id", Id}])).
 
-zero_resource(Name, Attrs) ->
-    tag("zero", [], [tag("resource",
-			 [{"name", Name}],
-			 [attribute(N, stringify(V)) || {N, V} <- Attrs])]).
+zero_resource(Name) ->
+    tag("zero", [], tag("resource", [{"name", Name}])).

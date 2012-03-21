@@ -127,7 +127,7 @@
 	 takeover/2,
 	 update/3,
 	 zero_job/2,
-	 zero_resource/2, zero_resource/3
+	 zero_resource/2
 	 ]).
 
 
@@ -615,12 +615,9 @@ update(Pid, ID, Attributes)
 zero_job(Pid, Id) when is_pid(Pid) ->
     gen_server:call(Pid, {zero_job, Id}).
 
-zero_resource(Pid, Name) ->
-    zero_resource(Pid, Name, []).
-
--spec zero_resource(pid(), string(), list(tuple())) -> ok_or_error().
-zero_resource(Pid, Name, Attrs) when is_pid(Pid) ->
-    gen_server:call(Pid, {zero_resource, Name, Attrs}).
+-spec zero_resource(pid(), ID::string()) -> ok_or_error().
+zero_resource(Pid, Name) when is_pid(Pid) ->
+    gen_server:call(Pid, {zero_resource, Name}).
 
 %%====================================================================
 %% gen_server callbacks
@@ -1222,8 +1219,8 @@ handle_call({zero_job, Id}, _From, State = #state{socket = S}) ->
     Reply = expect_ok(State),
     {reply, Reply, State};
 
-handle_call({zero_resource, Name, Attrs}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:zero_resource(Name, Attrs)),
+handle_call({zero_resource, Name}, _From, State = #state{socket = S}) ->
+    ok = gth_apilib:send(S, xml:zero_resource(Name)),
     Reply = expect_ok(State),
     {reply, Reply, State}.
 
