@@ -79,7 +79,8 @@ do_string(S) ->
 checked({N, A, C, T})
   when N == error;
        N == job;
-       N == ok ->
+       N == ok;
+       N == resource ->
     [] = C,
     {ok, #resp_tuple{name=N, attributes=A, clippings=T}};
 

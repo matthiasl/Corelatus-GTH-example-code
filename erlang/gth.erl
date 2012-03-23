@@ -589,7 +589,7 @@ query_resource_find(Key, KVs) ->
 raw_xml(Pid, XML) when is_pid(Pid) ->
     gen_server:call(Pid, {raw_xml, XML}, 30000).
 
--spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
+-spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error() | {ok, Resource :: string()}.
 set(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Attributes) ->
     gen_server:call(Pid, {set, Name, Attributes}).
@@ -1161,7 +1161,7 @@ handle_call(reset, _From, State = #state{socket = S}) ->
 
 handle_call({set, Name, Attributes}, _From, State = #state{socket = S}) ->
     ok = gth_apilib:send(S, xml:set(Name, Attributes)),
-    Reply = expect_ok(State),
+    Reply = expect_ok_or_resource(State),
     {reply, Reply, State};
 
 handle_call(socket_ready, _From, State = #state{socket = S}) ->
@@ -1526,6 +1526,16 @@ expect_ok(State = #state{}) ->
 	#resp_tuple{name = error, attributes=[{"reason", R}|_], clippings=C} ->
 	    {error, {atomise_error_reason(R), C}};
 	#resp_tuple{name = ok} -> ok
+    end.
+
+expect_ok_or_resource(State = #state{}) ->
+    case next_non_event(State) of
+	#resp_tuple{name = ok} ->
+	    ok;
+	#resp_tuple{name = resource, attributes = [{"name", Name}]} ->
+	    {ok, Name};
+	#resp_tuple{name = error, attributes=[{"reason", R}|_], clippings=C} ->
+	    {error, {atomise_error_reason(R), C}}
     end.
 
 %% Map the GTH error reasons to erlang-style reasons, which are atoms.
