@@ -114,7 +114,7 @@ xml_tags() ->
     [error, job, ok,
 
      event, alarm, alert, atm_message, backup, fatality, fault,
-     f_relay_message, info, l1_message, l2_alarm, l2_socket_alert,
+     f_relay_message, info, l1_message, sdh_message, l2_alarm, l2_socket_alert,
      lapd_message, level, message_ended, mtp2_message, slip,
      sync_message, ebs, tone, module, attribute,
 

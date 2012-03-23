@@ -1367,16 +1367,23 @@ handle_gth_event(#resp_tuple{name=info, attributes=A},
 
 handle_gth_event(#resp_tuple{name=l1_message, attributes=A},
 		 State = #state{resource_event_target = Pid}) ->
-    [{Key, Name}, {"state", L1_state}] = A,
-    %% Can be either a pcm resource or a job id
-    true = lists:member(Key, ["name", "id"]),
+    [{"name", Name}, {"state", L1_state}] = A,
     Pid ! {l1_message, self(), {Name, L1_state}},
     State;
 
-handle_gth_event(#resp_tuple{name=slip, attributes=[{Key, Span}]},
+handle_gth_event(#resp_tuple{name=sdh_message, attributes=A},
 		 State = #state{resource_event_target = Pid}) ->
-    %% Can be either a pcm resource or a job id
-    true = lists:member(Key, ["name", "id"]),
+    [{"name", Name}, {"state", SDH_state}|R] = A,
+    case R of
+	[] ->
+	    Pid ! {sdh_message, self(), {Name, SDH_state}};
+	[Addr] ->
+	    Pid ! {sdh_message, self(), {Name, Addr, SDH_state}}
+    end,
+    State;
+
+handle_gth_event(#resp_tuple{name=slip, attributes=[{"name", Span}]},
+		 State = #state{resource_event_target = Pid}) ->
     Pid ! {slip, self(), Span},
     State;
 

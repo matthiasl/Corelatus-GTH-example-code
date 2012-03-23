@@ -115,6 +115,7 @@ event_child({Name, A, [], T})
        Name == level;
        Name == message_ended;
        Name == mtp2_message;
+       Name == sdh_message;
        Name == slip;
        Name == sync_message;
        Name == tone ->
