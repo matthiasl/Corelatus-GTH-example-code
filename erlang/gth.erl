@@ -1062,7 +1062,8 @@ handle_call({new_wide_recorder, Span, Options},
 		  {Host, Port, none};
 
 	      undefined ->
-		  {ok, UDP} = gen_udp:open(0, [{active, false}, binary]),
+		  {ok, UDP} = gen_udp:open(0, [{active, false}, binary,
+					       {recbuf, 120000}]),
 		  ok = gen_tcp:controlling_process(UDP, Pid),
 		  {ok, Portno} = inet:port(UDP),
 		  {Hostname, Portno, UDP}
