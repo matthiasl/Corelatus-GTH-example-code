@@ -1383,6 +1383,12 @@ handle_gth_event(#resp_tuple{name=sdh_message, attributes=A},
     end,
     State;
 
+handle_gth_event(#resp_tuple{name=sfp_message, attributes=A},
+		 State = #state{resource_event_target = Pid}) ->
+    [{"name", Name}, {"state", SFP_state}] = A,
+    Pid ! {sfp_message, self(), {Name, SFP_state}},
+    State;
+
 handle_gth_event(#resp_tuple{name=slip, attributes=[{"name", Span}]},
 		 State = #state{resource_event_target = Pid}) ->
     Pid ! {slip, self(), Span},
