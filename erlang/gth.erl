@@ -1375,12 +1375,7 @@ handle_gth_event(#resp_tuple{name=l1_message, attributes=A},
 handle_gth_event(#resp_tuple{name=sdh_message, attributes=A},
 		 State = #state{resource_event_target = Pid}) ->
     [{"name", Name}, {"state", SDH_state}|R] = A,
-    case R of
-	[] ->
-	    Pid ! {sdh_message, self(), {Name, SDH_state}};
-	[Addr] ->
-	    Pid ! {sdh_message, self(), {Name, Addr, SDH_state}}
-    end,
+    Pid ! {sdh_message, self(), {Name, SDH_state, R}},
     State;
 
 handle_gth_event(#resp_tuple{name=sfp_message, attributes=A},
