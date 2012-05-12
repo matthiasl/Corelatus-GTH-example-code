@@ -89,6 +89,7 @@
 
 %% API
 -export([start_link/1, start_link/2,
+	 atomise_error_reason/1,
 	 bye/1,
 	 custom/3,
 	 delete/2,
