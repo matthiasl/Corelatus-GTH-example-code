@@ -139,12 +139,15 @@
 	{socket :: port() | none,
 	 debug_remote_ip :: hostname_or_address(),
 
+	 xml_cmd_checker  :: fun((binary()) -> any()) | 'none',
+	 xml_resp_checker :: fun((binary()) -> any()) | 'none',
+
 	 %% pre-opened listen socket for players
 	 player_ls :: {integer(), port()},
 	 command_timeout = 5000 :: integer(),
 	 event_dict :: dict:dictionary(),
-	 resource_event_target :: pid(),  %% target for events from resources
-	 job_event_target :: pid(),       %% default target for events from jobs
+	 resource_event_target :: pid(),
+	 job_event_target :: pid(),
 	 my_ip :: string()}).             %% my IP address, according to the GTH
 
 %% Macro used in guards to decide if something is a valid event handler.
@@ -179,9 +182,15 @@ start_link(Host) ->
     start_link(Host, []).
 
 -type startup_options() ::
-	[{connect_timeout, integer()}   %% milliseconds
-	 |{job_event_target, pid()}
-	 |{resource_event_target, pid()}
+	[{connect_timeout, integer()}    %% milliseconds
+	 |{job_event_target, pid()}      %% callback for job-related events
+	 |{resource_event_target, pid()} %% callback for resource-related events
+	 |{api_port_number, integer()}   %% defaults to 2089, as per API doc
+
+	 %% hooks for seeing all XML going to and from the GTH. Useful for
+	 %% automated testing.
+	 |{xml_cmd_checker,  fun((binary()) -> any())}
+	 |{xml_resp_checker, fun((binary()) -> any())}
 	].
 
 %% Event handlers process GTH events. Whenever an event comes, a message
@@ -198,11 +207,16 @@ start_link(Host, Options)
     Default = [{gth_ip, Host},
 	       {connect_timeout, 5000},
 	       {job_event_target, self()},
-	       {resource_event_target, self()}],
+	       {resource_event_target, self()},
+	       {api_port_number, 2089},
+	       {xml_cmd_checker,  'none'},
+	       {xml_resp_checker, 'none'}
+	      ],
 
     Timeout = proplists:get_value(connect_timeout, Options ++ Default),
+    Port_number = proplists:get_value(api_port_number, Options ++ Default),
 
-    case gen_tcp:connect(Host, 'GTH_API_PORT'(),
+    case gen_tcp:connect(Host, Port_number,
 			 [{active, false}, binary, {packet, line}], Timeout) of
 	{ok, S} ->
 	    case gen_server:start_link(?MODULE,
@@ -631,13 +645,19 @@ init(Options) ->
 
     erlang:send_after(?KICK_INTERVAL, self(), kick),
 
-    State = #state{my_ip = IP,
-		   debug_remote_ip = Hostname,
-		   player_ls = listen(),
-		   socket = S,
-		   event_dict = dict:new(),
-		   job_event_target = JET,
-		   resource_event_target = RET},
+    State = #state{
+      my_ip = IP,
+      debug_remote_ip = Hostname,
+      player_ls = listen(),
+      socket = S,
+      event_dict = dict:new(),
+
+      job_event_target = JET,
+      resource_event_target = RET,
+
+      xml_cmd_checker  = proplists:get_value(xml_cmd_checker,  Options),
+      xml_resp_checker = proplists:get_value(xml_resp_checker, Options)
+     },
 
     {ok, State}.
 
@@ -645,7 +665,7 @@ handle_call(bye, _From, State = #state{socket = S}) ->
     _ = gth_apilib:send(S, "<bye/>"),
 
     %% GTH returns <ok/> in response to bye and then closes the socket.
-    %% According to T/J, Erlang on MS Windows sometimes drops that OK.
+    %% According to T/J, Erlang R11B on MS Windows sometimes drops that OK.
     %% So we ignore this error on windows.
     case next_non_event(State) of
 	#resp_tuple{name = ok} ->
@@ -663,16 +683,16 @@ handle_call(bye, _From, State = #state{socket = S}) ->
     gen_tcp:close(S),
     {stop, normal, ok, State#state{socket = none}};
 
-handle_call({custom, Name, Attributes}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:custom(Name, Attributes)),
+handle_call({custom, Name, Attributes}, _From, State) ->
+    send_xml(State, xml:custom( Name, Attributes)),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
 %% Kill the job on the GTH, but also remove it from the event dictionary.
 %% (only tone and level detectors live in the event dictionary, but erasing
 %% something which isn't there is OK)
-handle_call({delete, Id}, _From, State = #state{socket=S, event_dict=Dict}) ->
-    ok = gth_apilib:send(S, xml:delete(Id)),
+handle_call({delete, Id}, _From, State = #state{event_dict=Dict}) ->
+    send_xml(State, xml:delete(Id)),
     Reply = expect_ok(State),
     New_dict = dict:erase(Id, Dict),
     {reply, Reply, State#state{event_dict = New_dict}};
@@ -706,7 +726,7 @@ handle_call(get_ip, _From, State = #state{socket = S}) ->
     {reply, {ok, I}, State};
 
 handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:install(Name)),
+    send_xml(State, xml:install(Name)),
     Type = case lists:member(Name, ["system_image", "failsafe_image"]) of
 	       true -> "binary/filesystem";
 	       _ -> "binary/file"
@@ -745,17 +765,17 @@ handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
 	    {Pid, _tag},
-	    State = #state{socket = S, my_ip = Hostname}) ->
+	    State = #state{my_ip = Hostname}) ->
     Options = User_options ++ [{"scrambling", "true"}],
     Scrambling = proplists:get_value("scrambling", Options),
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
     Sinks = [xml:pcm_sink(Span, Ts) || Ts <- Timeslots ],
-    ok = gth_apilib:send(S, xml:new("atm_aal0_layer",
-				    [{"ip_addr", Hostname},
-				     {"ip_port", Portno},
-				     {"scrambling", Scrambling}],
-				    [Sources, Sinks])),
+    send_xml(State, xml:new("atm_aal0_layer",
+			    [{"ip_addr", Hostname},
+			     {"ip_port", Portno},
+			     {"scrambling", Scrambling}],
+			    [Sources, Sinks])),
     Reply = case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
@@ -783,32 +803,29 @@ handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
     {reply, Reply, State};
 
 handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:sendv(S, [{"text/xml", xml:new_clip(Name)},
-			      {"binary/audio", Bin}]),
+    XML = xml:new_clip(Name),
+    ok = gth_apilib:sendv(S, [{"text/xml", XML}, {"binary/audio", Bin}]),
+    possibly_check_xml(State#state.xml_cmd_checker, XML),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_connection, S_span, S_ts, D_IP, D_span, D_ts},
-	    _From,
-	    State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:new("connection", [],
+handle_call({new_connection, S_span, S_ts, D_IP, D_span, D_ts}, _From, State) ->
+    send_xml(State, xml:new("connection", [],
 				    [xml:pcm_source(S_span, S_ts),
 				     xml:pcm_sink(D_IP, D_span, D_ts)])),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_connection, S_span, S_ts, D_span, D_ts},
-	    _From,
-	    State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:new("connection", [],
-				    [xml:pcm_source(S_span, S_ts),
-				     xml:pcm_sink(D_span, D_ts)])),
+handle_call({new_connection, S_span, S_ts, D_span, D_ts}, _From, State) ->
+    send_xml(State, xml:new("connection", [],
+			    [xml:pcm_source(S_span, S_ts),
+			     xml:pcm_sink(D_span, D_ts)])),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_ebs, IPs}, _From, State = #state{socket = S}) ->
+handle_call({new_ebs, IPs}, _From, State) ->
     M = [xml:tag("module", [{"ip_addr", IP}]) || IP <- IPs],
-    ok = gth_apilib:send(S, xml:new("ebs", [], M)),
+    send_xml(State, xml:new("ebs", [], M)),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
@@ -819,15 +836,14 @@ handle_call({new_fr_monitor, Span, Timeslots, Options},
     {reply, Reply, State};
 
 handle_call({new_fr_layer, Span, Timeslots},
-	    {Pid, _tag},
-	    State = #state{socket = S, my_ip = Hostname}) ->
+	    {Pid, _tag}, State = #state{my_ip = Hostname}) ->
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
     Sinks = [xml:pcm_sink(Span, Ts) || Ts <- Timeslots ],
-    ok = gth_apilib:send(S, xml:new("fr_layer",
-				    [{"ip_addr", Hostname},
-				     {"ip_port", Portno}],
-				    [Sources, Sinks])),
+    send_xml(State, xml:new("fr_layer",
+			    [{"ip_addr", Hostname},
+			     {"ip_port", Portno}],
+			    [Sources, Sinks])),
 
     Reply = case receive_job_id(State) of
 		{ok, Job} ->
@@ -843,7 +859,7 @@ handle_call({new_fr_layer, Span, Timeslots},
 
 
 handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
-	    {Pid, _tag}, State = #state{socket = S, my_ip = Hostname}) ->
+	    {Pid, _tag}, State = #state{my_ip = Hostname}) ->
 
     Source_sink = [xml:pcm_source(Span, Ts), xml:pcm_sink(Span, Ts)],
 
@@ -851,14 +867,14 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 	undefined ->
 	    {Portno, L} = listen([{packet, 2}]),
 
-	    ok = gth_apilib:send(S, xml:new(
-				      "lapd_layer",
-				      [{"ip_addr", Hostname},
-				       {"ip_port", Portno},
-				       {"side", atom_to_list(Side)},
-				       {"sapi", SAPI},
-				       {"tag", Tag},
-				       {"tei",  TEI}|Options], Source_sink)),
+	    send_xml(State, xml:new(
+			      "lapd_layer",
+			      [{"ip_addr", Hostname},
+			       {"ip_port", Portno},
+			       {"side", atom_to_list(Side)},
+			       {"sapi", SAPI},
+			       {"tag", Tag},
+			       {"tei",  TEI}|Options], Source_sink)),
 
 	    case receive_job_id(State) of
 		{ok, Job} ->
@@ -874,15 +890,15 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 	D when is_port(D) ->
 	    {ok, Portno} = inet:port(D),
 
-	    ok = gth_apilib:send(S, xml:new(
-				      "lapd_layer",
-				      [{"ip_addr", Hostname},
-				       {"ip_port", Portno},
-				       {"tag", Tag},
-				       {"side", atom_to_list(Side)},
-				       {"sapi", SAPI}, {"tei",  TEI}
-				       |proplists:delete(reuse_socket,Options)],
-				      Source_sink)),
+	    send_xml(State, xml:new(
+			      "lapd_layer",
+			      [{"ip_addr", Hostname},
+			       {"ip_port", Portno},
+			       {"tag", Tag},
+			       {"side", atom_to_list(Side)},
+			       {"sapi", SAPI}, {"tei",  TEI}
+			       |proplists:delete(reuse_socket,Options)],
+			      Source_sink)),
 
 	    case receive_job_id(State) of
 		{ok, Job} ->
@@ -897,8 +913,7 @@ handle_call({new_lapd_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
     {reply, Reply, State};
 
 handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From,
-	    State = #state{socket = S,
-			   event_dict = ED,
+	    State = #state{ event_dict = ED,
 			   job_event_target = JET}) ->
 
     Attrs = case proplists:get_value("type", Options ++ [{"type", "both"}]) of
@@ -913,8 +928,8 @@ handle_call({new_level_detector, Span, Ts, Threshold, Options, EH}, _From,
 			   Period -> [{"period", Period}|Attrs]
 		       end,
 
-    ok = gth_apilib:send(S, xml:new("level_detector", Attrs_and_period,
-				    xml:pcm_source(Span, Ts))),
+    send_xml(State, xml:new("level_detector", Attrs_and_period,
+			    xml:pcm_source(Span, Ts))),
 
     case receive_job_id(State) of
 	{ok, Job} ->
@@ -934,11 +949,9 @@ handle_call({new_mtp2_monitor, Span, Ts, Opts}, {Pid, _tag}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Ts, "mtp2_monitor", Opts),
     {reply, Reply, State};
 
-handle_call({new_player, Clips, Span, Ts, Loop},
-	    _From,
-	    State = #state{socket = S}) ->
+handle_call({new_player, Clips, Span, Ts, Loop}, _From, State) ->
     Attrs = [{"loop", atom_to_list(Loop)}],
-    ok = gth_apilib:send(S, xml:player(Clips, Attrs, Span, Ts)),
+    send_xml(State, xml:player(Clips, Attrs, Span, Ts)),
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
@@ -957,14 +970,12 @@ handle_call({new_ss5_registersig_monitor, Span, Ts, Options},
 				 "ss5_registersig_monitor", Options),
     {reply, Rep, State};
 
-handle_call({new_tcp_player, Span, Ts, Options},
-	    {Pid, _},
-	    State = #state{socket = S, my_ip = Hostname,
-			   player_ls = {Portno, L}}) ->
+handle_call({new_tcp_player, Span, Ts, Options}, {Pid, _},
+	    State = #state{my_ip = Hostname, player_ls = {Portno, L}}) ->
 
-    ok = gth_apilib:send(S, xml:new("player", Options,
-				    [xml:tcp_source(Hostname, Portno),
-				     xml:pcm_sink(Span, Ts)])),
+    send_xml(State, xml:new("player", Options,
+			    [xml:tcp_source(Hostname, Portno),
+			     xml:pcm_sink(Span, Ts)])),
 
     Reply = case receive_job_id(State) of
 		{error, Reason} ->
@@ -979,12 +990,10 @@ handle_call({new_tcp_player, Span, Ts, Options},
 
 handle_call({new_tone_detector, Span, Ts, Event_handler},
 	    _From,
-	    State = #state{socket = S,
-			   event_dict = ED,
+	    State = #state{event_dict = ED,
 			   job_event_target = JET}) ->
 
-    ok = gth_apilib:send(S, xml:new("tone_detector", [],
-				    xml:pcm_source(Span, Ts))),
+    send_xml(State, xml:new("tone_detector", [], xml:pcm_source(Span, Ts))),
     case receive_job_id(State) of
 	{ok, Id} ->
 	    New_ED = case Event_handler of
@@ -1001,14 +1010,13 @@ handle_call({new_tone_detector, Span, Ts, Event_handler},
 
 handle_call({new_tone_detector, Span, Ts, Freq, Length, Event_handler},
 	    _From,
-	    State = #state{socket = S,
-			   event_dict = ED,
+	    State = #state{event_dict = ED,
 			   job_event_target = JET}) ->
-    ok = gth_apilib:send(S, xml:new("tone_detector",
-				    [{"type", "custom"},
-				     {"frequency", Freq},
-				     {"length", Length}],
-				    xml:pcm_source(Span, Ts))),
+    send_xml(State, xml:new("tone_detector",
+			    [{"type", "custom"},
+			     {"frequency", Freq},
+			     {"length", Length}],
+			    xml:pcm_source(Span, Ts))),
     {ok, Id} = receive_job_id(State),
     New_ED = case Event_handler of
 		 default ->
@@ -1020,10 +1028,9 @@ handle_call({new_tone_detector, Span, Ts, Freq, Length, Event_handler},
 
 
 handle_call({new_recorder, Span, Ts, Options},
-	    {Pid, _tag},
-	    State = #state{socket = S, my_ip = Hostname}) ->
+	    {Pid, _tag}, State = #state{my_ip = Hostname}) ->
     {Portno, L} = listen(),
-    ok = gth_apilib:send(S, xml:recorder(Span, Ts, Hostname, Portno, Options)),
+    send_xml(State, xml:recorder(Span, Ts, Hostname, Portno, Options)),
 
     Reply = case receive_job_id(State) of
 		{error, Reason} ->
@@ -1043,7 +1050,7 @@ handle_call({new_recorder, Span, Ts, Options},
 
 handle_call({new_wide_recorder, Span, Options},
 	    {Pid, _tag},
-	    State = #state{socket = S, my_ip = Hostname}) ->
+	    State = #state{my_ip = Hostname}) ->
 
     {UDP_host, UDP_portno, UDP_port}
 	= case proplists:get_value(udp_address, Options) of
@@ -1064,7 +1071,7 @@ handle_call({new_wide_recorder, Span, Options},
 
     Tag = proplists:get_value("tag", Options, 0),
 
-    ok = gth_apilib:send(S, xml:wide_recorder(Span, UDP_host, UDP_portno, Tag)),
+    send_xml(State, xml:wide_recorder(Span, UDP_host, UDP_portno, Tag)),
 
     Reply = case receive_job_id(State) of
 		{ok, Id} when UDP_port == none ->
@@ -1079,13 +1086,13 @@ handle_call({new_wide_recorder, Span, Options},
 	    end,
     {reply, Reply, State};
 
-handle_call(nop, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, "<nop/>"),
+handle_call(nop, _From, State) ->
+    send_xml(State, "<nop/>"),
     #resp_tuple{name='ok'} = next_non_event(State),
     {reply, ok, State};
 
-handle_call({query_jobs, Ids, Verbose}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:query_jobs(Ids, Verbose)),
+handle_call({query_jobs, Ids, Verbose}, _From, State) ->
+    send_xml(State, xml:query_jobs(Ids, Verbose)),
     #resp_tuple{name='state', children=Cs} = next_non_event(State),
     Reply = [case C of
 		 #resp_tuple{name='error',
@@ -1098,15 +1105,15 @@ handle_call({query_jobs, Ids, Verbose}, _From, State = #state{socket = S}) ->
 	     end || C <- Cs],
     {reply, Reply, State};
 
-handle_call({query_resource, "inventory"}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:query_resource("inventory")),
+handle_call({query_resource, "inventory"}, _From, State) ->
+    send_xml(State, xml:query_resource("inventory")),
     #resp_tuple{name='state', children=C} = next_non_event(State),
     Reply = {ok, [N || #resp_tuple{name=resource,
 				   attributes=[{"name", N}]} <- C]},
     {reply, Reply, State};
 
-handle_call({query_resource, "schedule"}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:query_resource("schedule")),
+handle_call({query_resource, "schedule"}, _From, State) ->
+    send_xml(State, xml:query_resource("schedule")),
     #resp_tuple{name='state', children=C} = next_non_event(State),
     Reply = {ok, [{I, O} || #resp_tuple{name=job,
 				   attributes=[{"id", I}, {"owner", O}]} <- C]},
@@ -1117,7 +1124,7 @@ handle_call({query_resource, "schedule"}, _From, State = #state{socket = S}) ->
 %% We handle that.
 
 handle_call({query_resource, Name}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:query_resource(Name)),
+    send_xml(State, xml:query_resource(Name)),
     #resp_tuple{name='state', children=[C]} = next_non_event(State),
 
     Reply = case C of
@@ -1144,8 +1151,8 @@ handle_call({raw_xml, XML}, _From, State = #state{socket = S}) ->
     Reply = next_non_event(State#state{command_timeout=30000}),
     {reply, Reply, State};
 
-handle_call(reset, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:reset("cpu")),
+handle_call(reset, _From, State) ->
+    send_xml(State, xml:reset("cpu")),
     case expect_ok(State) of
 	ok ->
 	    {stop, normal, ok, State#state{socket = none}};
@@ -1153,44 +1160,42 @@ handle_call(reset, _From, State = #state{socket = S}) ->
 	    {reply, Reply, State}
     end;
 
-handle_call({set, Name, Attributes}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:set(Name, Attributes)),
+handle_call({set, Name, Attributes}, _From, State) ->
+    send_xml(State, xml:set(Name, Attributes)),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
 handle_call(socket_ready, _From, State = #state{socket = S}) ->
     ok = inet:setopts(S, [{active, once}]),
 
-    ok = gth_apilib:send(S, xml:tag("update", [],
-				    xml:tag("controller",
-					    [{"timeout", ?KICK_INTERVAL *2}]))),
+    send_xml(State, xml:tag("update",
+			    [], xml:tag("controller",
+					[{"timeout", ?KICK_INTERVAL *2}]))),
 
     %% In failsafe, we get an error for sending the above command.
     _ = expect_ok(State),
 
     {reply, ok, State};
 
-handle_call({takeover, IDs}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:takeover(IDs)),
+handle_call({takeover, IDs}, _From, State) ->
+    send_xml(State, xml:takeover(IDs)),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
-handle_call({update, "controller", Attrs}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:tag("update", [],
-			       xml:tag("controller", Attrs, []))),
+handle_call({update, "controller", Attrs}, _From, State) ->
+    send_xml(State, xml:tag("update", [], xml:tag("controller", Attrs, []))),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
-handle_call({update, ID = "ebsw"++_, IPs}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S,
-			 xml:tag("update", [],
-				 xml:tag("ebs", [{"id", ID}],
-					 [xml:tag("module", [{"ip_addr", IP}])
-					  || IP <- IPs]))),
+handle_call({update, ID = "ebsw"++_, IPs}, _From, State) ->
+    send_xml(State, xml:tag("update", [],
+			    xml:tag("ebs", [{"id", ID}],
+				    [xml:tag("module", [{"ip_addr", IP}])
+				     || IP <- IPs]))),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
-handle_call({update, ID, KVs}, _From, State = #state{socket = S}) ->
+handle_call({update, ID, KVs}, _From, State) ->
     Job_types = [
 		 {"ldmo", "lapd_monitor"},
 		 {"m2mo", "mtp2_monitor"},
@@ -1201,20 +1206,19 @@ handle_call({update, ID, KVs}, _From, State = #state{socket = S}) ->
 	    {reply, bogus_job, State};
 
 	{_, Job_type} ->
-	    ok = gth_apilib:send(S,
-				 xml:tag("update", [],
-					 xml:tag(Job_type, [{"id", ID}|KVs]))),
+	    send_xml(State, xml:tag("update", [],
+				    xml:tag(Job_type, [{"id", ID}|KVs]))),
 	    Reply = expect_ok(State),
 	    {reply, Reply, State}
     end;
 
-handle_call({zero_job, Id}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:zero_job(Id)),
+handle_call({zero_job, Id}, _From, State) ->
+    send_xml(State, xml:zero_job(Id)),
     Reply = expect_ok(State),
     {reply, Reply, State};
 
-handle_call({zero_resource, Name}, _From, State = #state{socket = S}) ->
-    ok = gth_apilib:send(S, xml:zero_resource(Name)),
+handle_call({zero_resource, Name}, _From, State) ->
+    send_xml(State, xml:zero_resource(Name)),
     Reply = expect_ok(State),
     {reply, Reply, State}.
 
@@ -1225,6 +1229,7 @@ handle_info({tcp, Socket, Line1},
 	    State = #state{socket = S})
   when Socket == S ->
     {'text/xml', Bin} = gth_apilib:active_content(Socket, Line1, 1000),
+    possibly_check_xml(State#state.xml_resp_checker, Bin),
     String = binary_to_list(Bin),
     {ok, Parsed} = gth_client_xml_parse:string(String),
     #resp_tuple{name = event, children = Events} = Parsed,
@@ -1421,7 +1426,7 @@ new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
 
 new_signalling_monitor_checked_options(
   Pid,
-  State = #state{socket = S, my_ip = Hostname},
+  State = #state{my_ip = Hostname},
   Span,
   Timeslots,
   Name,
@@ -1440,9 +1445,9 @@ new_signalling_monitor_checked_options(
     case proplists:get_value(reuse_socket, Options) of
 	undefined ->
 	    {Portno, L} = listen([{packet, 2}]),
-	    ok = gth_apilib:send(S, xml:new(Name, [{"ip_addr", Hostname},
-						   {"ip_port", Portno}|Options],
-					    Sources)),
+	    send_xml(State, xml:new(Name, [{"ip_addr", Hostname},
+					   {"ip_port", Portno}|Options],
+				    Sources)),
 	    case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, D} = gen_tcp:accept(L, 2000),
@@ -1456,12 +1461,11 @@ new_signalling_monitor_checked_options(
 
 	D when is_port(D) ->
 	    {ok, Portno} = inet:port(D),
-	    ok = gth_apilib:send(
-		   S, xml:new(Name,
-			      [{"ip_addr", Hostname},
-			       {"ip_port", Portno}
-			       |proplists:delete(reuse_socket, Options)],
-			      Sources)),
+	    send_xml(State, xml:new(Name,
+				    [{"ip_addr", Hostname},
+				     {"ip_port", Portno}
+				     |proplists:delete(reuse_socket, Options)],
+				    Sources)),
 	    case receive_job_id(State) of
 		{ok, Job} ->
 		    {ok, Job, D};
@@ -1479,8 +1483,7 @@ next_non_event(State = #state{socket = S, command_timeout = T}) ->
 		    {error, Reason};
 
 		{'text/xml', Content} ->
-		    %% Commented-out line is a hook we can use to validate XML
-		    %% release_test:xml_validate(Content),
+		    possibly_check_xml(State#state.xml_resp_checker, Content),
 		    S_content = binary_to_list(Content),
 		    {ok, Parsed} = gth_client_xml_parse:string(S_content),
 		    case Parsed of
@@ -1530,9 +1533,6 @@ atomise_error_reason("refused") -> refused;
 atomise_error_reason("transport") -> transport;
 atomise_error_reason(Other) -> exit({"must handle error reason", Other}).
 
-'GTH_API_PORT'() ->
-    2089.
-
 %% Consume all messages which came from this API instance
 flush(Pid) ->
     receive
@@ -1580,3 +1580,12 @@ stream_install(Socket, Fun) when is_function(Fun) ->
     {Bin, Fun_or_eof} = Fun(),
     ok = gen_tcp:send(Socket, Bin),
     stream_install(Socket, Fun_or_eof).
+
+possibly_check_xml('none', _) ->
+    do_nothing;
+possibly_check_xml(Checker_function, Bin) when is_function(Checker_function) ->
+    Checker_function(Bin).
+
+send_xml(#state{xml_cmd_checker = F, socket = S}, Io_list) ->
+    ok = gth_apilib:send(S, Io_list),
+    possibly_check_xml(F, Io_list).
