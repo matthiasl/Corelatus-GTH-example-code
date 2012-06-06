@@ -121,7 +121,7 @@
 	 new_tone_detector/5, new_tone_detector/6,
 	 nop/1,
 	 query_jobs/3, query_jobs/2, query_job/2, query_job/3,
-	 query_resource/2, query_resource/3, query_resource/4,
+	 query_resource/2, query_resource/3,
 	 raw_xml/2,
 	 reset/1,
 	 set/3,
@@ -574,17 +574,11 @@ query_job(Pid, Id) ->
 %% This uses a timeout of 15s. When fetching logs over a slow link, that
 %% won't be enough. Why are you using a slow link?
 query_resource(Pid, Name) ->
-    gen_server:call(Pid, {query_resource, Name, []}, 15000).
+    gen_server:call(Pid, {query_resource, Name}, 15000).
 
-query_resource(Pid, Name, Attrs = [T|_]) when is_pid(Pid), is_tuple(T) ->
-    gen_server:call(Pid, {query_resource, Name, Attrs}, 15000);
-
-%% Extract given attribute from returned keylist
-query_resource(Pid, Name, Attribute) ->
-    query_resource(Pid, Name, Attribute, []).
-
-query_resource(Pid, Name, Attribute, Attrs) when is_pid(Pid), Name =/= "inventory" ->
-    case gen_server:call(Pid, {query_resource, Name, Attrs}, 15000) of
+%% A resource query which returns one value, the once specified by third arg
+query_resource(Pid, Name, Attribute) when is_pid(Pid), Name =/= "inventory" ->
+    case gen_server:call(Pid, {query_resource, Name}, 15000) of
 	{ok, KVs} ->
 	    query_resource_find(Attribute, KVs);
 	{ok, KVs, _bin} ->
@@ -604,7 +598,7 @@ query_resource_find(Key, KVs) ->
 raw_xml(Pid, XML) when is_pid(Pid) ->
     gen_server:call(Pid, {raw_xml, XML}, 30000).
 
--spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error() | {ok, Resource :: string()}.
+-spec set(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
 set(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Attributes) ->
     gen_server:call(Pid, {set, Name, Attributes}).
@@ -1113,14 +1107,14 @@ handle_call({query_jobs, Ids, Verbose}, _From, State) ->
 	     end || C <- Cs],
     {reply, Reply, State};
 
-handle_call({query_resource, "inventory", _Attrs}, _From, State) ->
+handle_call({query_resource, "inventory"}, _From, State) ->
     send_xml(State, xml:query_resource("inventory")),
     #resp_tuple{name='state', children=C} = next_non_event(State),
     Reply = {ok, [N || #resp_tuple{name=resource,
 				   attributes=[{"name", N}]} <- C]},
     {reply, Reply, State};
 
-handle_call({query_resource, "schedule", _Attrs}, _From, State) ->
+handle_call({query_resource, "schedule"}, _From, State) ->
     send_xml(State, xml:query_resource("schedule")),
     #resp_tuple{name='state', children=C} = next_non_event(State),
     Reply = {ok, [{I, O} || #resp_tuple{name=job,
@@ -1131,7 +1125,7 @@ handle_call({query_resource, "schedule", _Attrs}, _From, State) ->
 %% THEN ALSO a potentially large amount of text in a separate chunk.
 %% We handle that.
 
-handle_call({query_resource, Name, _Attrs}, _From, State = #state{socket=S}) ->
+handle_call({query_resource, Name}, _From, State = #state{socket = S}) ->
     send_xml(State, xml:query_resource(Name)),
     #resp_tuple{name='state', children=[C]} = next_non_event(State),
 
@@ -1170,7 +1164,7 @@ handle_call(reset, _From, State) ->
 
 handle_call({set, Name, Attributes}, _From, State) ->
     send_xml(State, xml:set(Name, Attributes)),
-    Reply = expect_ok_or_resource(State),
+    Reply = expect_ok(State),
     {reply, Reply, State};
 
 handle_call(socket_ready, _From, State = #state{socket = S}) ->
