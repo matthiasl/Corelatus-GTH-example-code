@@ -9,8 +9,11 @@
 	 connection/4,
 	 custom/2,
 	 delete/1,
+	 disable/1,
+	 enable/2,
 	 install/1,
 	 job/1,
+	 map/2,
 	 new/3,
 	 new_clip/1,
 	 pcm_sink/2,
@@ -48,6 +51,12 @@ custom(Name, Attrs) when is_list(Name), is_list(Attrs) ->
     tag("custom", [{"name", Name}],
 	[ attribute(N, stringify(V)) || {N, V} <- Attrs]).
 
+disable(Name) ->
+    tag("disable", ["name", Name]).
+
+enable(Name, KVs) ->
+    tag("enable", [{"name", Name}], [attribute(K, V) || {K, V} <- KVs]).
+
 delete(Id) when is_list(Id) ->
     ["<delete id=\"", Id, "\"/>"].
 
@@ -56,6 +65,10 @@ install(Name) when is_list(Name) ->
 
 job(Id) when is_list(Id) ->
     ["<job id=\"", Id, "\"/>"].
+
+map(_Target_type = pcm_source, Name) ->
+    tag("map", [{"target_type", "pcm_source"}],
+	tag("sdh_source", [{"name", Name}])).
 
 new(Child, Attrs, Children) ->
     tag("new", [], tag(Child, Attrs, Children)).

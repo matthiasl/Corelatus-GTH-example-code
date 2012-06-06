@@ -93,8 +93,11 @@
 	 bye/1,
 	 custom/3,
 	 delete/2,
+	 disable/2,
+	 enable/3,
 	 get_ip/1,
 	 install/3,
+	 map/3,
 	 new_clip/3,
 	 new_atm_aal0_layer/3, new_atm_aal0_layer/4,
 	 new_atm_aal0_monitor/3, new_atm_aal0_monitor/4,
@@ -126,6 +129,7 @@
 	 reset/1,
 	 set/3,
 	 takeover/2,
+	 unmap/2,
 	 update/3,
 	 zero_job/2,
 	 zero_resource/2
@@ -159,6 +163,7 @@
 
 -type ok_or_error()::'ok' | {error, Reason::any()}.
 -type id_or_error()::{'ok', string()} | {error, Reason::any()}.
+-type resource_or_error()::{'ok', string()} | {error, Reason::any()}.
 
 -type keyval_list()::[{Key::atom() | string(), Value::any()}].
 -type event_handler()::'default' | pid().
@@ -255,6 +260,16 @@ delete(Pid, Id)
   when is_pid(Pid), is_list(Id) ->
     gen_server:call(Pid, {delete, Id}).
 
+-spec disable(pid(), string()) -> ok_or_error().
+disable(Pid, Name)
+  when is_pid(Pid), is_list(Name) ->
+    gen_server:call(Pid, {disable, Name}).
+
+-spec enable(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
+enable(Pid, Name, Attributes)
+  when is_pid(Pid), is_list(Attributes) ->
+    gen_server:call(Pid, {enable, Name, Attributes}).
+
 -spec get_ip(pid()) -> {ok, inet:ip_address()}.
 get_ip(Pid)
   when is_pid(Pid) ->
@@ -275,6 +290,13 @@ install(Pid, Name, Bin_or_fun)
 			      Direction::'forward' | 'backward',
 			      monitoring_options()) ->
 				     {ok, string(), port()} | {'error', any()}.
+
+-spec map(pid(), 'pcm_source', Name::string()) -> resource_or_error().
+map(Pid, pcm_source, Name)
+  when is_pid(Pid), is_list(Name) ->
+    gen_server:call(Pid, {map, Name}).
+
+
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
   when is_pid(Pid),
        is_integer(Timeslot),
@@ -614,6 +636,11 @@ takeover(Pid, IDs = [H|_])
   when is_pid(Pid), is_list(H) ->
     gen_server:call(Pid, {takeover, IDs}).
 
+-spec unmap(pid(), Name::string()) -> ok_or_error().
+unmap(Pid, Name)
+  when is_pid(Pid), is_list(Name) ->
+    gen_server:call(Pid, {unmap, Name}).
+
 -spec update(pid(), ID::string(), Attributes::keyval_list() | [string()]) ->
 		    ok_or_error().
 update(Pid, ID, Attributes)
@@ -690,6 +717,16 @@ handle_call({custom, Name, Attributes}, _From, State) ->
     Reply = expect_ok(State),
     {reply, Reply, State};
 
+handle_call({disable, Name}, _From, State) ->
+    send_xml(State, xml:disable(Name)),
+    Reply = expect_ok(State),
+    {reply, Reply, State};
+
+handle_call({enable, Name, KVs}, _From, State) ->
+    send_xml(State, xml:enable(Name, KVs)),
+    Reply = expect_ok(State),
+    {reply, Reply, State};
+
 %% Kill the job on the GTH, but also remove it from the event dictionary.
 %% (only tone and level detectors live in the event dictionary, but erasing
 %% something which isn't there is OK)
@@ -743,6 +780,11 @@ handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
     end,
 
     Reply = expect_ok(State#state{command_timeout = 60000}),
+    {reply, Reply, State};
+
+handle_call({map, pcm_source, Name}, _From, State) ->
+    send_xml(State, xml:map(pcm_source, Name)),
+    Reply = expect_ok(State),
     {reply, Reply, State};
 
 handle_call({new_atm_aal0_monitor, Span, Timeslots, Options},
@@ -1197,6 +1239,11 @@ handle_call({update, ID = "ebsw"++_, IPs}, _From, State) ->
     Reply = expect_ok(State),
     {reply, Reply, State};
 
+handle_call({unmap, Name}, _From, State) ->
+    send_xml(State, xml:unmap(Name)),
+    Reply = expect_ok(State),
+    {reply, Reply, State};
+
 handle_call({update, ID, KVs}, _From, State) ->
     Job_types = [
 		 {"ldmo", "lapd_monitor"},
@@ -1533,16 +1580,6 @@ expect_ok(State = #state{}) ->
 	#resp_tuple{name = error, attributes=[{"reason", R}|_], clippings=C} ->
 	    {error, {atomise_error_reason(R), C}};
 	#resp_tuple{name = ok} -> ok
-    end.
-
-expect_ok_or_resource(State = #state{}) ->
-    case next_non_event(State) of
-	#resp_tuple{name = ok} ->
-	    ok;
-	#resp_tuple{name = resource, attributes = [{"name", Name}]} ->
-	    {ok, Name};
-	#resp_tuple{name = error, attributes=[{"reason", R}|_], clippings=C} ->
-	    {error, {atomise_error_reason(R), C}}
     end.
 
 %% Map the GTH error reasons to erlang-style reasons, which are atoms.
