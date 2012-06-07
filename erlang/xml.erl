@@ -53,7 +53,7 @@ custom(Name, Attrs) when is_list(Name), is_list(Attrs) ->
 	[ attribute(N, stringify(V)) || {N, V} <- Attrs]).
 
 disable(Name) ->
-    tag("disable", ["name", Name]).
+    tag("disable", [{"name", Name}]).
 
 enable(Name, KVs) ->
     tag("enable", [{"name", Name}], [attribute(K, V) || {K, V} <- KVs]).
