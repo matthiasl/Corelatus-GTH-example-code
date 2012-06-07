@@ -296,7 +296,7 @@ install(Pid, Name, Bin_or_fun)
 -spec map(pid(), 'pcm_source', Name::iolist()) -> resource_or_error().
 map(Pid, pcm_source, Name)
   when is_pid(Pid), is_list(Name) ->
-    gen_server:call(Pid, {map, Name}).
+    gen_server:call(Pid, {map, pcm_source, Name}).
 
 %% Variant of map which allows HOP and LOP to be passed in as lists, e.g.
 %% map(Pid, pcm_source, "sdh1", [1,2], [3,4]).
