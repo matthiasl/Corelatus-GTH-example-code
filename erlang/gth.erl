@@ -94,7 +94,7 @@
 	 custom/3,
 	 delete/2,
 	 disable/2,
-	 enable/3,
+	 enable/2, enable/3,
 	 get_ip/1,
 	 install/3,
 	 map/3, map/5,
@@ -266,6 +266,8 @@ disable(Pid, Name)
     gen_server:call(Pid, {disable, Name}).
 
 -spec enable(pid(), Name::string(), Attributes::keyval_list()) -> ok_or_error().
+enable(Pid, Name) ->
+    enable(Pid, Name, []).
 enable(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Attributes) ->
     gen_server:call(Pid, {enable, Name, Attributes}).
@@ -291,7 +293,7 @@ install(Pid, Name, Bin_or_fun)
 			      monitoring_options()) ->
 				     {ok, string(), port()} | {'error', any()}.
 
--spec map(pid(), 'pcm_source', Name::string()) -> resource_or_error().
+-spec map(pid(), 'pcm_source', Name::iolist()) -> resource_or_error().
 map(Pid, pcm_source, Name)
   when is_pid(Pid), is_list(Name) ->
     gen_server:call(Pid, {map, Name}).
@@ -677,8 +679,7 @@ init(Options) ->
     ?IS_VALID_EVENT_HANDLER(RET) orelse exit(badarg),
 
     {ok, {Addr, _Port}} = inet:sockname(S),
-    IP = tl(lists:flatten(["." ++ integer_to_list(X)
-			   || X <- tuple_to_list(Addr)])),
+    IP = string:join([integer_to_list(X) || X <- tuple_to_list(Addr)], "."),
 
     erlang:send_after(?KICK_INTERVAL, self(), kick),
 
@@ -1107,8 +1108,7 @@ handle_call({new_wide_recorder, Span, Options},
     {UDP_host, UDP_portno, UDP_port}
 	= case proplists:get_value(udp_address, Options) of
 	      {{A,B,C,D}, Port} ->
-		  {lists:flatten(io_lib:fwrite("~p.~p.~p.~p", [A,B,C,D])),
-		   Port, none};
+		  {string:join([A,B,C,D], "."), Port, none};
 
 	      {Host, Port} when is_list(Host) ->
 		  {Host, Port, none};
