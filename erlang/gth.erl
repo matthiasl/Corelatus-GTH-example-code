@@ -97,7 +97,7 @@
 	 enable/3,
 	 get_ip/1,
 	 install/3,
-	 map/3,
+	 map/3, map/5,
 	 new_clip/3,
 	 new_atm_aal0_layer/3, new_atm_aal0_layer/4,
 	 new_atm_aal0_monitor/3, new_atm_aal0_monitor/4,
@@ -296,6 +296,14 @@ map(Pid, pcm_source, Name)
   when is_pid(Pid), is_list(Name) ->
     gen_server:call(Pid, {map, Name}).
 
+%% Variant of map which allows HOP and LOP to be passed in as lists, e.g.
+%% map(Pid, pcm_source, "sdh1", [1,2], [3,4]).
+-spec map(pid(), 'pcm_source',
+	  Name::string(),
+	  HOP::[integer()], LOP::[integer()]) -> resource_or_error().
+map(Pid, pcm_source, Name, HOP, LOP) ->
+    Full_name = [Name, ":hop", path_to_string(HOP), ":lop",path_to_string(LOP)],
+    map(Pid, pcm_source, Full_name).
 
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
   when is_pid(Pid),
@@ -1460,6 +1468,10 @@ attributes_to_kv(A) ->
     [{K, V} || #resp_tuple{name=attribute,
 			   attributes=[{"name", K}, {"value",V}]} <- A].
 
+path_to_string(List) ->
+    Strings = lists:map(fun integer_to_list/1, List),
+    string:join(Strings, "_").
+
 listen() ->
     listen([]).
 
@@ -1644,6 +1656,8 @@ stream_install(Socket, Fun) when is_function(Fun) ->
 
 possibly_check_xml('none', _) ->
     do_nothing;
+possibly_check_xml(Checker_function, List) when is_list(List) ->
+    possibly_check_xml(Checker_function, list_to_binary(List));
 possibly_check_xml(Checker_function, Bin) when is_function(Checker_function) ->
     Checker_function(Bin).
 

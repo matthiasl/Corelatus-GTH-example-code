@@ -28,6 +28,7 @@
 	 tag/3, tag/2,
 	 takeover/1,
 	 tcp_sink/2, tcp_source/2,
+	 unmap/1,
 	 wide_recorder/4,
 	 zero_job/1,
 	 zero_resource/1]).
@@ -150,6 +151,9 @@ tag(Name, Attrs, Child_text) ->
     ["<", Name,
      [ [" ", N, "=\"", stringify(V), "\""] || {N, V} <- Attrs],
      ">", Child_text, "</", Name, ">"].
+
+unmap(Name) ->
+    tag("unmap", [{"name", Name}]).
 
 udp_sink(IP, Port) when is_integer(Port) ->
     tag("udp_sink", [{"ip_addr", IP}, {"ip_port", integer_to_list(Port)}]).
