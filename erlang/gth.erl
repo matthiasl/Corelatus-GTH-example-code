@@ -793,7 +793,14 @@ handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
 
 handle_call({map, pcm_source, Name}, _From, State) ->
     send_xml(State, xml:map(pcm_source, Name)),
-    Reply = expect_ok(State),
+    Reply = case next_non_event(State) of
+               #resp_tuple{name = error, attributes=[{"reason", R}|_],
+                           clippings=C} ->
+                   {error, {atomise_error_reason(R), C}};
+
+               #resp_tuple{name = resource,
+			   attributes = [{"name", N}]} -> {ok, N}
+           end,
     {reply, Reply, State};
 
 handle_call({new_atm_aal0_monitor, Span, Timeslots, Options},
