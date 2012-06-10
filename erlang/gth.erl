@@ -457,12 +457,12 @@ new_fr_monitor(Pid, Span, Timeslots, Options)
   when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
     gen_server:call(Pid, {new_fr_monitor, Span, Timeslots, Options}).
 
-%% Frame relay layers are undocumented and unsupported (checked 2008-05-10).
+%% Frame relay layers are unsupported (checked 2012-06-10).
 new_fr_layer(Pid, Span, Timeslots)
   when is_pid(Pid), is_list(Timeslots) ->
     gen_server:call(Pid, {new_fr_layer, Span, Timeslots}).
 
-%% ATM layers are undocumented and unsupported (checked 2008-05-12).
+%% ATM layers are unsupported (checked 2012-06-10).
 new_atm_aal0_layer(Pid, Span, Timeslots) ->
     new_atm_aal0_layer(Pid, Span, Timeslots, []).
 new_atm_aal0_layer(Pid, Span, Timeslots, Options)
@@ -826,7 +826,7 @@ handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
 	    {Pid, _tag},
 	    State = #state{my_ip = Hostname}) ->
-    Options = User_options ++ [{"scrambling", "true"}],
+    Options = User_options ++ [{"scrambling", "yes"}],
     Scrambling = proplists:get_value("scrambling", Options),
     {Portno, L} = listen([{packet, 2}]),
     Sources = [xml:pcm_source(Span, Ts) || Ts <- Timeslots ],
