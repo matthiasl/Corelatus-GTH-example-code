@@ -128,7 +128,7 @@ stream_content(Socket, Type, Timeout, Fun) ->
 header(Type, Content) when is_binary(Content) ->
     ["Content-type: ", Type, "\r\n",
      "Content-length: ",
-     integer_to_list(size(Content)),
+     integer_to_list(byte_size(Content)),
      "\r\n\r\n"];
 
 header(Type, Content) when is_list(Content) ->
@@ -218,7 +218,7 @@ next_non_event(Socket, Timeout, Verbose) ->
 collect_entire_content(S, <<"Content-type: ", Type/binary>>,
 		       <<"Content-length: ", BLen/binary>>,
 		       Timeout) ->
-    Slength = string:substr(binary_to_list(BLen), 1, size(BLen) - 2),
+    Slength = string:substr(binary_to_list(BLen), 1, byte_size(BLen) - 2),
     Length = list_to_integer(Slength) + 2,     %% +2 for crlf
     inet:setopts(S, [{packet, 0}]),
 
@@ -260,7 +260,7 @@ collect_entire_content(_S, _, _, _) ->
 stream_entire_content(S, Expected_type, <<"Content-type: ", Sent_type/binary>>,
 		      <<"Content-length: ", Blen/binary>>,
 		      Timeout, Supplied_fun) ->
-    Slength = string:substr(binary_to_list(Blen), 1, size(Blen) - 2),
+    Slength = string:substr(binary_to_list(Blen), 1, byte_size(Blen) - 2),
     Length = list_to_integer(Slength),
     {ok, _Line} = gen_tcp:recv(S, 0, Timeout),  %% remove leading CRLF
     inet:setopts(S, [{packet, 0}]),

@@ -116,19 +116,19 @@ dump(Protocol, D, Out) ->
 %% Return: iolist()
 reformat_packet(mtp2, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 0 ->
-    [pcap_packet_header(Timestamp, size(SU)), SU];
+    [pcap_packet_header(Timestamp, byte_size(SU)), SU];
 
 %% Same as frame relay, pcap/wireshark wants the CRC removed.
 reformat_packet(lapd, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 1 ->
-    Size = size(SU) - 2,
+    Size = byte_size(SU) - 2,
     <<Payload:Size/binary, _CRC:16>> = SU,
     [pcap_packet_header(Timestamp, Size), Payload];
 
 %% pcap/wireshark expects the CRC (FCS) to be stripped from frame relay packets
 reformat_packet(frame_relay, <<_Tag:16, Protocol:3, _:13, Timestamp:48, SU/binary>>)
   when Protocol == 2 ->
-    Size = size(SU) - 2,
+    Size = byte_size(SU) - 2,
     <<Payload:Size/binary, _CRC:16>> = SU,
     [pcap_packet_header(Timestamp, Size), Payload];
 
@@ -156,7 +156,7 @@ reformat_packet(aal5, <<_Tag:16, Protocol:3, _:13, Timestamp:48, _GFC:4, VPI:8, 
 			<<16#aa, 16#aa, 16#03, _/binary>> -> 2  % LLC
 		    end,
 
-    [pcap_packet_header(Timestamp, size(Payload) + 4),
+    [pcap_packet_header(Timestamp, byte_size(Payload) + 4),
      <<1:1, 0:3, PCAP_protocol:4>>, VPI, <<VCI:16>>, Payload].
 
 %% Write a pcap file header. The pcap header file bpf.h defines network type constants:

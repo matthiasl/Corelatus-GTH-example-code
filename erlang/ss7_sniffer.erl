@@ -102,7 +102,7 @@ decode_packets(D) ->
 %% The rest of is just protocol decoding, i.e. nothing GTH-specific.
 
 mtp2(<<_BSN_BIB, _FSN_FIB, _LI, SIO, SIF_CRC/binary>>) ->
-    SIF_length = size(SIF_CRC) - 2,
+    SIF_length = byte_size(SIF_CRC) - 2,
     <<SIF:SIF_length/binary, _CRC:16>> = SIF_CRC,
     mtp3(<<SIO>>, SIF).
 
