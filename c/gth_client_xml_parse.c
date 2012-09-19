@@ -536,22 +536,22 @@ void print_tokens(const GTH_token *token)
   while (token->type != TOK_END) {
     switch (token->type) {
 
-    case TOK_WHITESPACE: printf("-"); break;
+    case TOK_WHITESPACE: fprintf(stderr, "-"); break;
 
-    case TOK_STRING: printf("*%s*", token->payload); break;
+    case TOK_STRING: fprintf(stderr, "*%s*", token->payload); break;
 
-    case TOK_OPEN:  printf("<"); break;
-    case TOK_CLOSE: printf(">"); break;
-    case TOK_EQUAL: printf("="); break;
-    case TOK_SLASH: printf("/"); break;
-    case TOK_NAME:  printf("(%s)", token->payload); break;
-    case TOK_TEXT:  printf("[%s]", token->payload); break;
+    case TOK_OPEN:  fprintf(stderr, "<"); break;
+    case TOK_CLOSE: fprintf(stderr, ">"); break;
+    case TOK_EQUAL: fprintf(stderr, "="); break;
+    case TOK_SLASH: fprintf(stderr, "/"); break;
+    case TOK_NAME:  fprintf(stderr, "(%s)", token->payload); break;
+    case TOK_TEXT:  fprintf(stderr, "[%s]", token->payload); break;
     default:
       assert(!"attempted to print a token which doesn't exist");
     }
     token++;
   }
-  printf(".\n");
+  fprintf(stderr, ".\n");
 }
 
 void print_children(GTH_resp *resp) {

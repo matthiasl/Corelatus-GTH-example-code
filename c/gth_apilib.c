@@ -142,7 +142,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
     if (!strcmp(reason, "failsafe_mode")) {
       api->is_failsafe = 1;
     } else {
-      printf("Ignoring an <info> with reason=%s\n", reason);
+      fprintf(stderr, "Ignoring an <info> with reason=%s\n", reason);
     }
     break;
   }
@@ -167,7 +167,8 @@ void gth_event_handler(void *data, GTH_resp *resp)
     // no handler -> fall through to printing the tone event
 
   default:
-    printf("gth_event_handler got an event, handling with default handler\n");
+    fprintf(stderr,
+	    "gth_event_handler got an event, handling with default handler\n");
     gth_print_tree(resp);
     break;
   }
