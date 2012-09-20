@@ -119,7 +119,8 @@ void usage() {
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<channels> is a list of spans and timeslots:"
 	  "\n  <span> [<span>...] <timeslot> [<timeslot>...]"
-	  "\n  e.g. 1A 2A 1 2 3 will monitor timeslots 1, 2 and 3 on span 1A and 2A."
+	  "\n  e.g. 1A 2A 1 2 3 monitors timeslots 1, 2 and 3 on span 1A and 2A."
+	  "\n  e.g. 1A 1 2A 2 3A 3 4 monitors timeslot 1 on 1A, 2 on 2A and 3 and 4 on 3A."
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<timeslot> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
@@ -436,8 +437,72 @@ typedef struct {
   int timeslot;
 } Channels_t;
 
+static void print_channels(Channels_t *channels, int n)
+{
+  while (n-- > 0) {
+    fprintf(stderr, "monitoring %s:%d\n", channels->pcm, channels->timeslot);
+    channels++;
+  }
+}
+
+// Return the number of arguments consumed
+static int arguments_to_channels(int argc,
+				 char **argv,
+				 Channels_t *channels,
+				 int *n_channels,
+				 char **pcms,
+				 int *n_pcms)
+{
+  int current_arg = 0;
+  int timeslot = 0;
+  int i;
+  int j;
+
+  while (current_arg < argc - 1){
+    if (is_span_name(argv[current_arg])){
+      if (timeslot){
+	// We are starting a new pcm group
+	*n_pcms = 0;
+	timeslot = 0;
+      }
+      pcms[*n_pcms] = argv[current_arg];
+      (*n_pcms)++;
+    }
+    else{
+      timeslot = atoi(argv[current_arg]);
+      if ( (timeslot < 1) || (timeslot > 31) ) {
+	fprintf(stderr, "Valid timeslots are 1--31, not %d. Abort.\n", timeslot);
+	exit(-1);
+      }
+      if (!*n_pcms){
+	die("Timeslot given without previous pcm.");
+      }
+      for (i = 0; i < *n_pcms; i++){
+	if (*n_channels >= MAX_MTP2_CHANNELS)
+	  die("Attempted to start too many signalling channels. Abort.");
+
+	for (j = 0; j < (*n_channels); j++) {
+	  if (!strcmp(channels[j].pcm, pcms[i])
+	      && channels[j].timeslot == timeslot) {
+	    fprintf(stderr, "span=%s timeslot=%d specified twice\n",
+		    pcms[i], timeslot);
+	    die("Same span and timeslot combination given twice. Abort.");
+	  }
+	}
+
+	channels[*n_channels].pcm = pcms[i];
+	channels[*n_channels].timeslot = timeslot;
+	(*n_channels)++;
+      }
+    }
+    current_arg++;
+  }
+
+  return current_arg;
+}
+
 // Entry point
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
   GTH_api api;
   int current_arg;
@@ -446,12 +511,11 @@ int main(int argc, char** argv)
   int monitoring = 0;
   int verbose = 0;
   Channels_t channels[MAX_MTP2_CHANNELS];
-  int i;
   char *pcms[MAX_PCMS];
-  int n_channels = 0;
   int n_pcms = 0;
+  int i;
+  int n_channels = 0;
   int n_sus_per_file = 0;
-  int timeslot = 0;
   int listen_port = 0;
   int listen_socket = -1;
   int tag;
@@ -493,37 +557,20 @@ int main(int argc, char** argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  current_arg = 2;
-  while (current_arg < argc - 1){
-    if (is_span_name(argv[current_arg])){
-      if (timeslot){
-	// We are starting a new pcm group
-	n_pcms = 0;
-	timeslot = 0;
-      }
-      pcms[n_pcms] = argv[current_arg];
-      n_pcms++;
-      enable_l1(&api, argv[current_arg], monitoring);
-    }
-    else{
-      timeslot = atoi(argv[current_arg]);
-      if ( (timeslot < 1) || (timeslot > 31) ) {
-	fprintf(stderr, "Valid timeslots are 1--31, not %d. Abort.\n", timeslot);
-	exit(-1);
-      }
-      if (!n_pcms){
-	die("Timeslot given without previous pcm.");
-      }
-      for (i = 0; i < n_pcms; i++){
-	if (n_channels >= MAX_MTP2_CHANNELS)
-	  die("Attempted to start too many signalling channels. Abort.");
+  argv += 2;
+  argc -= 2;
 
-	channels[n_channels].pcm = pcms[i];
-	channels[n_channels].timeslot = timeslot;
-	n_channels++;
-      }
-    }
-    current_arg++;
+  current_arg = arguments_to_channels(argc,
+				      argv,
+				      channels,
+				      &n_channels,
+				      pcms,
+				      &n_pcms);
+
+  print_channels(channels, n_channels);
+
+  for (i = 0; i < n_pcms; i++) {
+    enable_l1(&api, pcms[i], monitoring);
   }
 
   if (!n_channels){
