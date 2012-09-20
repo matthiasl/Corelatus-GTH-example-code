@@ -679,7 +679,7 @@ init(Options) ->
     ?IS_VALID_EVENT_HANDLER(RET) orelse exit(badarg),
 
     {ok, {Addr, _Port}} = inet:sockname(S),
-    IP = string:join([integer_to_list(X) || X <- tuple_to_list(Addr)], "."),
+    IP = inet_parse:ntoa(Addr),
 
     erlang:send_after(?KICK_INTERVAL, self(), kick),
 
@@ -1114,8 +1114,8 @@ handle_call({new_wide_recorder, Span, Options},
 
     {UDP_host, UDP_portno, UDP_port}
 	= case proplists:get_value(udp_address, Options) of
-	      {{A,B,C,D}, Port} ->
-		  {string:join([A,B,C,D], "."), Port, none};
+	      {Addr, Port} when is_tuple(Addr) ->
+		  {inet_parse:ntoa(Addr), Port, none};
 
 	      {Host, Port} when is_list(Host) ->
 		  {Host, Port, none};
