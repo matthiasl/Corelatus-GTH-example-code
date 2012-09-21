@@ -97,13 +97,19 @@ static void query_resource(GTH_api *api, const char *name, const char *key)
     }
   else
     {
+      int found = 0;
       for (x = 0; x < n_attributes; x++)
 	{
 	  if (key == 0 || !strcmp(attrs[x].key, key)) 
 	    {
+              found = 1;
 	      printf("%s=%s\n", attrs[x].key, attrs[x].value);
 	    }
 	}
+       if (key != 0 && !found)
+         {
+            fprintf(stderr, "Warning: resource %s does not have an attribute called %s\n", name, key);
+         }
     }
 }
 
