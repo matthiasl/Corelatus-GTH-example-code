@@ -1089,24 +1089,42 @@ handle_call({new_tone_detector, Span, Ts, Freq, Length, Event_handler},
 
 handle_call({new_recorder, Span, Ts, Options},
 	    {Pid, _tag}, State = #state{my_ip = Hostname}) ->
-    {Portno, L} = listen(),
-    send_xml(State, xml:recorder(Span, Ts, Hostname, Portno, Options)),
+    case lists:member(udp, Options) of
+	false ->
+	    {Portno, L} = listen(),
+	    send_xml(State, xml:recorder(Span, Ts, Hostname, Portno, Options)),
 
-    Reply = case receive_job_id(State) of
-		{error, Reason} ->
-		    {error, Reason};
+	    Reply = case receive_job_id(State) of
+			{error, Reason} ->
+			    {error, Reason};
 
-		{ok, Id} ->
-		    case gen_tcp:accept(L, 1000) of
-			{ok, Data} ->
-			    ok = gen_tcp:controlling_process(Data, Pid),
-			    {ok, Id, Data};
-			_X ->
-			    {error, accept_failed}
-		    end
-    end,
-    gen_tcp:close(L),
-    {reply, Reply, State};
+			{ok, Id} ->
+			    case gen_tcp:accept(L, 1000) of
+				{ok, Data} ->
+				    ok = gen_tcp:controlling_process(Data, Pid),
+				    {ok, Id, Data};
+				_X ->
+				    {error, accept_failed}
+			    end
+		    end,
+	    gen_tcp:close(L),
+	    {reply, Reply, State};
+
+	true ->
+	    {ok, U} = gen_udp:open(0, [binary, {active, false}]),
+	    {ok, Portno} = inet:port(U),
+	    send_xml(State, xml:recorder(Span, Ts, Hostname, Portno, Options)),
+
+	    Reply = case receive_job_id(State) of
+			{error, Reason} ->
+			    {error, Reason};
+
+			{ok, Id} ->
+			    ok = gen_tcp:controlling_process(U, Pid),
+			    {ok, Id, U}
+		    end,
+	    {reply, Reply, State}
+    end;
 
 handle_call({new_wide_recorder, Span, Options},
 	    {Pid, _tag},

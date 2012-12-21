@@ -115,8 +115,13 @@ query_resource(Name) ->
 recorder(Span, Timeslot, Host, Port) ->
     recorder(Span, Timeslot, Host, Port, []).
 
-recorder(Span, Timeslot, Host, Port, Opts) ->
-    new("recorder", Opts, [pcm_source(Span, Timeslot), tcp_sink(Host, Port)]).
+recorder(Span, Timeslot, Host, Port, All_opts) ->
+    Sink = case lists:member(udp, All_opts) of
+	       true -> udp_sink(Host, Port);
+	       false -> tcp_sink(Host, Port)
+	   end,
+    Opts = [X || X <- All_opts, X =/= udp],
+    new("recorder", Opts, [pcm_source(Span, Timeslot), Sink]).
 
 reset(Name) ->
     tag("reset", [], tag("resource", [{"name", Name}])).
