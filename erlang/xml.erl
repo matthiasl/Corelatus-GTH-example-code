@@ -28,6 +28,7 @@
 	 tag/3, tag/2,
 	 takeover/1,
 	 tcp_sink/2, tcp_source/2,
+	 udp_sink/2,
 	 unmap/1,
 	 wide_recorder/4,
 	 zero_job/1,
