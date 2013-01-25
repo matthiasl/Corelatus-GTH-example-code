@@ -2,7 +2,7 @@
 // Minimal program to query or set resource parameters on a GTH
 //
 // Doesn't attempt any error handling.
-// 
+//
 // Author: Matt Lang (matthias@corelatus.se)
 //
 // Copyright (c) 2010, Corelatus AB Stockholm
@@ -19,7 +19,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -47,9 +47,9 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "query_set [-v] <GTH-IP> <resource> [<attribute> [<value>]]\n\n"
 	  "Query or set resource parameters on a GTH.\n\n"
 	  "If no <value> is given, just query the GTH.\n"
@@ -69,7 +69,7 @@ static void usage()
 	  "./query_set 172.16.1.10 pcm1A code_violation\n"
 	  "./query_set 172.16.1.10 pcm1A status enabled\n"
 	  "./query_set 172.16.1.10 pcm1A status enabled framing multiframe\n");
-  
+
   exit(-1);
 }
 
@@ -88,7 +88,7 @@ static void query_resource(GTH_api *api, const char *name, const char *key)
       exit(-1);
     }
 
-  if (!strcmp(name, "inventory")) 
+  if (!strcmp(name, "inventory"))
     {
       for (x = 0; x < n_attributes; x++)
 	{
@@ -100,7 +100,7 @@ static void query_resource(GTH_api *api, const char *name, const char *key)
       int found = 0;
       for (x = 0; x < n_attributes; x++)
 	{
-	  if (key == 0 || !strcmp(attrs[x].key, key)) 
+	  if (key == 0 || !strcmp(attrs[x].key, key))
 	    {
               found = 1;
 	      printf("%s=%s\n", attrs[x].key, attrs[x].value);
@@ -115,8 +115,8 @@ static void query_resource(GTH_api *api, const char *name, const char *key)
 
 #define MAX_ATTRIBUTES 100
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
@@ -143,16 +143,6 @@ int main(int argc, char** argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  while (argc > 1 && argv[1][0] == '-') {
-    switch (argv[1][1]) {
-    case 'v': verbose = 1; break;
-
-    default: usage();
-    }
-    argc--;
-    argv++;
-  }
-
   if (argc == 2)  // no resource given, do an inventory query
     {
       fprintf(stderr, "no resource given, printing inventory\n");
@@ -168,7 +158,7 @@ int main(int argc, char** argv)
     {
       query_resource(&api, argv[2], argv[3]);
     }
-  
+
   else
     {
       GTH_attribute attrs[MAX_ATTRIBUTES];
