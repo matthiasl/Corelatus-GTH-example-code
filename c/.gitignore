@@ -2,11 +2,14 @@ README.txt
 *.exe
 connect_timeslots
 duplex_lapd
+enable
 query_set
 install_release
 install_start_script
+map
 monitor_cas
 monitor_dtmf
 playback_file
 record
 save_to_pcap
+wide_recorder

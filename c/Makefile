@@ -4,14 +4,17 @@
 target_basenames=\
 	connect_timeslots \
 	duplex_lapd \
+	enable \
 	install_release \
 	install_start_script \
+	map \
 	monitor_cas \
 	monitor_dtmf \
 	playback_file\
 	query_set\
 	record\
-	save_to_pcap
+	save_to_pcap\
+	wide_recorder
 
 headers=gth_apilib.h gth_client_xml_parse.h
 

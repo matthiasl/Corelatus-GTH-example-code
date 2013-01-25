@@ -19,7 +19,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2009, Corelatus AB Stockholm
+// Copyright (c) 2013, 2009, Corelatus AB Stockholm
 //
 // Licence: BSD
 //
@@ -111,6 +111,12 @@ int gth_connect(GTH_api *api, const char *address, const int verbose);
 //   you know which port the OS selected.
 int gth_make_listen_socket(int *port);
 
+// Return: the socket file descriptor
+//
+// This function also writes the port number to the *port argument so that
+//   you know which port the OS selected.
+int gth_make_udp_socket(int *port);
+
 // Given a socket, wait for an accept on it.
 //
 // Return: the accepted socket.
@@ -124,6 +130,14 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id);
 // Print message and abort
 void die(const char *message);
 
+// Enable an SDH/SONET or an E1/T1 interface
+//
+// Return: 0 on success.
+int gth_enable(GTH_api *api,
+	       const char *resource,
+	       const GTH_attribute *attributes,
+	       int n_attributes);
+
 // Install.
 //
 // Return: 0 on success
@@ -132,6 +146,15 @@ int gth_install(GTH_api *api,
 		const char *type,  // one of "binary/file", "binary/filesystem"
 		const char *data,
 		const int length); // in octets (bytes)
+
+// Map
+//
+// Return: 0 on success
+// Also writes the resource name to the supplied 'name'
+int gth_map(GTH_api *api,
+	    const char *resource,
+	    char *name,
+	    int max_name);
 
 // Start CAS MFC monitoring.
 //
@@ -235,6 +258,13 @@ int gth_new_tone_detector(GTH_api *api,
 			  int timeslot,      // E1: 1--31   T1: 1--24
 			  char *job_id,      // function writes the job-id here
 			  GTH_tone_handler* handler); // callback
+
+// Return: the file descriptor (>= 0) on success.
+//
+// The file descriptor is a UDP socket the incoming data appears on
+int gth_new_wide_recorder(GTH_api *api,
+			  const char *span,
+			  char *job_id);    // function writes the job-id here
 
 // Send a 'no-operation' command to the GTH. Useful for supervision and
 // for polling events.

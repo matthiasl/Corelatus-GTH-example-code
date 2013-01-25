@@ -8,16 +8,18 @@ a BSD licence. It includes:
 
   A C API for some, but not all, GTH features. (see gth_apilib.h)
 
-  Eight examples which use the C API: 
+  Examples which use the C API:
     - an SS7 sniffer
     - a CAS sniffer
     - a DTMF sniffer
-    - a timeslot recorder 
+    - a timeslot recorder
     - a timeslot playback program
     - a program to query and set attributes on GTH resources
     - a program to install software images on a GTH
     - a program to enable duplex (active) ISDN LAPD on a timeslot
     - a program to switch timeslots from one E1 to another
+    - a program to enable E1/T1 and SDH/SONET links (layer 1)
+    - a program to map E1/T1 links carried on SDH/SONET
 
 As a convenience for windows users, the distribution at
 www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.
@@ -61,14 +63,14 @@ SS7 sniffer which saves to PCAP (wireshark) format files
   If you don't have a live E1 link, you can use a GTH to replay
   previously recorded data, using 'playback_file'
 
-  There's a WWW page which discusses this at 
+  There's a WWW page which discusses this at
 
      http://www.corelatus.com/gth/api/save_to_pcap/index.html
 
   On Unix-like systems, output can be piped directly to wireshark or
   tshark for live capture, like this:
 
-    > ./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - 
+    > ./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i -
 
   On Windows systems, use 'named pipes' to do the same thing:
 
@@ -92,7 +94,7 @@ CAS line and register signalling sniffer
 
   And in another window:
 
-   >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3 
+   >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3
    wrote 800 octets to the <player>
    all done
 
@@ -105,8 +107,8 @@ DTMF sniffer
   Typical use, assuming a loopback cable connects P1 and P2:
 
   > ./monitor_dtmf 172.16.1.10 1A 5
-  event:   l1 message name=pcm2A state=OK 
-  event:   sync message state=locked 
+  event:   l1 message name=pcm2A state=OK
+  event:   sync message state=locked
   detected DTMF digit 1 (duration: 94 ms)
   detected DTMF digit 2 (duration: 81 ms)
   detected DTMF digit 3 (duration: 81 ms)
@@ -133,14 +135,14 @@ Timeslot playback
   for instance converting an audio file to a-law) timeslot on an
   E1. Typical use:
 
-   >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3 
+   >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3
    wrote 800 octets to the <player>
    all done
 
 Software image installer
 ------------------------
 
-  The software on the GTH can be upgraded with new releases 
+  The software on the GTH can be upgraded with new releases
   (typically with new features and bug fixes) from www.corelatus.com.
 
   The upgrade process works via the API. Typical use:
@@ -195,7 +197,7 @@ Query and set attributes on GTH resources
    an E1/T1 interface with default parameters:
 
       >./query_set 172.16.1.10 pcm1A status enabled
-  
+
    The GTH API manual, http://www.corelatus.com/gth/api/ has a
    section explaining what all the attributes are for.
 
@@ -227,6 +229,35 @@ Switch a timeslot from one E1 to another
    the last program is terminated (e.g. by pressing ^C).
 
 
+Enable SDH/SONET and E1/T1 links
+--------------------------------
+
+   Typical use on SDH/SONET hardware:
+
+     >./enable 172.16.1.10 sdh1
+     >./enable 172.16.1.10 sdh1 AU 4  TU 12
+     >./enable 172.16.1.10 sdh1 SONET true  OC 3  VT 2
+
+   Typical use on E1/T1 hardware:
+
+     >./enable 172.16.1.10 pcm1A
+     >./enable 172.16.1.10 pcm2A  framing multiframe
+     >./enable 172.16.1.10 pcm2A  framing multiframe  monitoring true
+
+Map an E1/T1 carried on SDH/SONET
+---------------------------------
+
+   This example is only used on hardware with SDH/SONET interfaces.
+
+   Typical use:
+
+     >./map 172.16.1.10 sdh1:hop1_1:lop1_5_3
+     pcm27
+
+   The program replies with the name of the newly mapped E1/T1, in
+   this example 'pcm27'. That name can then be used in an 'enable'
+   command to start L1 processing on 'pcm27'.
+
 GTH API for C programs
 ----------------------
 
@@ -255,7 +286,7 @@ Parser for GTH XML
 ------------------
 
   gth_client_xml_parse.h provides a C interface to a parser which
-  understands all possible responses from a GTH. 
+  understands all possible responses from a GTH.
 
   Normally, controlling the GTH through gth_apilib.h is preferable to
   using the parser directly.
