@@ -140,8 +140,20 @@ static void wide_record_a_file(GTH_api *api,
   fclose(file);
 }
 
+#define MAX_L1_STATUS 100
 static void check_layer_1(GTH_api *api, const char *pcm_name) {
-  // REVISIT: NYI
+  char buffer[MAX_L1_STATUS];
+  int result;
+
+  result = gth_query_resource_attribute(api, pcm_name, "status",
+					buffer, MAX_L1_STATUS);
+  assert(result == 0);
+
+  if (strcmp(buffer, "OK") && strcmp(buffer, "RAI")) {
+    fprintf(stderr,
+	    "Warning: L1 status of %s is '%s', data is most likely useless\n",
+	    pcm_name, buffer);
+  }
 }
 
 // Entry point
