@@ -76,7 +76,6 @@ int main(int argc, char** argv)
   GTH_api api;
   int verbose = 0;
   char name[MAX_RESOURCE_NAME];
-  int n_attrs = 0;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -103,6 +102,9 @@ int main(int argc, char** argv)
 
   if (result == 0) {
     printf("%s\n", name);
+  }
+  else {
+    fprintf(stderr, "unable to map %s. Re-run with -v for more info.\n", name);
   }
 
   gth_bye(&api);
