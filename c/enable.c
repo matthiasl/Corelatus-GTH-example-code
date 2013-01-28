@@ -93,7 +93,7 @@ int main(int argc, char** argv)
     argv++;
   }
 
-  if (argc < 2) {
+  if (argc < 3) {
     usage();
   }
 
@@ -102,10 +102,6 @@ int main(int argc, char** argv)
   result = gth_connect(&api, argv[1], verbose);
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
-  }
-
-  if (argc < 5) {
-    die("Unexpected number of arguments. Run without arguments for help.");
   }
 
   // First attribute is in argv[3], first value in argv[4]
