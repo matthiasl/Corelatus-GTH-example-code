@@ -132,7 +132,7 @@ static void wide_record_a_file(GTH_api *api,
     }
 
     if (packet_count++ % 100 == 0) {
-      fprintf(stderr, "seq: %d packet_count: %d seq_errors: %d\n",
+      fprintf(stderr, "seq: %d packet_count: %zu seq_errors: %u\n",
 	      seq, packet_count, n_seq_errors);
     }
   }
