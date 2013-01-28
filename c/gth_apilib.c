@@ -10,7 +10,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2009, Corelatus AB Stockholm
+// Copyright (c) 2013, 2009, Corelatus AB Stockholm
 //
 // All rights reserved.
 //
@@ -219,16 +219,30 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
   return 0;
 }
 
-int gth_bye(GTH_api *api)
+// Helper for simple commands.
+static int single_arg_ok_response(GTH_api *api,
+				  const char *template,
+				  const char *arg)
 {
-  api_write(api, "<bye/>");
+  char buffer[MAX_COMMAND];
 
-  if (check_api_response(api, GTH_RESP_OK, 0))
-    {
-      return -1;
-    }
+  assert(api);
+  assert(template);
+  assert(arg);
+
+  snprintf(buffer, MAX_COMMAND, template, arg);
+  api_write(api, buffer);
+
+  if (check_api_response(api, GTH_RESP_OK, 0)) {
+    return -1;
+  }
 
   return 0;
+}
+
+int gth_bye(GTH_api *api)
+{
+  return single_arg_ok_response(api, "<bye/>%s", "");
 }
 
 int gth_make_listen_socket(int* port)
@@ -354,7 +368,6 @@ static int gth_enable_or_set(const char *command,
 {
   char buffer[MAX_COMMAND];
   int used;
-  GTH_resp *resp;
 
   assert(api);
   assert(resource);
@@ -374,15 +387,9 @@ static int gth_enable_or_set(const char *command,
 
   api_write(api, buffer);
 
-  if (check_api_response(api, GTH_RESP_OK, &resp))
-    {
-      if (resp)
-	{
-	  gth_print_tree(resp);
-	  gth_free_resp(resp);
-	}
-      return -1;
-    }
+  if (check_api_response(api, GTH_RESP_OK, 0)) {
+    return -1;
+  }
 
   return 0;
 }
@@ -390,19 +397,7 @@ static int gth_enable_or_set(const char *command,
 int gth_disable(GTH_api *api,
 		const char *resource)
 {
-  char buffer[MAX_COMMAND];
-
-  assert(api);
-  assert(resource);
-
-  snprintf(buffer, MAX_COMMAND, "<disable name='%s'/>", resource);
-  api_write(api, buffer);
-
-  if (check_api_response(api, GTH_RESP_OK, 0)) {
-    return -1;
-  }
-
-  return 0;
+  return single_arg_ok_response(api, "<disable name='%s'/>", resource);
 }
 
 int gth_enable(GTH_api *api,
@@ -1324,19 +1319,9 @@ int gth_set_single(GTH_api *api,
 
 int gth_reset(GTH_api *api, const char *resource)
 {
-  assert(api);
-  assert(resource);
-
-  if (strcmp(resource, "cpu"))
-    return -1;
-
-  api_write(api, "<reset><resource name='cpu'/></reset>");
-  if (check_api_response(api, GTH_RESP_OK, 0))
-    {
-      return -1;
-    }
-
-  return 0;
+  return single_arg_ok_response(api,
+				"<reset><resource name='%s'/></reset>",
+				resource);
 }
 
 GTH_resp *gth_raw_xml(GTH_api *api, const char* string)
@@ -1551,19 +1536,7 @@ int gth_map(GTH_api *api,
 int gth_unmap(GTH_api *api,
 	      const char *resource)
 {
-  char buffer[MAX_COMMAND];
-
-  assert(api);
-  assert(resource);
-
-  snprintf(buffer, MAX_COMMAND, "<unmap name='%s'/>", resource);
-  api_write(api, buffer);
-
-  if (check_api_response(api, GTH_RESP_OK, 0)) {
-    return -1;
-  }
-
-  return 0;
+  return single_arg_ok_response(api, "<unmap name='%s'/>", resource);
 }
 
 
