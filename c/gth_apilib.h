@@ -130,6 +130,14 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id);
 // Print message and abort
 void die(const char *message);
 
+
+// Disable an SDH/SONET or an E1/T1 interface
+//
+// Return: 0 on success.
+int gth_disable(GTH_api *api,
+		const char *resource);
+
+
 // Enable an SDH/SONET or an E1/T1 interface
 //
 // Return: 0 on success.
@@ -313,6 +321,12 @@ int gth_query_resource(GTH_api *api,
 		       const char *name,
 		       GTH_attribute **attributes,
 		       int *n_attributes);
+
+// Unmap
+//
+// Return: 0 on success
+int gth_unmap(GTH_api *api,
+	      const char *resource);
 
 // Send a raw XML command. Intended for debugging only.
 //

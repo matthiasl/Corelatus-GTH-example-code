@@ -387,9 +387,24 @@ static int gth_enable_or_set(const char *command,
   return 0;
 }
 
-// Enable an SDH/SONET or an E1/T1 interface
-//
-// Return: 0 on success.
+int gth_disable(GTH_api *api,
+		const char *resource)
+{
+  char buffer[MAX_COMMAND];
+
+  assert(api);
+  assert(resource);
+
+  snprintf(buffer, MAX_COMMAND, "<disable name='%s'/>", resource);
+  api_write(api, buffer);
+
+  if (check_api_response(api, GTH_RESP_OK, 0)) {
+    return -1;
+  }
+
+  return 0;
+}
+
 int gth_enable(GTH_api *api,
 	       const char *resource,
 	       const GTH_attribute *attributes,
@@ -1510,7 +1525,7 @@ int gth_map(GTH_api *api,
   assert(name);
 
   assert(max_name > 1);
-  *name = 0;
+  name[0] = 0;
 
   snprintf(buffer, MAX_COMMAND, "<map target_type='pcm_source'>"
 	   "<sdh_source name='%s'/></map>", resource);
@@ -1520,8 +1535,9 @@ int gth_map(GTH_api *api,
 
   if (resp == 0) return -9;
 
-  gth_print_tree(resp);
   if (resp->type == GTH_RESP_RESOURCE) {
+    strncpy(name, resp->attributes[0].value, max_name);
+    name[max_name - 1] = 0;
   }
   else {
     retval = -1;
@@ -1530,6 +1546,24 @@ int gth_map(GTH_api *api,
   gth_free_resp(resp);
 
   return retval;
+}
+
+int gth_unmap(GTH_api *api,
+	      const char *resource)
+{
+  char buffer[MAX_COMMAND];
+
+  assert(api);
+  assert(resource);
+
+  snprintf(buffer, MAX_COMMAND, "<unmap name='%s'/>", resource);
+  api_write(api, buffer);
+
+  if (check_api_response(api, GTH_RESP_OK, 0)) {
+    return -1;
+  }
+
+  return 0;
 }
 
 

@@ -14,12 +14,12 @@ a BSD licence. It includes:
     - a DTMF sniffer
     - a timeslot recorder
     - a timeslot playback program
-    - a program to query and set attributes on GTH resources
-    - a program to install software images on a GTH
-    - a program to enable duplex (active) ISDN LAPD on a timeslot
-    - a program to switch timeslots from one E1 to another
-    - a program to enable E1/T1 and SDH/SONET links (layer 1)
-    - a program to map E1/T1 links carried on SDH/SONET
+    - query and set attributes on GTH resources
+    - install software images on a GTH
+    - enable duplex (active) ISDN LAPD on a timeslot
+    - switch timeslots from one E1 to another
+    - enable and disable E1/T1 and SDH/SONET links (layer 1)
+    - map and unmap E1/T1 links carried on SDH/SONET
 
 As a convenience for windows users, the distribution at
 www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.

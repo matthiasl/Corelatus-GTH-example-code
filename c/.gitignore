@@ -2,6 +2,7 @@ README.txt
 *.exe
 connect_timeslots
 duplex_lapd
+disable
 enable
 query_set
 install_release
@@ -12,4 +13,5 @@ monitor_dtmf
 playback_file
 record
 save_to_pcap
+unmap
 wide_recorder
