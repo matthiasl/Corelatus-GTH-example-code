@@ -485,6 +485,7 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "alert"))           return  GTH_RESP_ALERT;
   if (!strcmp(name, "atm_message"))     return  GTH_RESP_ATM_MESSAGE;
   if (!strcmp(name, "attribute"))       return  GTH_RESP_ATTRIBUTE;
+  if (!strcmp(name, "backup"))          return  GTH_RESP_BACKUP;
   if (!strcmp(name, "controller"))      return  GTH_RESP_CONTROLLER;
   if (!strcmp(name, "ebs"))             return  GTH_RESP_EBS;
   if (!strcmp(name, "error"))           return  GTH_RESP_ERROR;
@@ -503,6 +504,8 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "mtp2_message"))    return  GTH_RESP_MTP2_MESSAGE;
   if (!strcmp(name, "ok"))              return  GTH_RESP_OK;
   if (!strcmp(name, "resource"))        return  GTH_RESP_RESOURCE;
+  if (!strcmp(name, "sdh_message"))     return  GTH_RESP_SDH_MESSAGE;
+  if (!strcmp(name, "sfp_message"))     return  GTH_RESP_SFP_MESSAGE;
   if (!strcmp(name, "slip"))            return  GTH_RESP_SLIP;
   if (!strcmp(name, "sync_message"))    return  GTH_RESP_SYNC_MESSAGE;
   if (!strcmp(name, "tone"))            return  GTH_RESP_TONE;
@@ -679,6 +682,16 @@ void gth_print_tree(GTH_resp *resp) {
     fprintf(stderr, "  resource: %s", resp->attributes[0].value);
     print_children(resp);
     fprintf(stderr, "\n");
+    break;
+
+  case GTH_RESP_SDH_MESSAGE:
+    fprintf(stderr, "  sdh_message: ");
+    print_attributes(resp);
+    break;
+
+  case GTH_RESP_SFP_MESSAGE:
+    fprintf(stderr, "  sfp_message: ");
+    print_attributes(resp);
     break;
 
   case GTH_RESP_SLIP:
