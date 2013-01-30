@@ -2,7 +2,8 @@ Author: matthias@corelatus.se
 ----------------------------------------------------------------------
 
 This is example code in Python for a Corelatus GTH. The examples were
-tested on python 2.5.4 on linux.
+tested on python 2.6.6 and  2.5.4 on linux. It depends on the 'pyparsing'
+package.
 
 Keep in mind that I'm a python beginner, i.e. if it looks weird, then
 that's most likely because I didn't know better. Suggestions for
