@@ -1,8 +1,6 @@
 # Title: Utilities for talking to a Corelatus GTH from python
 # Author: Matthias Lang (matthias@corelatus.se)
 #
-# I could have derived API from API_socket. I couldn't see a compelling
-# reason to do so, which is why I just composed the classes.
 
 from transport import API_socket
 import socket
@@ -13,12 +11,6 @@ class API:
 
     def send(self, XML):
         self.socket.send(XML)
-
-    def bye(self):
-        self.socket.send("<bye/>")
-        reply, _events = self.next_non_event()
-        if reply[0] != 'ok':
-            raise SemanticError(("bye should have returned OK", reply))
 
     def next_non_event(self):
         """Return a tuple (answer, events).
@@ -38,6 +30,36 @@ class API:
         """Block, waiting for an event
         Return that event"""
         return self.socket.receive()
+
+    def bye(self):
+        self.socket.send("<bye/>")
+        reply, _events = self.next_non_event()
+        if reply[0] != 'ok':
+            raise SemanticError(("bye should have returned OK", reply))
+
+    def delete(self, ID):
+        "Delete the given job"
+        self.socket.send("<delete id='%s'/>" % ID)
+        reply = self.socket.receive()
+        if reply[0] != "ok":
+            raise SemanticError(("delete should have returned OK", reply))
+
+    def new_mtp2_monitor(self, span, timeslot):
+        """Returns a (job_id, socket) tuple.
+        Monitor MTP-2 on a GTH. Socket returned uses the format defined in
+        the GTH API manual, under new_fr_monitor."""
+
+        IP, _api_port = self.socket._socket.getsockname()
+        port, ls = self.listen()
+        self.socket.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
+                                "<pcm_source span='%s' timeslot='%d'/>"\
+                                "</mtp2_monitor></new>"\
+                                % (IP, port, span, timeslot) )
+        mtp2_id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+
+        return (mtp2_id, data)
 
     def new_player(self, span, timeslot):
         """Returns a (job_id, socket) tuple.
@@ -75,30 +97,6 @@ class API:
 
         return (recorder_id, data)
 
-    def new_mtp2_monitor(self, span, timeslot):
-        """Returns a (job_id, socket) tuple.
-        Monitor MTP-2 on a GTH. Socket returned uses the format defined in
-        the GTH API manual, under new_fr_monitor."""
-
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = self.listen()
-        self.socket.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
-                                "<pcm_source span='%s' timeslot='%d'/>"\
-                                "</mtp2_monitor></new>"\
-                                % (IP, port, span, timeslot) )
-        mtp2_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (mtp2_id, data)
-
-    def delete(self, ID):
-        "Delete the given job"
-        self.socket.send("<delete id='%s'/>" % ID)
-        reply = self.socket.receive()
-        if reply[0] != "ok":
-            raise SemanticError(("delete should have returned OK", reply))
-
     def receive_job_id(self):
         """Return a tuple (ID, events)
         If the next reply from the GTH is not a jobId, we raise SemanticError"""
@@ -108,7 +106,6 @@ class API:
         else:
             raise SemanticError(answer)
 
-    # REVISIT: this could be a static method. Does python have static methods?
     def listen(self):
         """Create a server socket, i.e. one which listens.
         Returns (port_number, socket)"""
