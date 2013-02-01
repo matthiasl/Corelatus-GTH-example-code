@@ -28,7 +28,7 @@ Typical invocation: ./wide_recorder.py 172.16.1.10 1A /tmp/capture.raw
 # That means in 'OK' or 'RAI' status.
 def warn_if_l1_dead(api, span):
     attrs = api.query_resource("pcm" + span)
-    if not attrs['status'] in ["OK", "RAI"]:
+    if attrs['status'] in ["OK", "RAI"]:
         return
     else:
         if attrs['status'] == "disabled":
