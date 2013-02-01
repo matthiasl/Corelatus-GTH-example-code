@@ -80,7 +80,7 @@ def gth_out():
         attributes = ZeroOrMore(_empty_tag("attribute"))
         attributes.setParseAction(_collapse_attributes)
         resource = _empty_tag("resource") ^ _tag("resource", attributes)
-        resources = ZeroOrMore(resource)
+        resources = ZeroOrMore(resource) ^ error
 
         # REVISIT: state grammar below is incomplete
         state   = _tag("state", resources, 0)

@@ -20,7 +20,7 @@ class API:
 
     def disable(self, name):
         "Disable an E1/T1 or SDH/SONET interface"
-        self.socket.send("<disable name='%s'/>" % Name)
+        self.socket.send("<disable name='%s'/>" % name)
         self.check_ok("disable")
 
     def enable(self, name, attributes):
@@ -35,7 +35,7 @@ class API:
             raise SemanticError("tried to map something other than a pcm_source")
         self.socket.send("<map target_type='pcm_source'>" \
                              "<sdh_source name='%s'/></map>" % Name)
-        reply = self.socket.receive()
+        reply, _events = self.next_non_event()
         if reply[0] != "resource":
             print reply
             se = ("should have returned a resource", command, reply)
@@ -111,7 +111,7 @@ class API:
         """Returns a dict of attributes
         Query a GTH resource"""
         self.socket.send("<query><resource name='%s'/></query>" % name)
-        reply = self.socket.receive()
+        reply, _events = self.next_non_event()
         if reply[0] != "state":
             raise SemanticError( ("query failed", reply) )
 
@@ -177,9 +177,9 @@ class API:
         return self.socket.receive()
 
     def check_ok(self, command):
-        reply = self.socket.receive()
+        reply, _events = self.next_non_event()
         if reply[0] != "ok":
-            print reply
+            print "expected OK, got", reply
             se = ("should have returned OK", command, reply)
             raise SemanticError(se)
 

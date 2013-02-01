@@ -29,6 +29,7 @@ Examples:
      ./gth.py reset   172.16.1.10
      ./gth.py set     172.16.1.10 eth2 "IP4 address" 192.168.1.15
      ./gth.py unmap   172.16.1.10 pcm13
+     ./gth.py zero    172.16.1.10 pcm13
 
 
 """)
@@ -44,6 +45,7 @@ def main():
                 "reset":   (reset, 0),
                 "set":     (set, -3),
                 "unmap":   (unmap, 1),
+                "zero":    (zero, 1)
                 };
 
     sys.argv.pop(0)
@@ -51,7 +53,8 @@ def main():
     if len(sys.argv) < 2:
         usage()
 
-    f, expected_args = commands.get(sys.argv.pop(0), (usage, 0))
+    bad_command = (usage, len(sys.argv))
+    f, expected_args = commands.get(sys.argv.pop(0), bad_command)
     host = sys.argv.pop(0)
 
     if len(sys.argv) < abs(expected_args):
@@ -90,11 +93,10 @@ def map(api, args):
 
 def query(api, args):
     name_or_id = args.pop(0)
-    if is_resource(api, name_or_id):
-        result = api.query_resource(name_or_id)
+    if not is_resource(api, name_or_id):
+        raise gth.apilib.SemanticError("no such resource")
 
-    else:
-        result = api.query_job(name_or_id)
+    result = api.query_resource(name_or_id)
 
     if name_or_id == "inventory":
         for n in result:
@@ -105,6 +107,7 @@ def query(api, args):
 
 def reset(api, dontcare):
     api.reset()
+    die("Reset command sent OK, terminating.")
 
 def set(api, args):
     name = args.pop(0)
@@ -113,10 +116,19 @@ def set(api, args):
 def unmap(api, args):
     api.map(args.pop(0))
 
+def zero(api, args):
+    name_or_id = args.pop(0)
+    if is_resource(api, name_or_id):
+        print "zeroing a resource"
+        api.zero_resource(name_or_id)
+    else:
+        print "zeroing a job %s" % name_or_id
+        api.zero_job(name_or_id)
+
 #--------------------
 
-def is_resource(api, name_or_id):
-    return True
+def is_resource(api, name):
+    return name == "inventory" or name in api.query_resource("inventory")
 
 def list_to_kvs(list):
     result = []
