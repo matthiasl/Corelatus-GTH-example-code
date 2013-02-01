@@ -35,13 +35,13 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <string.h>
-#include <arpa/inet.h>
 
 #ifdef WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
 #include <unistd.h>
+#include <arpa/inet.h>
 #endif
 
 #include "gth_win32_compat.h"
