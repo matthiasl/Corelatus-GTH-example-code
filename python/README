@@ -1,20 +1,48 @@
 Author: matthias@corelatus.se
 ----------------------------------------------------------------------
 
-This is example code in Python for a Corelatus GTH. The examples were
-tested on python 2.6.6 and  2.5.4 on linux. It depends on the 'pyparsing'
-package.
+Introduction
 
-Keep in mind that I'm a python beginner, i.e. if it looks weird, then
-that's most likely because I didn't know better. Suggestions for
-improvement are welcome to matthias@corelatus.se
+  This is example code in Python for a Corelatus GTH. It depends on the
+  'pyparsing' package.
 
-There are three examples:
+  The examples were tested on python 2.6.6 and 2.5.4 on linux.
+
+  Each example is built on top of a little library, gth/apilib.py, which
+  lets you hack up python code to do pretty much anything supported by
+  the GTH, i.e. you don't have to write your own parser.
+
+  Disclaimer: I'm a python beginner, i.e. if it looks weird, then that's
+              most likely because I didn't know better. Suggestions for
+              improvement are welcome to matthias@corelatus.se
+
+
+Command line for exploring GTH configuration
+--------------------------------------------
+
+  'gth.py' does (almost) all the things which the GTH's built-in SSH
+  CLI can do:
+
+    - enable and disable E1/T1 and SDH/SONET interfaces
+
+    - query attributes on all resources, e.g. read out the counters
+      for E1/T1, SDH/SONET and Ethernet interfaces.
+
+    - set attributes on resources, e.g. configure the IP address and
+      NTP server
+
+    - zero (reset) counters on resources, e.g. clear the error counters
+      on E1/T1 or SDH/SONET interfaces
+
+    - reboot
+
+  Run 'gth.py' without arguments to see some examples.
+
 
 Recorded file playback
 ----------------------
 
-  Plays back a previously recorded timeslot on an E1. The GTH
+  Plays back a previously recorded timeslot on an E1/T1. The GTH
   can record bit-exact copies of timeslots and then play back
   such files at a later time. Typical use:
 
@@ -23,26 +51,28 @@ Recorded file playback
 
   The file could contain audio (8kHz Alaw, without a header) or
   it could contain signalling. The GTH treats both the same. Most
-  likely it's a dump of an E1 you recorded earlier using the next
+  likely it's a dump of an E1/T1 you recorded earlier using the next
   example.
 
-E1 timeslot dump to a file
---------------------------
 
-  This is the opposite of the first example, it copies the
+E1/T1 timeslot dump to a file
+-----------------------------
+
+  This is the opposite of 'recorded file playback'. It copies the
   data on the given E1 to a file on your PC. Typical use:
 
     >./record.py 172.16.2.7 1A 16 4000 signalling.raw
     All done, wrote 4000 octets
 
-Enable Layer 1 on an E1/T1 interface
-------------------------------------
 
-  At boot time, the E1/T1 interfaces on a GTH are all disabled, so
-  you can't do anything useful with the above two examples until
-  you turn on at least one E1/T1:
+E1/T1 full dump to a file
+-------------------------
 
-    >./enable_l1.py 172.16.2.7 3A
+  This demonstrates the experimental (as of 2013-01) 'wide_recorder'
+  feature which is available on the SDH/SONET Monitoring Probe only.
+
+    >./wide_recorder.py 172.16.1.10 1 /tmp/full_e1.raw
+
 
 Sniff ISUP
 ----------
@@ -58,10 +88,6 @@ Sniff ISUP
      ignoring ISUP answer
      ignoring ISUP release
      RLC on CIC=0
-
-The examples are built on top of a little library, gth/apilib.py,
-which lets you hack up python code to do pretty much anything
-supported by the GTH, i.e. you don't have to write your own parser.
 
 # eof
 

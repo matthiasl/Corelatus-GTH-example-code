@@ -1,4 +1,4 @@
-# Title: A parser for the commands which can come out of a Corelatus GTH.
+# Title: A parser for the responses which can come out of a Corelatus GTH.
 #
 # Author: Matthias Lang (matthias@corelatus.se)
 #
@@ -79,12 +79,13 @@ def gth_out():
 
         attributes = ZeroOrMore(_empty_tag("attribute"))
         attributes.setParseAction(_collapse_attributes)
-        resource = _tag("resource", attributes)
+        resource = _empty_tag("resource") ^ _tag("resource", attributes)
+        resources = ZeroOrMore(resource) ^ error
 
         # REVISIT: state grammar below is incomplete
-        state   = _tag("state", resource, 0)
+        state   = _tag("state", resources, 0)
 
-        gth_out_grammar = ok ^ job ^ ok ^ event ^ state ^ error
+        gth_out_grammar = ok ^ job ^ event ^ state ^ resource ^ error
 
     return gth_out_grammar
 
