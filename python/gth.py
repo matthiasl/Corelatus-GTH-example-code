@@ -114,7 +114,7 @@ def set(api, args):
     api.set(name, list_to_kvs(args))
 
 def unmap(api, args):
-    api.map(args.pop(0))
+    api.unmap(args.pop(0))
 
 def zero(api, args):
     name_or_id = args.pop(0)
