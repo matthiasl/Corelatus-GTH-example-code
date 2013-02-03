@@ -14,7 +14,7 @@ import gth.apilib
 
 def usage():
     stderr.write("""
-gth.py <command> <hostname> [<argument> [<argument> ...]]
+gth.py [-vN] <command> <hostname> [<argument> [<argument> ...]]
 
    <command>: disable | enable | query | reset | set
   <hostname>: the hostname or IP address of a GTH
@@ -50,6 +50,12 @@ def main():
 
     sys.argv.pop(0)
 
+    verbosity = 0
+    if "-v" in sys.argv[0]:
+	if sys.argv[0][2].isdigit:
+		verbosity = int(sys.argv[0][2])
+	sys.argv.pop(0)
+
     if len(sys.argv) < 2:
         usage()
 
@@ -64,7 +70,7 @@ def main():
         usage()
 
     try:
-        api = gth.apilib.API(host)
+        api = gth.apilib.API(host, verbosity)
         f(api , sys.argv)
         api.bye()
 

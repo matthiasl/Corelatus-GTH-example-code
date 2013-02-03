@@ -2,30 +2,40 @@
 # Author: Matthias Lang (matthias@corelatus.se)
 #
 
+import sys
+from sys import stderr
+
 from transport import API_socket
 import socket
 
 class API:
-    def __init__(self, gth_ip_or_hostname):
+    def __init__(self, gth_ip_or_hostname, verbosity=0):
+	"""
+	verbosity=0: keep mostly quiet
+	verbosity=1: print event counts
+	verbosity=2: print events
+	verbosity=3: print all commands, responses and events
+	"""	
+	self.verbosity = verbosity
         self.socket = API_socket(gth_ip_or_hostname)
 
     def bye(self):
-        self.socket.send("<bye/>")
+        self.send("<bye/>")
         self.check_ok("bye")
 
     def delete(self, ID):
         "Delete the given job"
-        self.socket.send("<delete id='%s'/>" % ID)
+        self.send("<delete id='%s'/>" % ID)
         self.check_ok("delete")
 
     def disable(self, name):
         "Disable an E1/T1 or SDH/SONET interface"
-        self.socket.send("<disable name='%s'/>" % name)
+        self.send("<disable name='%s'/>" % name)
         self.check_ok("disable")
 
     def enable(self, name, attributes):
         "Enable an E1/T1 or SDH/SONET interface"
-        self.socket.send("<enable name='%s'>%s</enable>"
+        self.send("<enable name='%s'>%s</enable>"
                          % (name, format_attributes(attributes)))
         self.check_ok("enable")
 
@@ -33,11 +43,11 @@ class API:
         "Map (assign a name) an E1/T1 carried on an SDH/SONET interface"
         if Type != "pcm_source":
             raise SemanticError("tried to map something other than a pcm_source")
-        self.socket.send("<map target_type='pcm_source'>" \
+        self.send("<map target_type='pcm_source'>" \
                              "<sdh_source name='%s'/></map>" % Name)
         reply, _events = self.next_non_event()
         if reply[0] != "resource":
-            print reply
+            stderr.write(reply + "\n")
             se = ("should have returned a resource", command, reply)
             raise SemanticError(se)
         print reply.name
@@ -49,7 +59,7 @@ class API:
 
         IP, _api_port = self.socket._socket.getsockname()
         port, ls = tcp_listen()
-        self.socket.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
+        self.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
                                 "<pcm_source span='%s' timeslot='%d'/>"\
                                 "</mtp2_monitor></new>"\
                                 % (IP, port, span, timeslot) )
@@ -66,7 +76,7 @@ class API:
         IP, _api_port = self.socket._socket.getsockname()
 
         port, ls = tcp_listen()
-        self.socket.send("<new><player>" \
+        self.send("<new><player>" \
                                 "<tcp_source ip_addr='%s' ip_port='%d'/>"\
                                 "<pcm_sink span='%s' timeslot='%d'/>" \
                                 "</player></new>"\
@@ -83,7 +93,7 @@ class API:
 
         IP, _api_port = self.socket._socket.getsockname()
         port, ls = tcp_listen()
-        self.socket.send("<new><recorder>"\
+        self.send("<new><recorder>"\
                                 "<pcm_source span='%s' timeslot='%d'/>"\
                                 "<tcp_sink ip_addr='%s' ip_port='%d'/>"\
                                 "</recorder></new>"\
@@ -100,7 +110,7 @@ class API:
 
         IP, _api_port = self.socket._socket.getsockname()
         port, data = udp_listen()
-        self.socket.send("<new><wide_recorder span='%s'>" \
+        self.send("<new><wide_recorder span='%s'>" \
                              "<udp_sink ip_addr='%s' ip_port='%d'/>" \
                              "</wide_recorder></new>" \
                              % (span, IP, port))
@@ -110,7 +120,7 @@ class API:
     def query_resource(self, name):
         """Returns a dict of attributes
         Query a GTH resource"""
-        self.socket.send("<query><resource name='%s'/></query>" % name)
+        self.send("<query><resource name='%s'/></query>" % name)
         reply, _events = self.next_non_event()
         if reply[0] != "state":
             raise SemanticError( ("query failed", reply) )
@@ -128,33 +138,35 @@ class API:
 
     def reset(self):
         "Reset (reboot) the GTH"
-        self.socket.send("<reset><resource name='cpu'/></reset>")
+        self.send("<reset><resource name='cpu'/></reset>")
         self.check_ok("reset");
 
     def set(self, name, attributes):
         "Set attributes on a resource"
-        self.socket.send("<set name='%s'>%s</set>"
+        self.send("<set name='%s'>%s</set>"
                          % (name, format_attributes(attributes)))
         self.check_ok("set");
 
     def unmap(self, Name):
         "Unmap a resource"
-        self.socket.send("<unmap name='%s'/>" % Name)
+        self.send("<unmap name='%s'/>" % Name)
         self.check_ok("unmap")
 
     def zero_job(self, id):
         "Clear the counters on a job"
-        self.socket.send("<zero><job id='%s'/></zero>" % id)
+        self.send("<zero><job id='%s'/></zero>" % id)
         self.check_ok("zero")
 
     def zero_resource(self, name):
         "Clear the counters on a resource"
-        self.socket.send("<zero><resource name='%s'/></zero>" % name)
+        self.send("<zero><resource name='%s'/></zero>" % name)
         self.check_ok("zero")
 
     #---- The remaining functions are primarily intended for internal
     #     use. They're also useful for implementing new commands.
     def send(self, XML):
+	if self.verbosity >= 3:
+		stderr.write("C: %s\n" % XML)
         self.socket.send(XML)
 
     def next_non_event(self):
@@ -167,8 +179,14 @@ class API:
         while True:
             answer = self.socket.receive()
             if answer[0] == 'event':
+		if self.verbosity >= 2:
+			stderr.write("G: %s\n" % answer)
                 events.append(answer)
             else:
+		if self.verbosity == 1:
+			stderr.write("G: skipping %d events\n" % len(events))
+		if self.verbosity >= 3:
+			stderr.write("G: %s\n" % answer)
                 return (answer, events)
 
     def next_event(self):
@@ -179,7 +197,7 @@ class API:
     def check_ok(self, command):
         reply, _events = self.next_non_event()
         if reply[0] != "ok":
-            print "expected OK, got", reply
+            stderr.write("expected OK, got %s\n" % reply)
             se = ("should have returned OK", command, reply)
             raise SemanticError(se)
 
