@@ -59,36 +59,6 @@ class API:
 
         return (mtp2_id, data)
 
-    def bye(self):
-        self.socket.send("<bye/>")
-        reply, _events = self.next_non_event()
-        if reply[0] != 'ok':
-            raise SemanticError(("bye should have returned OK", reply))
-
-    def delete(self, ID):
-        "Delete the given job"
-        self.socket.send("<delete id='%s'/>" % ID)
-        reply = self.socket.receive()
-        if reply[0] != "ok":
-            raise SemanticError(("delete should have returned OK", reply))
-
-    def new_mtp2_monitor(self, span, timeslot):
-        """Returns a (job_id, socket) tuple.
-        Monitor MTP-2 on a GTH. Socket returned uses the format defined in
-        the GTH API manual, under new_fr_monitor."""
-
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = self.listen()
-        self.socket.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
-                                "<pcm_source span='%s' timeslot='%d'/>"\
-                                "</mtp2_monitor></new>"\
-                                % (IP, port, span, timeslot) )
-        mtp2_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (mtp2_id, data)
-
     def new_player(self, span, timeslot):
         """Returns a (job_id, socket) tuple.
         Create a timeslot player on a GTH."""
