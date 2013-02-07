@@ -165,7 +165,9 @@
 -type id_or_error()::{'ok', string()} | {error, Reason::any()}.
 -type resource_or_error()::{'ok', string()} | {error, Reason::any()}.
 
--type keyval_list()::[{Key::atom() | string(), Value::any()}].
+-type keyval()::{Key::atom() | string(), Value::any()}.
+-type keyval_list()::[keyval()].
+-type option_list()::[Option::atom() | keyval()].
 -type event_handler()::'default' | pid().
 -type timeslot_or_timeslot_list()::1..31 | [1..31].
 -type subrate()::{'subrate', Timeslot::1..31, First_bit::0..7,
@@ -506,7 +508,7 @@ new_raw_monitor(Pid, Span, Ts, Options)
 
 
 %% The 'Raw_socket' is a socket in {packet, 0} mode, delivering timeslot data.
--spec new_recorder(pid(), string(), 0..31, keyval_list()) ->
+-spec new_recorder(pid(), string(), 0..31, option_list()) ->
 			  {ok, string(), Raw_socket::port()} | {error, any()}.
 new_recorder(Pid, Span, Ts) ->
     new_recorder(Pid, Span, Ts, []).
