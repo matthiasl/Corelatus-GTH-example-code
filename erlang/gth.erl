@@ -95,7 +95,7 @@
 	 delete/2,
 	 disable/2,
 	 enable/2, enable/3,
-	 get_ip/1,
+	 get_ip/1, get_gth_ip/1, get_my_ip/1,
 	 install/3,
 	 map/3, map/5,
 	 new_clip/3,
@@ -272,10 +272,22 @@ enable(Pid, Name, Attributes)
   when is_pid(Pid), is_list(Attributes) ->
     gen_server:call(Pid, {enable, Name, Attributes}).
 
--spec get_ip(pid()) -> {ok, inet:ip_address()}.
-get_ip(Pid)
+
+-spec get_gth_ip(pid()) -> {ok, inet:ip_address()}.
+get_gth_ip(Pid)
   when is_pid(Pid) ->
-    gen_server:call(Pid, get_ip).
+    gen_server:call(Pid, get_gth_ip).
+
+%% Returns the address of the local end of the API socket. Mainly
+%% useful on multi-homed machines.
+-spec get_my_ip(pid()) -> {ok, inet:ip_address()}.
+get_my_ip(Pid)
+  when is_pid(Pid) ->
+    gen_server:call(Pid, get_my_ip).
+
+%% Deprecated; included for backwards compatibility.
+get_ip(Pid) ->
+    get_gth_ip(Pid).
 
 -type install_fun() :: fun(() -> {binary(), fun() | eof}).
 %% If called with a fun() as the third argument, the install process
@@ -745,7 +757,7 @@ handle_call({delete, Id}, _From, State = #state{event_dict=Dict}) ->
     New_dict = dict:erase(Id, Dict),
     {reply, Reply, State#state{event_dict = New_dict}};
 
-handle_call(get_ip, _From, State = #state{socket = S}) ->
+handle_call(get_gth_ip, _From, State = #state{socket = S}) ->
     I = case inet:peername(S) of
 	    {ok, {IP, _Port}} ->
 		IP;
@@ -772,6 +784,10 @@ handle_call(get_ip, _From, State = #state{socket = S}) ->
 		IP
 	 end,
     {reply, {ok, I}, State};
+
+handle_call(get_my_ip, _From, State = #state{socket = S}) ->
+    {ok, {IP, _Port}} = inet:sockname(S),
+    {reply, {ok, IP}, State};
 
 handle_call({install, Name, Bin_or_fun}, _From, State = #state{socket = S}) ->
     send_xml(State, xml:install(Name)),

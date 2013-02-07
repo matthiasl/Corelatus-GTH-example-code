@@ -1,11 +1,11 @@
 //----------------------------------------------------------------------
-// Minimal program to query or set resource parameters on a GTH
+// Minimal program to enable SDH/SONET and E1/T1 links
 //
 // Doesn't attempt any error handling.
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2010, Corelatus AB Stockholm
+// Copyright (c) 2013, Corelatus AB Stockholm
 //
 // All rights reserved.
 //
@@ -50,67 +50,26 @@
 static void usage()
 {
   fprintf(stderr,
-	  "query_set [-v] <GTH-IP> <resource> [<attribute> [<value>]]\n\n"
-	  "Query or set resource parameters on a GTH.\n\n"
-	  "If no <value> is given, just query the GTH.\n"
-	  "If a <value> _is_ given, set the attribute to the value.\n"
+	  "enable [-v] <GTH-IP> <resource> [<attribute> <value>]\n\n"
+	  "Enable an SDH/SONET or E1/T1 interface.\n\n"
 	  "Multiple <attribute> <value> pairs may be given.\n\n"
 
 	  "-v: print the API commands and responses (verbose)\n"
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
-	  "<resource> is a resource on the GTH (hint: try 'inventory')\n"
+	  "<resource> is an SDH/SONET or E1/T1 link on the GTH (hint: 'query inventory')\n"
 	  "<attribute> is one of the resource's attributes\n"
+	  "<value> is one of the resource's attributes\n"
 
 	  "Examples:\n"
-	  "./query_set 172.16.1.10 inventory\n"
-	  "./query_set 172.16.1.10 eth1\n"
-	  "./query_set 172.16.1.10 board temperature\n"
-	  "./query_set 172.16.1.10 pcm1A\n"
-	  "./query_set 172.16.1.10 pcm1A code_violation\n"
-	  "./query_set 172.16.1.10 pcm1A status enabled\n"
-	  "./query_set 172.16.1.10 pcm1A status enabled framing multiframe\n");
+	  "./enable 172.16.1.10 sdh1\n"
+	  "./enable 172.16.1.10 sdh1 AU 4  TU 12\n"
+	  "./enable 172.16.1.10 sdh1 SONET true  OC 3  VT 2\n"
+	  "./enable 172.16.1.10 pcm1A\n"
+	  "./enable 172.16.1.10 pcm2A  framing multiframe\n"
+	  "./enable 172.16.1.10 pcm2A  framing multiframe  monitoring true\n"
+	  );
 
   exit(-1);
-}
-
-static void query_resource(GTH_api *api, const char *name, const char *key)
-{
-  int n_attributes;
-  GTH_attribute *attrs;
-  int result;
-  int x;
-
-  result = gth_query_resource(api, name, &attrs, &n_attributes);
-  if (result != 0)
-    {
-      fprintf(stderr, "unable to query %s\n", name);
-      gth_bye(api);
-      exit(-1);
-    }
-
-  if (!strcmp(name, "inventory"))
-    {
-      for (x = 0; x < n_attributes; x++)
-	{
-	      printf("%s\n", attrs[x].key);
-	}
-    }
-  else
-    {
-      int found = 0;
-      for (x = 0; x < n_attributes; x++)
-	{
-	  if (key == 0 || !strcmp(attrs[x].key, key))
-	    {
-              found = 1;
-	      printf("%s=%s\n", attrs[x].key, attrs[x].value);
-	    }
-	}
-       if (key != 0 && !found)
-         {
-            fprintf(stderr, "Warning: resource %s does not have an attribute called %s\n", name, key);
-         }
-    }
 }
 
 #define MAX_ATTRIBUTES 100
@@ -121,6 +80,8 @@ int main(int argc, char** argv)
   int result;
   GTH_api api;
   int verbose = 0;
+  GTH_attribute attrs[MAX_ATTRIBUTES];
+  int n_attrs = 0;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -132,7 +93,7 @@ int main(int argc, char** argv)
     argv++;
   }
 
-  if (argc < 2) {
+  if (argc < 3) {
     usage();
   }
 
@@ -143,46 +104,19 @@ int main(int argc, char** argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  if (argc == 2)  // no resource given, do an inventory query
-    {
-      fprintf(stderr, "no resource given, printing inventory\n");
-      query_resource(&api, "inventory", 0);
-    }
+  // First attribute is in argv[3], first value in argv[4]
+  if (argc >= MAX_ATTRIBUTES) {
+    die("Too many name/value pairs. Abort.");
+  }
 
-  else if (argc == 3)  // plain query
-    {
-      query_resource(&api, argv[2], 0);
-    }
-
-  else if (argc == 4)  // single attribute query
-    {
-      query_resource(&api, argv[2], argv[3]);
-    }
-
-  else
-    {
-      GTH_attribute attrs[MAX_ATTRIBUTES];
-      int n_attrs = 0;
-
-      // First attribute is in argv[3], first value in argv[4]
-
-      if (argc >= MAX_ATTRIBUTES) {
-	die("Too many name/value pairs. Abort.");
-      }
-      if (argc < 5) {
-	die("Unexpected number of arguments. Run without arguments for help.");
-      }
-      for (n_attrs = 0; n_attrs < (argc - 3) / 2; n_attrs++)
-	{
-	  attrs[n_attrs].key   = argv[n_attrs * 2 + 3];
-	  attrs[n_attrs].value = argv[n_attrs * 2 + 4];
-	}
-      result = gth_set(&api, argv[2], attrs, n_attrs);
-      if (result != 0)
-	{
-	  fprintf(stderr, "failed to set attributes on %s\n", argv[2]);
-	}
-    }
+  for (n_attrs = 0; n_attrs < (argc - 3) / 2; n_attrs++) {
+    attrs[n_attrs].key   = argv[n_attrs * 2 + 3];
+    attrs[n_attrs].value = argv[n_attrs * 2 + 4];
+  }
+  result = gth_enable(&api, argv[2], attrs, n_attrs);
+  if (result != 0) {
+    fprintf(stderr, "failed to enable %s\n", argv[2]);
+  }
 
   gth_bye(&api);
 
