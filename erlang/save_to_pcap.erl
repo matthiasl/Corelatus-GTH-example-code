@@ -219,7 +219,7 @@ from_file(In_filename, Out_filename) ->
 %% This works as long as the file only contains one protocol.
 guess_file_protocol(In) ->
     {ok, <<_Size:16, _Tag:16, Proto:3, _Flags:13>>} = file:read(In, 6),
-    file:position(In, bof),
+    {ok, _} = file:position(In, bof),
     case Proto of
 	0 -> mtp2;
 	2 -> frame_relay;
@@ -230,7 +230,7 @@ file_to_file(In, Out, Guess) ->
     case file:read(In, 2) of
 	{ok, <<Size:16>>} ->
 	    {ok, Packet} = file:read(In, Size),
-	    file:write(Out, reformat_packet(Guess, Packet)),
+	    ok = file:write(Out, reformat_packet(Guess, Packet)),
 	    file_to_file(In, Out, Guess);
 
 	eof ->
