@@ -359,7 +359,7 @@ void gth_switch_to(const char *hostname,
 // The Win32 socket library needs some startup actions before it works.
 // So call this before doing anything if you're running on win32.
 // This function does nothing on non windows platforms.
-void win32_specific_startup();
+void win32_specific_startup(void);
 
 // posix and Win32 have different APIs for sleeping. Unify them.
 void sleep_seconds(int seconds);
