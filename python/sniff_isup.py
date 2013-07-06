@@ -28,9 +28,7 @@ Typical invocation: ./sniff_isup.py 172.16.1.10 1A 16
 # Check that a given PCM is in a state where it could give useful data.
 # That means in 'OK' or 'RAI' status.
 def warn_if_l1_dead(api, span):
-    api.send("<query><resource name='pcm" + span + "'/></query>")
-    answer = api.next_non_event()
-    attributes = answer[0][3]
+    attributes = api.query_resource("pcm" + span);
 
     if attributes['status'] == "OK":
         pass
