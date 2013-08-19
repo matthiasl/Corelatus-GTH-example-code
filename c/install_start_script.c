@@ -17,7 +17,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -39,9 +39,9 @@
 #include "gth_apilib.h"
 #include "gth_client_xml_parse.h"
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "install_start_script <GTH-IP> <filename>\n\n"
 	  "Installs a start script on a GTH\n\n"
 
@@ -55,7 +55,7 @@ static void usage()
 }
 
 //------------------------------
-static void install_start_script(const char *hostname, 
+static void install_start_script(const char *hostname,
 				 const char *filename,
 				 int verbose)
 {
@@ -76,7 +76,7 @@ static void install_start_script(const char *hostname,
   if (!script) {
     die("unable to open start script file");
   }
-  
+
   fseek(script, 0, SEEK_END);
   script_length = ftell(script);
   rewind(script);
@@ -85,7 +85,7 @@ static void install_start_script(const char *hostname,
   assert(script_data);
   result = fread(script_data, script_length, 1, script);
 
-  result = gth_install(&api, "start_script", "binary/file", 
+  result = gth_install(&api, "start_script", "binary/file",
 		       script_data, script_length);
   free(script_data);
 
@@ -113,12 +113,12 @@ static void print_e1t1_names(const char *hostname) {
   }
 
   gth_free_attributes(attributes, n_attributes);
-  
+
   gth_bye(&api);
 }
 
 //------------------------------
-int main(int argc, char **argv) 
+int main(int argc, char **argv)
 {
   const char* hostname;
   int verbose = 0;
@@ -148,7 +148,7 @@ int main(int argc, char **argv)
   gth_switch_to(hostname, "system", 1);
 
   // Print the E1/T1 names. Two reasons for doing that. Firstly, so we
-  // can see that the GTH isn't running failsafe. Secondly, because 
+  // can see that the GTH isn't running failsafe. Secondly, because
   // the most common use of a start script is to change the E1/T1 naming.
   print_e1t1_names(hostname);
 

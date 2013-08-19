@@ -21,7 +21,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -50,9 +50,9 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "playback_file [-v] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Play the contents of a file on a timeslot.\n"
 	  "\n-v: print the API commands and responses (verbose)"
@@ -63,16 +63,16 @@ static void usage()
 
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./playback_file 172.16.1.10 1A 1 audio/mfc_fwd_4\n");
-  
+
   exit(-1);
 }
 
 #define MAX_COMMAND 200
 
-static void play_a_file(GTH_api *api, 
-			const char *span, 
+static void play_a_file(GTH_api *api,
+			const char *span,
 			int timeslot,
-			const char *filename) 
+			const char *filename)
 {
   int data_socket;
   char buffer[1600];
@@ -104,7 +104,7 @@ static void play_a_file(GTH_api *api,
     octet_sum += octet_count;
     assert(result == octet_count);
   }
-  
+
   result = closesocket(data_socket);
   assert(result == 0);
   fclose(file);
@@ -114,8 +114,8 @@ static void play_a_file(GTH_api *api,
   gth_wait_for_message_ended(api, job_id);
 }
 
-// Entry point 
-int main(int argc, char **argv) 
+// Entry point
+int main(int argc, char **argv)
 {
   int result;
   GTH_api api;
