@@ -9,7 +9,7 @@
 // Doesn't attempt any error handling.
 // Doesn't keep track of L1 status
 // Doesn't log L1 errors and status changes
-// 
+//
 // Author: Matt Lang (matthias@corelatus.se)
 //
 // Copyright (c) 2011, Corelatus AB Stockholm
@@ -28,7 +28,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -58,9 +58,9 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "monitor_dtmf [-v] <GTH-IP> <span> <timeslot>.\n\n"
 	  "Set up DTMF monitoring on a GTH and print all received tones\n\n"
 
@@ -71,7 +71,7 @@ static void usage()
 
 	  "Typical use:\n"
 	  "monitor_dtmf 172.16.1.10 1A 23\n");
-  
+
   exit(-1);
 }
 
@@ -80,8 +80,8 @@ void tone_handler(const char *name, int length)
   printf("detected DTMF digit %s (duration: %d ms)\n", name, length);
 }
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
@@ -111,7 +111,7 @@ int main(int argc, char** argv)
   }
 
   // Enable L1 with default parameters. If you want to use monitor
-  // mode or multiframe or ... see save_to_pcap.c 
+  // mode or multiframe or ... see save_to_pcap.c
   result = snprintf(pcm_name, sizeof(pcm_name), "pcm%s", argv[2]),
   assert(result < sizeof(pcm_name));
   result = gth_set_single(&api, pcm_name, "status", "enabled");

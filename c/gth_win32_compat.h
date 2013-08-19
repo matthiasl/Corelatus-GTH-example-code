@@ -1,5 +1,5 @@
 // This file collects a few common changes needed to make things compile
-// using 
+// using
 //
 //    Case 1. gcc native-compiling on a unix-like system
 //    Case 2. gcc cross-compiling for win32 (using mingw32msvc-gcc)
@@ -20,11 +20,11 @@
 //    C. GNU and Microsoft have different mechanisms for packing structures.
 //
 //       Microsoft use #pragma pack(N)
-//       
+//
 //       GNU use __attribute__((__packed__)) but also support Microsoft's
 //       pragma, but it's unclear whether they always will; GNU don't
 //       seem to think the #pragma approach is a good idea.
-//       
+//
 //
 
 //----------------------------------------------------------------------
@@ -46,16 +46,16 @@
 // Cases 1 & 2
 #else
 
-// Workalike for Microsoft's variant of fopen() 
+// Workalike for Microsoft's variant of fopen()
 int fopen_s(FILE **file, const char *filename, const char *mode);
 
 // GCC's pack pragma is a suffix, which is a bit messy.
 #define PACK_SUFFIX __attribute__((__packed__))
 
-#endif 
+#endif
 
 //----------------------------------------------------------------------
-// Case 2 
+// Case 2
 #if ( !defined(_MSC_VER) && defined(WIN32))
 // Microsoft's sockets API has different names to the normal API, but
 // only if we're cross compiling. (why?)
