@@ -10,7 +10,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2009, Corelatus AB Stockholm
+// Copyright (c) 2013, 2009, Corelatus AB Stockholm
 //
 // All rights reserved.
 //
@@ -142,7 +142,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
     if (!strcmp(reason, "failsafe_mode")) {
       api->is_failsafe = 1;
     } else {
-      printf("Ignoring an <info> with reason=%s\n", reason);
+      fprintf(stderr, "Ignoring an <info> with reason=%s\n", reason);
     }
     break;
   }
@@ -167,7 +167,8 @@ void gth_event_handler(void *data, GTH_resp *resp)
     // no handler -> fall through to printing the tone event
 
   default:
-    printf("gth_event_handler got an event, handling with default handler\n");
+    fprintf(stderr,
+	    "gth_event_handler got an event, handling with default handler\n");
     gth_print_tree(resp);
     break;
   }
@@ -218,16 +219,30 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
   return 0;
 }
 
-int gth_bye(GTH_api *api)
+// Helper for simple commands.
+static int single_arg_ok_response(GTH_api *api,
+				  const char *template,
+				  const char *arg)
 {
-  api_write(api, "<bye/>");
+  char buffer[MAX_COMMAND];
 
-  if (check_api_response(api, GTH_RESP_OK, 0))
-    {
-      return -1;
-    }
+  assert(api);
+  assert(template);
+  assert(arg);
+
+  snprintf(buffer, MAX_COMMAND, template, arg);
+  api_write(api, buffer);
+
+  if (check_api_response(api, GTH_RESP_OK, 0)) {
+    return -1;
+  }
 
   return 0;
+}
+
+int gth_bye(GTH_api *api)
+{
+  return single_arg_ok_response(api, "<bye/>%s", "");
 }
 
 int gth_make_listen_socket(int* port)
@@ -257,6 +272,32 @@ int gth_make_listen_socket(int* port)
   *port = ntohs(addr.sin_port);
   return s;
 }
+
+int gth_make_udp_socket(int* port)
+{
+  int s = -1;
+  int result;
+  struct sockaddr_in addr;
+  socklen_t addr_size = sizeof addr;
+
+  addr.sin_family = AF_INET;
+  addr.sin_port = 0;
+  addr.sin_addr.s_addr = INADDR_ANY;
+
+  s = socket(PF_INET, SOCK_DGRAM, 0);
+  assert(s >= 0);
+
+  result = bind(s, (struct sockaddr*)&addr, sizeof addr);
+  assert(result == 0);
+
+  result = getsockname(s, (struct sockaddr*)&addr, &addr_size);
+  assert(result == 0);
+  assert(addr_size == sizeof addr);
+
+  *port = ntohs(addr.sin_port);
+  return s;
+}
+
 
 int gth_wait_for_accept(int listen_socket)
 {
@@ -316,6 +357,55 @@ static int gth_wait_for_install_complete(GTH_api *api)
   }
 
   return 0;
+}
+
+// Internal; used by both gth_enable and gth_set
+static int gth_enable_or_set(const char *command,
+			     GTH_api *api,
+			     const char *resource,
+			     const GTH_attribute *attributes,
+			     int n_attributes)
+{
+  char buffer[MAX_COMMAND];
+  int used;
+
+  assert(api);
+  assert(resource);
+  assert(attributes);
+
+  used = snprintf(buffer, MAX_COMMAND, "<%s name='%s'>", command, resource);
+
+  while (n_attributes > 0) {
+    used += snprintf(buffer + used, MAX_COMMAND - used,
+		     "<attribute name='%s' value='%s'/>",
+		     attributes->key, attributes->value);
+    n_attributes--;
+    attributes++;
+  }
+
+  used += snprintf(buffer + used, MAX_COMMAND - used, "</%s>", command);
+
+  api_write(api, buffer);
+
+  if (check_api_response(api, GTH_RESP_OK, 0)) {
+    return -1;
+  }
+
+  return 0;
+}
+
+int gth_disable(GTH_api *api,
+		const char *resource)
+{
+  return single_arg_ok_response(api, "<disable name='%s'/>", resource);
+}
+
+int gth_enable(GTH_api *api,
+	       const char *resource,
+	       const GTH_attribute *attributes,
+	       int n_attributes)
+{
+  return gth_enable_or_set("enable", api, resource, attributes, n_attributes);
 }
 
 int gth_install(GTH_api *api,
@@ -589,6 +679,37 @@ void gth_nop(GTH_api *api)
 
   gth_free_resp(resp);
 }
+
+int gth_new_wide_recorder(GTH_api *api,
+			  const char *span,
+			  char *job_id)
+{
+  int portno = 0;
+  int data_socket = gth_make_udp_socket(&portno);
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(api);
+  assert(span);
+  assert(job_id);
+
+  template = "<new><wide_recorder span='%s'>"
+    "<udp_sink ip_addr='%s' ip_port='%d'/>"
+    "</wide_recorder></new>";
+
+  result = snprintf(command, MAX_COMMAND, template,
+		    span, api->my_ip, portno);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+  if (result != 0) {
+    closesocket(data_socket);
+  }
+
+  return (result == 0)?data_socket:-1;
+}
+
 
 // We're expecting a <message_ended> event, wait for it.
 // Any other messages which arrive go to the normal event handler.
@@ -1183,39 +1304,7 @@ int gth_set(GTH_api *api,
 	    const GTH_attribute *attributes,
 	    int n_attributes)
 {
-  char buffer[MAX_COMMAND];
-  int used;
-  GTH_resp *resp;
-
-  assert(api);
-  assert(resource);
-  assert(attributes);
-
-  used = snprintf(buffer, MAX_COMMAND, "<set name='%s'>", resource);
-
-  while (n_attributes > 0) {
-    used += snprintf(buffer + used, MAX_COMMAND - used,
-		     "<attribute name='%s' value='%s'/>",
-		     attributes->key, attributes->value);
-    n_attributes--;
-    attributes++;
-  }
-
-  used += snprintf(buffer + used, MAX_COMMAND - used, "</set>");
-
-  api_write(api, buffer);
-
-  if (check_api_response(api, GTH_RESP_OK, &resp))
-    {
-      if (resp)
-	{
-	  gth_print_tree(resp);
-	  gth_free_resp(resp);
-	}
-      return -1;
-    }
-
-  return 0;
+  return gth_enable_or_set("set", api, resource, attributes, n_attributes);
 }
 
 // Special case of set for just one attribute.
@@ -1230,19 +1319,9 @@ int gth_set_single(GTH_api *api,
 
 int gth_reset(GTH_api *api, const char *resource)
 {
-  assert(api);
-  assert(resource);
-
-  if (strcmp(resource, "cpu"))
-    return -1;
-
-  api_write(api, "<reset><resource name='cpu'/></reset>");
-  if (check_api_response(api, GTH_RESP_OK, 0))
-    {
-      return -1;
-    }
-
-  return 0;
+  return single_arg_ok_response(api,
+				"<reset><resource name='%s'/></reset>",
+				resource);
 }
 
 GTH_resp *gth_raw_xml(GTH_api *api, const char* string)
@@ -1417,6 +1496,49 @@ void gth_switch_to(const char *hostname,
   }
   gth_bye(&api);
 }
+
+int gth_map(GTH_api *api,
+	    const char *resource,
+	    char *name,
+	    int max_name)
+{
+  char buffer[MAX_COMMAND];
+  GTH_resp *resp;
+  int retval = 0;
+
+  assert(api);
+  assert(name);
+
+  assert(max_name > 1);
+  name[0] = 0;
+
+  snprintf(buffer, MAX_COMMAND, "<map target_type='pcm_source'>"
+	   "<sdh_source name='%s'/></map>", resource);
+  api_write(api, buffer);
+
+  resp = gth_next_non_event(api);
+
+  if (resp == 0) return -9;
+
+  if (resp->type == GTH_RESP_RESOURCE) {
+    strncpy(name, resp->attributes[0].value, max_name);
+    name[max_name - 1] = 0;
+  }
+  else {
+    retval = -1;
+  }
+
+  gth_free_resp(resp);
+
+  return retval;
+}
+
+int gth_unmap(GTH_api *api,
+	      const char *resource)
+{
+  return single_arg_ok_response(api, "<unmap name='%s'/>", resource);
+}
+
 
 // Win32 requires an initialisation call to its socket library at program
 // startup.

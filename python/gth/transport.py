@@ -41,6 +41,7 @@ class API_socket:
       raise TransportError(("unable to connect to", \
                             self.remotehost, server_port))
 
+    self._parser = gth.parse.gth_out()
     self._socket = s
     self._file = s.makefile()
 
@@ -81,7 +82,7 @@ class API_socket:
     """Return the next block from the API socket, parsed"""
     string = self.receive_raw(timeout)
     try:
-      return gth.parse.gth_out().parseString(string)
+      return self._parser.parseString(string)
     except pyparsing.ParseException, detail:
       raise ParseError, (string, detail)
 
@@ -106,6 +107,7 @@ class ParseError(Exception):
   def __init__(self, text, exception):
     self._text = text
     self._exception = exception
-    stderr.write("Unexpected and unparseable GTH reply")
+    stderr.write("Unexpected and unparseable GTH reply:\n")
     stderr.write(text)
-    stderr.write(exception)
+    stderr.write("\n")
+

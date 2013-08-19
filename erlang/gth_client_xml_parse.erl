@@ -79,7 +79,8 @@ do_string(S) ->
 checked({N, A, C, T})
   when N == error;
        N == job;
-       N == ok ->
+       N == ok;
+       N == resource ->
     [] = C,
     {ok, #resp_tuple{name=N, attributes=A, clippings=T}};
 
@@ -114,6 +115,8 @@ event_child({Name, A, [], T})
        Name == level;
        Name == message_ended;
        Name == mtp2_message;
+       Name == sdh_message;
+       Name == sfp_message;
        Name == slip;
        Name == sync_message;
        Name == tone ->
@@ -164,7 +167,7 @@ job_state(Verbose, RT = #resp_tuple{attributes=A}) ->
 	true ->
 	    Simple_tree = Tree#resp_tuple{attributes=Attributes},
 	    {job, I, O, Simple_tree, Status};
-	false when RT#resp_tuple.name == player -> %% Special case used by MA/GB
+	false when RT#resp_tuple.name == player ->
 	    {job, I, O, Attributes};
 	false ->
 	    {job, I, O, Status}

@@ -52,7 +52,7 @@
 %% The Socket must be passive and binary
 %%
 passive_content(Socket, Timeout) ->
-    inet:setopts(Socket, [{packet, line}]),
+    ok = inet:setopts(Socket, [{packet, line}]),
     case gen_tcp:recv(Socket, 0, Timeout) of
 	{ok, Line1} ->
 	    case gen_tcp:recv(Socket, 0, Timeout) of
@@ -76,7 +76,7 @@ passive_content(Socket, Timeout) ->
 passive_stream_content(Socket, Timeout, Fun) ->
     passive_stream_content(Socket, "binary/filesystem", Timeout, Fun).
 passive_stream_content(Socket, Type, Timeout, Fun) ->
-    inet:setopts(Socket, [{packet, line}]),
+    ok = inet:setopts(Socket, [{packet, line}]),
     case gen_tcp:recv(Socket, 0, Timeout) of
 	{ok, Line1} ->
 	    case gen_tcp:recv(Socket, 0, Timeout) of
@@ -104,7 +104,7 @@ active_content(Socket, Line1, Timeout) ->
 		 X ->
 		     X
 	     end,
-    inet:setopts(Socket, [{packet, line}, {active, once}]),
+    ok = inet:setopts(Socket, [{packet, line}, {active, once}]),
     Return.
 
 %% For backwards compatibility.
@@ -128,7 +128,7 @@ stream_content(Socket, Type, Timeout, Fun) ->
 header(Type, Content) when is_binary(Content) ->
     ["Content-type: ", Type, "\r\n",
      "Content-length: ",
-     integer_to_list(size(Content)),
+     integer_to_list(byte_size(Content)),
      "\r\n\r\n"];
 
 header(Type, Content) when is_list(Content) ->
@@ -218,9 +218,9 @@ next_non_event(Socket, Timeout, Verbose) ->
 collect_entire_content(S, <<"Content-type: ", Type/binary>>,
 		       <<"Content-length: ", BLen/binary>>,
 		       Timeout) ->
-    Slength = string:substr(binary_to_list(BLen), 1, size(BLen) - 2),
+    Slength = string:substr(binary_to_list(BLen), 1, byte_size(BLen) - 2),
     Length = list_to_integer(Slength) + 2,     %% +2 for crlf
-    inet:setopts(S, [{packet, 0}]),
+    ok = inet:setopts(S, [{packet, 0}]),
 
     Atomic_type = case Type of
 		      <<"text/xml\r\n">> -> 'text/xml';
@@ -232,7 +232,7 @@ collect_entire_content(S, <<"Content-type: ", Type/binary>>,
 
     case (Length > ?MAX_CONTENT_SIZE) of
 	true ->
-	    dump_rest(S, Length, Timeout),
+	    _ = dump_rest(S, Length, Timeout),
 	    {error, content_too_large};
 	_ ->
 	    case gen_tcp:recv(S, Length, Timeout) of
@@ -260,10 +260,10 @@ collect_entire_content(_S, _, _, _) ->
 stream_entire_content(S, Expected_type, <<"Content-type: ", Sent_type/binary>>,
 		      <<"Content-length: ", Blen/binary>>,
 		      Timeout, Supplied_fun) ->
-    Slength = string:substr(binary_to_list(Blen), 1, size(Blen) - 2),
+    Slength = string:substr(binary_to_list(Blen), 1, byte_size(Blen) - 2),
     Length = list_to_integer(Slength),
     {ok, _Line} = gen_tcp:recv(S, 0, Timeout),  %% remove leading CRLF
-    inet:setopts(S, [{packet, 0}]),
+    ok = inet:setopts(S, [{packet, 0}]),
 
     case Expected_type of
 	Sent_type ->  % normal case

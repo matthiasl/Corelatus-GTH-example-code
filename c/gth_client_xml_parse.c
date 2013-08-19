@@ -485,6 +485,7 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "alert"))           return  GTH_RESP_ALERT;
   if (!strcmp(name, "atm_message"))     return  GTH_RESP_ATM_MESSAGE;
   if (!strcmp(name, "attribute"))       return  GTH_RESP_ATTRIBUTE;
+  if (!strcmp(name, "backup"))          return  GTH_RESP_BACKUP;
   if (!strcmp(name, "controller"))      return  GTH_RESP_CONTROLLER;
   if (!strcmp(name, "ebs"))             return  GTH_RESP_EBS;
   if (!strcmp(name, "error"))           return  GTH_RESP_ERROR;
@@ -503,6 +504,8 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "mtp2_message"))    return  GTH_RESP_MTP2_MESSAGE;
   if (!strcmp(name, "ok"))              return  GTH_RESP_OK;
   if (!strcmp(name, "resource"))        return  GTH_RESP_RESOURCE;
+  if (!strcmp(name, "sdh_message"))     return  GTH_RESP_SDH_MESSAGE;
+  if (!strcmp(name, "sfp_message"))     return  GTH_RESP_SFP_MESSAGE;
   if (!strcmp(name, "slip"))            return  GTH_RESP_SLIP;
   if (!strcmp(name, "sync_message"))    return  GTH_RESP_SYNC_MESSAGE;
   if (!strcmp(name, "tone"))            return  GTH_RESP_TONE;
@@ -536,22 +539,22 @@ void print_tokens(const GTH_token *token)
   while (token->type != TOK_END) {
     switch (token->type) {
 
-    case TOK_WHITESPACE: printf("-"); break;
+    case TOK_WHITESPACE: fprintf(stderr, "-"); break;
 
-    case TOK_STRING: printf("*%s*", token->payload); break;
+    case TOK_STRING: fprintf(stderr, "*%s*", token->payload); break;
 
-    case TOK_OPEN:  printf("<"); break;
-    case TOK_CLOSE: printf(">"); break;
-    case TOK_EQUAL: printf("="); break;
-    case TOK_SLASH: printf("/"); break;
-    case TOK_NAME:  printf("(%s)", token->payload); break;
-    case TOK_TEXT:  printf("[%s]", token->payload); break;
+    case TOK_OPEN:  fprintf(stderr, "<"); break;
+    case TOK_CLOSE: fprintf(stderr, ">"); break;
+    case TOK_EQUAL: fprintf(stderr, "="); break;
+    case TOK_SLASH: fprintf(stderr, "/"); break;
+    case TOK_NAME:  fprintf(stderr, "(%s)", token->payload); break;
+    case TOK_TEXT:  fprintf(stderr, "[%s]", token->payload); break;
     default:
       assert(!"attempted to print a token which doesn't exist");
     }
     token++;
   }
-  printf(".\n");
+  fprintf(stderr, ".\n");
 }
 
 void print_children(GTH_resp *resp) {
@@ -679,6 +682,16 @@ void gth_print_tree(GTH_resp *resp) {
     fprintf(stderr, "  resource: %s", resp->attributes[0].value);
     print_children(resp);
     fprintf(stderr, "\n");
+    break;
+
+  case GTH_RESP_SDH_MESSAGE:
+    fprintf(stderr, "  sdh_message: ");
+    print_attributes(resp);
+    break;
+
+  case GTH_RESP_SFP_MESSAGE:
+    fprintf(stderr, "  sfp_message: ");
+    print_attributes(resp);
     break;
 
   case GTH_RESP_SLIP:
