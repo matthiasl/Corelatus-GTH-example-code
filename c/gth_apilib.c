@@ -545,6 +545,33 @@ int gth_new_lapd_layer(GTH_api *api,
 }
 
 
+int gth_new_lapd_monitor(GTH_api *api,
+			 const int tag,
+			 const char *span,
+			 const int ts,
+			 char *job_id,
+			 const char *ip,
+			 const int port)
+{
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(ts > 0 && ts < 32);
+
+  template = "<new><lapd_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+    "<pcm_source span='%s' timeslot='%d'/>"
+    "</lapd_monitor></new>";
+
+  result = snprintf(command, MAX_COMMAND, template, ip, port, tag, span, ts);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
 			 const char *span,

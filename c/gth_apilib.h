@@ -224,6 +224,23 @@ int gth_new_lapd_layer(GTH_api *api,
 		       const char *ip,
 		       const int port);
 
+// Start a LAPD monitor.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_lapd_monitor(GTH_api *api,
+			 const int tag,
+			 const char *span,
+			 const int timeslot,
+			 char *job_id,
+			 const char *ip,
+			 const int port);
+
 // Start MTP-2 monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
