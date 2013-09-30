@@ -124,8 +124,9 @@ void usage() {
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<timeslot> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n");
+
   fprintf(stderr,
-	  "Examples:\n"
+	  "Examples (on hardware with electrical E1/T1 ports):\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcap\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 3A 4A 1 2 3 4 isup_capture.pcap\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 1B 5 6 7 8 capture.pcap\n"
@@ -134,6 +135,10 @@ void usage() {
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 - | tshark -V -i - \n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
+
+  fprintf(stderr,
+	  "\nExamples (on SDH/SONET hardware, usually optical):\n"
+	  "./save_to_pcap 172.16.1.10 pcm55 16 isup_capture.pcap\n\n");
 
   exit(-1);
 }
@@ -233,9 +238,26 @@ static void open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
 
 //----------------------------------------------------------------------
 
-// Start up L1 on the given span. It defaults to E1/doubleframe. We
-// disable the TX pins since we're only listening.
-static void enable_l1(GTH_api *api, const char* span, const int monitoring)
+// Optical E1/T1: just enable; no special options required.
+static void enable_optical_l1(GTH_api *api, 
+			      const char* span, 
+			      const int monitoring)
+{
+  int result;
+
+  if (monitoring)
+    fprintf(stderr, "Warning: ignoring -m switch on optical hardware.\n");
+
+  result = gth_enable(api, span, 0, 0);
+
+  if (result != 0)
+    die("Setting up L1 failed. (-v switch gives more information)");
+}
+
+// Electrical E1: disable TX pins and possibly enable -20dB monitoring
+static void enable_electrical_l1(GTH_api *api, 
+				 const char* span, 
+				 const int monitoring)
 {
   int result;
   char pcm_name[20];
@@ -250,10 +272,29 @@ static void enable_l1(GTH_api *api, const char* span, const int monitoring)
   strncpy(pcm_name, "pcm", sizeof pcm_name);
   strncat(pcm_name, span, sizeof pcm_name);
 
+  // Use <set> here: <enable> isn't supported until gth2_system_37a.
   result = gth_set(api, pcm_name, attributes, n_attributes);
 
   if (result != 0)
     die("Setting up L1 failed. (-v switch gives more information)");
+}
+
+// Start up L1 on the given span. 
+static void enable_l1(GTH_api *api, const char* span, const int monitoring)
+{
+  char architecture[10];
+  int result;
+
+  result = gth_query_resource_attribute(api, "board", "architecture", 
+					architecture, 10);
+  if (result != 0)
+    die("Unable to query hardware architecture. Giving up.");
+
+  architecture[3] = 0;
+  if (strcmp(architecture, "gth") == 0) 
+    enable_electrical_l1(api, span, monitoring);
+  else
+    enable_optical_l1(api, span, monitoring);
 }
 
 // Start up MTP-2 monitoring on the given span and timeslot
@@ -425,6 +466,7 @@ static void convert_to_pcap(int data_socket,
 }
 
 static int is_span_name(char *arg){
+  if (strstr(arg, "pcm")) return 1;  // Optical hardware uses e.g. 'pcm55'
   if (strstr(arg, "A")) return 1;
   if (strstr(arg, "B")) return 1;
   if (strstr(arg, "C")) return 1;
