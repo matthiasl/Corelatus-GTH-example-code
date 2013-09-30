@@ -371,11 +371,10 @@ static int gth_enable_or_set(const char *command,
 
   assert(api);
   assert(resource);
-  assert(attributes);
 
   used = snprintf(buffer, MAX_COMMAND, "<%s name='%s'>", command, resource);
 
-  while (n_attributes > 0) {
+  while (attributes && n_attributes > 0) {
     used += snprintf(buffer + used, MAX_COMMAND - used,
 		     "<attribute name='%s' value='%s'/>",
 		     attributes->key, attributes->value);
