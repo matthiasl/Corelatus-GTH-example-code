@@ -106,7 +106,6 @@
 	 new_cas_r2_mfc_detector/4, new_cas_r2_mfc_detector/5,
 	 new_cas_r2_linesig_monitor/3, new_cas_r2_linesig_monitor/4,
 	 new_connection/5, new_connection/6,
-	 new_ebs/2,
 	 new_fr_monitor/3, new_fr_monitor/4,
 	 new_fr_layer/3,
 	 new_lapd_layer/6, new_lapd_layer/7,
@@ -180,7 +179,6 @@
 
 -type hostname_or_address()::inet:hostname() | inet:ip_address().
 -type job()::{'job', Id::string(), Owner::string(), Counters::keyval_list()}
-	     |{'job', Id::string(), Owner::string(), Modules::[string()]}
 	     |{'job', Id::string(), Owner::string(), Tree::#resp_tuple{},
 	       Counters::keyval_list()}.
 
@@ -359,12 +357,6 @@ new_connection(Pid, S_span, S_ts, D_span, D_ts)
 new_connection(Pid, S_span, S_ts, D_IP, D_span, D_ts)
   when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
     gen_server:call(Pid, {new_connection, S_span, S_ts, D_IP, D_span, D_ts}).
-
-%% EBS is experimental and not formally supported. (Checked 2008-10-14)
--spec new_ebs(pid(), [string()]) -> id_or_error().
-new_ebs(Pid, IPs = [H|_])
-  when is_pid(Pid), is_list(H) ->
-    gen_server:call(Pid, {new_ebs, IPs}).
 
 -spec new_lapd_layer(pid(),
 		     Span::string(),
@@ -901,12 +893,6 @@ handle_call({new_connection, S_span, S_ts, D_span, D_ts}, _From, State) ->
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_ebs, IPs}, _From, State) ->
-    M = [xml:tag("module", [{"ip_addr", IP}]) || IP <- IPs],
-    send_xml(State, xml:new("ebs", [], M)),
-    Reply = receive_job_id(State),
-    {reply, Reply, State};
-
 handle_call({new_fr_monitor, Span, Timeslots, Options},
 	    {Pid, _tag}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Timeslots,
@@ -1282,14 +1268,6 @@ handle_call({update, "controller", Attrs}, _From, State) ->
     Reply = expect_ok(State),
     {reply, Reply, State};
 
-handle_call({update, ID = "ebsw"++_, IPs}, _From, State) ->
-    send_xml(State, xml:tag("update", [],
-			    xml:tag("ebs", [{"id", ID}],
-				    [xml:tag("module", [{"ip_addr", IP}])
-				     || IP <- IPs]))),
-    Reply = expect_ok(State),
-    {reply, Reply, State};
-
 handle_call({unmap, Name}, _From, State) ->
     send_xml(State, xml:unmap(Name)),
     Reply = expect_ok(State),
@@ -1491,13 +1469,6 @@ handle_gth_event(#resp_tuple{name=sync_message,
 			     attributes=[{"state", L}]},
 		 State = #state{resource_event_target = Pid}) ->
     Pid ! {sync_message, self(), L},
-    State;
-
-handle_gth_event(#resp_tuple{name=ebs,
-			     attributes=[{"ip_addr", IP},
-					 {"reason", Reason}]},
-		 State = #state{resource_event_target = Pid}) ->
-    Pid ! {ebs, self(), {IP, Reason}},
     State;
 
 handle_gth_event(E = #resp_tuple{}, State) ->
