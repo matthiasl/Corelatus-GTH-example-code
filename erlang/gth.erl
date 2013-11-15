@@ -1276,8 +1276,7 @@ handle_call({unmap, Name}, _From, State) ->
 handle_call({update, ID, KVs}, _From, State) ->
     Job_types = [
 		 {"ldmo", "lapd_monitor"},
-		 {"m2mo", "mtp2_monitor"},
-		 {"ramo", "raw_monitor"}
+		 {"m2mo", "mtp2_monitor"}
 		],
     case lists:keyfind(string:substr(ID, 1, 4), 1, Job_types) of
 	false ->
