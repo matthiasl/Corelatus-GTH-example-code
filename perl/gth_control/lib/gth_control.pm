@@ -32,7 +32,7 @@ sub bye {
     $self->send("<bye/>");
     my $parsed = $self->next_non_event();
 
-    defined $parsed->{"ok"} || die("bye failed");
+    expect_xml($parsed, "ok", "bye failed");
 }
 
 sub delete {
@@ -42,6 +42,21 @@ sub delete {
     my $parsed = $self->next_non_event();
 
     defined $parsed->{"ok"}
+}
+
+sub enable {
+    my ($self, $resource, %hash) = @_;
+
+    my $attributes = "";
+    while (my ($key, $value) = each %hash) {
+	$attributes .= "<attribute name='$key' value='$value'/>"
+    }
+
+    $self->send("<enable name='$resource'>$attributes</enable>");
+
+    my $parsed = $self->next_non_event();
+
+    expect_xml($parsed, "ok", "enable failed");
 }
 
 sub new_mtp2_monitor {
@@ -158,6 +173,16 @@ sub set {
 
 
 #-- Internal functions.
+
+sub expect_xml {
+    my ($parsed, $expected, $hint) = @_;
+
+    if (defined $parsed->{"ok"}) { 
+         return;
+    }
+    printf(STDERR "$hint\n");
+    die(Dumper($parsed));
+}
 
 sub parse_job_id {
     my ($parsed) = @_;

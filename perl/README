@@ -76,8 +76,17 @@ Sniff ISUP
      ignoring ISUP release
      RLC on CIC=0
 
+Enable L1
+---------
+
+   Enable Layer 1 on SDH/SONET and E1/T1 hardware. Typical use:
+
+     >./enable 172.16.11.9 sdh1
+
+
 The examples are built on top of a little library, gth_command.pm,
 which lets you hack up Perl code to do pretty much anything
 supported by the GTH, i.e. you don't have to write your own parser.
+
 
 # eof
