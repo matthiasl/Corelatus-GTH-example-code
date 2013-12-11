@@ -9,7 +9,7 @@ Keep in mind that I'm a Perl dabbler, i.e. if it looks weird, then
 that's most likely because I didn't know better. Suggestions for
 improvement are welcome to matthias@corelatus.se
 
-There are four examples:
+There are six examples:
 
 Recorded file playback
 ----------------------
@@ -81,7 +81,25 @@ Enable L1
 
    Enable Layer 1 on SDH/SONET and E1/T1 hardware. Typical use:
 
-     >./enable 172.16.11.9 sdh1
+     >./enable.pl 172.16.11.9 sdh1
+
+Map and unmap E1/T1 links carried on SDH/SONET
+----------------------------------------------
+
+   This example is only useful on SDH/SONET hardware. It's used
+   to get access to E1/T1 links carried on SDH/SONET.
+
+     >./map.pl 172.16.1.10 sdh1:hop1_1:lop1_1_1
+    pcm1
+
+   the 'pcm1' is the dynamically assigned name of the E1/T1 link.
+   Once you've got a name assigned, you can use it, e.g.:
+
+     >./enable.pl 172.16.1.10 pcm1
+
+   When you're finished, you can clean up:
+
+     >./unmap.pl 172.16.1.10 pcm1
 
 
 The examples are built on top of a little library, gth_command.pm,

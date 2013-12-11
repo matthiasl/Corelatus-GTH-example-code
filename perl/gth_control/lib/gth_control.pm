@@ -59,6 +59,15 @@ sub enable {
     expect_xml($parsed, "ok", "enable failed");
 }
 
+sub map {
+    my ($self, $resource) = @_;
+
+    $self->send("<map target_type='pcm_source'>".
+		"<sdh_source name='$resource'/></map>");
+    my $resource_id = parse_resource_name($self->next_non_event());
+    return $resource_id;
+}
+
 sub new_mtp2_monitor {
     my ($self, $span, $timeslot) = @_;
 
@@ -171,6 +180,15 @@ sub set {
     defined $parsed->{"ok"} || die("set failed");
 }
 
+sub unmap {
+    my ($self, $resource) = @_;
+
+    $self->send("<unmap name='$resource'/>");
+    my $parsed = $self->next_non_event();
+
+    expect_xml($parsed, "ok", "unmap failed");
+}
+
 
 #-- Internal functions.
 
@@ -190,6 +208,15 @@ sub parse_job_id {
     defined($parsed->{'job'}) || die(Dumper($parsed));
 
     my $hashref= $parsed->{'job'};
+    return (keys %$hashref)[0];
+}
+
+sub parse_resource_name {
+    my ($parsed) = @_;
+
+    defined($parsed->{'resource'}) || die(Dumper($parsed));
+
+    my $hashref= $parsed->{'resource'};
     return (keys %$hashref)[0];
 }
 
@@ -275,7 +302,9 @@ E1/T1 line to decode signalling, record or play back voice, detect
 tones or connect timeslots.
 
 A GTH is controlled through a socket using a text protocol. This
-module wraps that text protocol in a Perl API.
+module wraps that text protocol in a Perl API. The function names map
+1:1 to the commands in the API, e.g. new_mtp_monitor() corresponds to
+the <new><mtp2_monitor>... command.
 
 =head1 CONSTRUCTOR
 
@@ -299,7 +328,17 @@ module wraps that text protocol in a Perl API.
 
   Delete (stop) a job on the GTH.
 
+=item enable (Resource, Attributes)
+
+  The <enable> command.
+
+=item map (Resource, Attributes)
+
+  The <map> command.
+
 =item new_mtp2_monitor (Span, Timeslot)
+
+  The <new><mtp2_monitor> command.
 
   Commands the GTH to start decoding MTP-2 on the given timeslot.
 
@@ -345,6 +384,11 @@ module wraps that text protocol in a Perl API.
   Sets the given attribute of a resource.
 
   Multiple Attribute, Value pairs can be given.
+
+=item unmap (Resource, Attributes)
+
+  The <unmap> command.
+
 
 =back
 
