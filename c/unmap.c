@@ -1,7 +1,5 @@
 //----------------------------------------------------------------------
-// Minimal program to map an E1/T1 link carried on SDH/SONET.
-// Once an E1/T1 is mapped, it has a name, e.g. pcm27, which can
-// then be used in further commands, for instance 'enable'.
+// Minimal program to unmap an E1/T1 link carried on SDH/SONET.
 //
 // Doesn't attempt any error handling.
 //
@@ -52,16 +50,15 @@
 static void usage()
 {
   fprintf(stderr,
-	  "map [-v] <GTH-IP> <sdh-resource>\n\n"
-	  "Map an E1/T1 link carried on SDH/SONET. Print the name of the\n"
-          "E1/T1 resource created by the mapping.\n\n"
+	  "unmap [-v] <GTH-IP> <E1/T1 resource>\n\n"
+	  "Unmap an E1/T1 link carried on SDH/SONET.\n\n"
 
 	  "-v: print the API commands and responses (verbose)\n"
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
-	  "<resource> is an SDH/SONET LOP resource\n"
+	  "<resource> is an E1/T1 resource\n"
 
 	  "Example:\n"
-	  "./map 172.16.1.10 sdh1:hop1_1:lop1_5_3\n"
+	  "./unmap 172.16.1.10 pcm1\n"
 	  );
 
   exit(-1);
