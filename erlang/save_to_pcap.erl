@@ -1,8 +1,9 @@
 -module(save_to_pcap).
 %%
-%% Start up signalling (MTP-2, frame relay or AAL5) monitoring on the given
-%% E1 interface/timeslots and save the signal units to a file in
-%% libpcap format, suitable for viewing with wireshark or tcpdump.
+%% Start up signalling (MTP-2, frame relay, LAPD or AAL5) monitoring
+%% on the given E1 interface/timeslots and save the signal units to a
+%% file in libpcap format, suitable for viewing with wireshark or
+%% tcpdump.
 %%
 %% The AAL5 can be either SAAL (SS7 signalling over ATM) or LLC (IP over ATM)
 %%
@@ -14,7 +15,18 @@
 %%
 %% or
 %%
-%%   save_to_pcap:frame_relay("172.16.2.7", "2B", lists:seq(1,15), "/tmp/gb.pcap").
+%%   save_to_pcap:frame_relay("172.16.2.7", "2B", lists:seq(1,15),
+%%     "/tmp/gb.pcap").
+%%
+%% or
+%%
+%%   save_to_pcap:lapd("172.16.2.7", "2B", 16, "/tmp/lapd.pcap").
+%%
+%% or
+%%
+%%   save_to_pcap:aal5("172.16.2.7", "2B", lists:seq(1,31), {0, 5},
+%%        "/tmp/aal5.pcap").
+%%
 %%
 %% The Layer 1 setup assumes an E1 connected through a monitor point.
 %% Hack the 'gth:set' line if you're using T1 and/or are connected via
