@@ -50,6 +50,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "disable git_head: %s build_hostname: %s\n\n"
+
 	  "disable [-v] <GTH-IP> <resource>\n\n"
 	  "Disable an SDH/SONET or E1/T1 interface.\n\n"
 
@@ -59,8 +61,8 @@ static void usage()
 
 	  "Examples:\n"
 	  "./disable 172.16.1.10 sdh1\n"
-	  "./disable 172.16.1.10 pcm1A\n\n"
-	  );
+	  "./disable 172.16.1.10 pcm1A\n\n",
+	  git_head, build_hostname);
 
   exit(-1);
 }

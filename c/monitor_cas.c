@@ -57,6 +57,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "monitor_cas git_head: %s build_hostname: %s\n\n"
+
 	  "monitor_cas [-v] <GTH-IP>\n\n"
 	  "Monitor an E1, pcm2A, for CAS signalling, print the signalling\n\n"
 
@@ -64,7 +66,8 @@ static void usage()
 	  "<GTH-IP> is the GTH's IP address or hostname\n\n"
 
 	  "Typical use:\n"
-	  "monitor_cas 172.16.1.10\n");
+	  "monitor_cas 172.16.1.10\n",
+	  git_head, build_hostname);
 
   exit(-1);
 }

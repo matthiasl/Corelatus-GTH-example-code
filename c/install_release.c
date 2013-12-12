@@ -45,6 +45,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "install_release git_head: %s build_hostname: %s\n\n"
+
 	  "install_release [-f] [-v] <GTH-IP> <filename>\n\n"
 
 	  "installs a software image on a GTH\n\n"
@@ -55,7 +57,8 @@ static void usage()
 	  "<filename> is the firmware image from www.corelatus.com\n\n"
 
 	  "Example: \n"
-	  "    ./install_release 172.16.1.10 gth2_system_33c.gth\n\n");
+	  "    ./install_release 172.16.1.10 gth2_system_33c.gth\n\n",
+	  git_head, build_hostname);
   exit(-1);
 }
 

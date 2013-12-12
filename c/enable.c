@@ -50,6 +50,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "enable git_head: %s build_hostname: %s\n\n"
+
 	  "enable [-v] <GTH-IP> <resource> [<attribute> <value>]\n\n"
 	  "Enable an SDH/SONET or E1/T1 interface.\n\n"
 	  "Multiple <attribute> <value> pairs may be given.\n\n"
@@ -66,7 +68,8 @@ static void usage()
 	  "./enable 172.16.1.10 sdh1 SONET true  OC 3  VT 2\n"
 	  "./enable 172.16.1.10 pcm1A\n"
 	  "./enable 172.16.1.10 pcm2A  framing multiframe\n"
-	  "./enable 172.16.1.10 pcm2A  framing multiframe  monitoring true\n"
+	  "./enable 172.16.1.10 pcm2A  framing multiframe  monitoring true\n",
+	  git_head, build_hostname
 	  );
 
   exit(-1);

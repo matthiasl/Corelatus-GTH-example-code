@@ -42,6 +42,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "install_start_script git_head: %s build_hostname: %s\n\n"
+
 	  "install_start_script <GTH-IP> <filename>\n\n"
 	  "Installs a start script on a GTH\n\n"
 
@@ -50,7 +52,8 @@ static void usage()
 	  "<filename> is a file containing an XML start script\n\n"
 
 	  "Typical invocation: \n"
-	  "    ./install_start_script 172.16.1.10 /tmp/start.xml\n\n");
+	  "    ./install_start_script 172.16.1.10 /tmp/start.xml\n\n",
+	  git_head, build_hostname);
   exit(-1);
 }
 

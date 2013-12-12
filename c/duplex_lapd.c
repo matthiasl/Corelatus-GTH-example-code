@@ -88,13 +88,16 @@ typedef struct {
 
 void usage() {
   fprintf(stderr,
+	  "duplex_lapd git_head: %s build_hostname: %s\n\n"
+
 	  "duplex_lapd [-v] <GTH-IP> <span> <timeslot> [<end>]\n\n"
 	  "Enable ISDN LAPD on the specified timeslot.\n\n"
 	  "-v: print the API commands and responses (verbose)\n"
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
 	  "<span> is the E1/T1 interface, e.g. '1A'\n"
 	  "<timeslot> is the timeslot, 1--31\n"
-	  "<end> is either 'user' (default) or 'network'\n");
+	  "<end> is either 'user' (default) or 'network'\n",
+	  git_head, build_hostname);
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./duplex_lapd 172.16.1.10 1A 16\n");
 

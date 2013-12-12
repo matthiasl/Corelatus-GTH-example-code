@@ -50,6 +50,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "query_set git_head: %s build_hostname: %s\n\n"
+
 	  "query_set [-v] <GTH-IP> <resource> [<attribute> [<value>]]\n\n"
 	  "Query or set resource parameters on a GTH.\n\n"
 	  "If no <value> is given, just query the GTH.\n"
@@ -68,7 +70,8 @@ static void usage()
 	  "./query_set 172.16.1.10 pcm1A\n"
 	  "./query_set 172.16.1.10 pcm1A code_violation\n"
 	  "./query_set 172.16.1.10 pcm1A status enabled\n"
-	  "./query_set 172.16.1.10 pcm1A status enabled framing multiframe\n");
+	  "./query_set 172.16.1.10 pcm1A status enabled framing multiframe\n",
+	  git_head, build_hostname);
 
   exit(-1);
 }

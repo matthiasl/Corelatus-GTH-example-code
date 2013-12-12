@@ -61,6 +61,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "monitor_dtmf git_head: %s build_hostname: %s\n\n"
+
 	  "monitor_dtmf [-v] <GTH-IP> <span> <timeslot>.\n\n"
 	  "Set up DTMF monitoring on a GTH and print all received tones\n\n"
 
@@ -70,7 +72,8 @@ static void usage()
 	  "<timeslot> is the timeslot, 1--31\n\n"
 
 	  "Typical use:\n"
-	  "monitor_dtmf 172.16.1.10 1A 23\n");
+	  "monitor_dtmf 172.16.1.10 1A 23\n",
+	  git_head, build_hostname);
 
   exit(-1);
 }

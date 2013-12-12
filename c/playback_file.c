@@ -53,13 +53,16 @@
 static void usage()
 {
   fprintf(stderr,
+	  "playback_file git_head: %s build_hostname: %s\n\n"
+
 	  "playback_file [-v] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Play the contents of a file on a timeslot.\n"
 	  "\n-v: print the API commands and responses (verbose)"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<ts> is a timeslot number, from 1 to 31"
-	  "\n<filename> is the file to read data from");
+	  "\n<filename> is the file to read data from",
+	  git_head, build_hostname);
 
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./playback_file 172.16.1.10 1A 1 audio/mfc_fwd_4\n");

@@ -50,12 +50,15 @@
 static void usage()
 {
   fprintf(stderr,
+	  "wide_recorder git_head: %s build_hostname: %s\n\n"
+
 	  "wide_recorder [-v] <GTH-IP> <span> <filename>\n\n"
 	  "Save bit-exact representing an entire E1/T1 to a file\n\n"
 	  "-v: print the API commands and responses (verbose)\n"
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
 	  "<span> is the E1/T1 interface, e.g. '1A'\n"
-	  "<filename> is the filename to save to\n\n");
+	  "<filename> is the filename to save to\n\n",
+	  git_head, build_hostname);
 
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./wide_recorder 172.16.1.10 13 capture_file.raw\n\n");

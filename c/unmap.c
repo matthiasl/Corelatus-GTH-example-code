@@ -50,6 +50,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "unmap git_head: %s build_hostname: %s\n\n"
+
 	  "unmap [-v] <GTH-IP> <E1/T1 resource>\n\n"
 	  "Unmap an E1/T1 link carried on SDH/SONET.\n\n"
 
@@ -58,8 +60,8 @@ static void usage()
 	  "<resource> is an E1/T1 resource\n"
 
 	  "Example:\n"
-	  "./unmap 172.16.1.10 pcm1\n"
-	  );
+	  "./unmap 172.16.1.10 pcm1\n",
+	  git_head, build_hostname);
 
   exit(-1);
 }

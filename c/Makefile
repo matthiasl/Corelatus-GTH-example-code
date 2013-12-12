@@ -25,6 +25,7 @@ headers=gth_apilib.h gth_client_xml_parse.h
 # For windows, we need a .exe suffix on all executables
 win_targets=$(addsuffix .exe, $(target_basenames))
 common_c_files=gth_apilib.c gth_client_xml_parse.c
+example_c_files=$(addsuffix .c, $(target_basenames))
 
 # present on newer debian systems (2012)
 CC_WIN32_64bit=i686-w64-mingw32-gcc
@@ -36,25 +37,30 @@ LIBS_WIN32=-lws2_32
 
 CC=gcc
 
+repo_head=$(shell git describe --abbrev=8 --dirty --always)
+
 unix: $(target_basenames)
 
 win32: $(win_targets)
 
 clean:
-	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos
+	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos version.h
 
-ship:
+ship: version.c
 	make clean
 	make
 	make win32
 	sed -e 's/$$/\r/g' < README.unix > README.txt
 	zip gth_c_examples *.c *.h NMakefile Makefile audio/* README.* *.exe
 
-target_basenames win_targets: $(headers) $(common_c_files)
+version.c: $(headers)
+	@echo "#include \"gth_apilib.h\"" > $@
+	@echo "const char *git_head = \""$(repo_head)"\";" >> $@
+	@echo "const char *build_hostname = \""$(shell hostname)"\";" >> $@
 
-%: %.c $(common_c_files)
+%: %.c $(headers) $(common_c_files) version.c
 	$(CC) -Wall -g -o $@ $^ $(LIBS)
 
-%.exe: %.c $(common_c_files)
+%.exe: %.c $(headers) $(common_c_files) version.c
 	$(CC_WIN32) -Wall -o $@ $^ $(LIBS_WIN32)
 

@@ -51,7 +51,10 @@
 
 static void usage()
 {
-  fprintf(stderr, "connect_timeslots [-v] <GTH-IP> <src span> <src ts> <dst span> <dest ts> ...\n"
+  fprintf(stderr,
+	  "connect_timeslots git_head: %s build_hostname: %s\n\n"
+
+	  "connect_timeslots [-v] <GTH-IP> <src span> <src ts> <dst span> <dest ts> ...\n"
 	  "Connect the given timeslot a GTH.\n\n"
           "Multiple sources and sinks can be given. You may want\n"
           "to use 'query_set' to set up L1 before starting.\n\n"
@@ -66,7 +69,8 @@ static void usage()
 	  "Examples:\n"
 	  "./connect_timeslots 172.16.1.10 1A 16 2A 16\n"
 	  "./connect_timeslots 172.16.1.10 1A 1 2A 13  1A 2 3A 1  2A 13 1A 1\n"
-	  "./connect_timeslots 172.16.1.10 1A 16 2A 16  2A 16 1A 16\n");
+	  "./connect_timeslots 172.16.1.10 1A 16 2A 16  2A 16 1A 16\n",
+	  git_head, build_hostname);
   exit(-1);
 }
 

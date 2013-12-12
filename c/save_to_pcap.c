@@ -108,6 +108,8 @@ typedef struct {
 
 void usage() {
   fprintf(stderr,
+	  "save_to_pcap git_head: %s build_hostname: %s\n\n"
+
 	  "save_to_pcap <options> <GTH-IP> <channels> [<channels>...] <filename>"
 	  "\n\nSave decoded MTP-2 signal units to a file in libpcap format, "
 	  "\nsuitable for examining with wireshark, tshark or other network"
@@ -123,7 +125,8 @@ void usage() {
 	  "\n  e.g. 1A 1 2A 2 3A 3 4 monitors timeslot 1 on 1A, 2 on 2A and 3 and 4 on 3A."
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<timeslot> is a timeslot number, from 1 to 31"
-	  "\n<filename> can be -, which means standard output.\n\n");
+	  "\n<filename> can be -, which means standard output.\n\n",
+	  git_head, build_hostname);
 
   fprintf(stderr,
 	  "Examples (on hardware with electrical E1/T1 ports):\n"
@@ -239,8 +242,8 @@ static void open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
 //----------------------------------------------------------------------
 
 // Optical E1/T1: just enable; no special options required.
-static void enable_optical_l1(GTH_api *api, 
-			      const char* span, 
+static void enable_optical_l1(GTH_api *api,
+			      const char* span,
 			      const int monitoring)
 {
   int result;
@@ -255,8 +258,8 @@ static void enable_optical_l1(GTH_api *api,
 }
 
 // Electrical E1: disable TX pins and possibly enable -20dB monitoring
-static void enable_electrical_l1(GTH_api *api, 
-				 const char* span, 
+static void enable_electrical_l1(GTH_api *api,
+				 const char* span,
 				 const int monitoring)
 {
   int result;
@@ -279,19 +282,19 @@ static void enable_electrical_l1(GTH_api *api,
     die("Setting up L1 failed. (-v switch gives more information)");
 }
 
-// Start up L1 on the given span. 
+// Start up L1 on the given span.
 static void enable_l1(GTH_api *api, const char* span, const int monitoring)
 {
   char architecture[10];
   int result;
 
-  result = gth_query_resource_attribute(api, "board", "architecture", 
+  result = gth_query_resource_attribute(api, "board", "architecture",
 					architecture, 10);
   if (result != 0)
     die("Unable to query hardware architecture. Giving up.");
 
   architecture[3] = 0;
-  if (strcmp(architecture, "gth") == 0) 
+  if (strcmp(architecture, "gth") == 0)
     enable_electrical_l1(api, span, monitoring);
   else
     enable_optical_l1(api, span, monitoring);

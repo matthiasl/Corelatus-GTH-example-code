@@ -57,6 +57,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "record git_head: %s build_hostname: %s\n\n"
+
 	  "record [-v] [-T] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Save bit-exact data from a timeslot to a file\n\n"
 	  "-v: print the API commands and responses (verbose)\n"
@@ -64,7 +66,8 @@ static void usage()
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
 	  "<span> is the E1/T1 interface, e.g. '1A'\n"
 	  "<timeslot> is the timeslot, 1--31\n"
-	  "<filename> is the filename to save to\n\n");
+	  "<filename> is the filename to save to\n\n",
+	  git_head, build_hostname);
 
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./record    172.16.1.10 1A 1 my_capture.wav\n\n");

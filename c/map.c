@@ -52,6 +52,8 @@
 static void usage()
 {
   fprintf(stderr,
+	  "map git_head: %s build_hostname: %s\n\n"
+
 	  "map [-v] <GTH-IP> <sdh-resource>\n\n"
 	  "Map an E1/T1 link carried on SDH/SONET. Print the name of the\n"
           "E1/T1 resource created by the mapping.\n\n"
@@ -61,8 +63,8 @@ static void usage()
 	  "<resource> is an SDH/SONET LOP resource\n"
 
 	  "Example:\n"
-	  "./map 172.16.1.10 sdh1:hop1_1:lop1_5_3\n"
-	  );
+	  "./map 172.16.1.10 sdh1:hop1_1:lop1_5_3\n",
+	  git_head, build_hostname);
 
   exit(-1);
 }
