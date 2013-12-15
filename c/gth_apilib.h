@@ -91,8 +91,8 @@ typedef struct {
 } GTH_api;
 
 // For embedding the version into the object file
-extern const char *git_head;
-extern const char *build_hostname;
+extern const char git_head[];
+extern const char build_hostname[];
 
 // Close an API connection to the GTH, cleanly.
 //

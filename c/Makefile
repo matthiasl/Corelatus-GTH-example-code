@@ -55,12 +55,16 @@ ship: version.c
 
 version.c: $(headers)
 	@echo "#include \"gth_apilib.h\"" > $@
-	@echo "const char *git_head = \""$(repo_head)"\";" >> $@
-	@echo "const char *build_hostname = \""$(shell hostname)"\";" >> $@
+	@echo "const char git_head[] = \""$(repo_head)"\";" >> $@
+	@echo "const char build_hostname[] = \""$(shell hostname)"\";" >> $@
 
-%: %.c $(headers) $(common_c_files) version.c
+%: %.c $(headers)
+
+%: %.c $(common_c_files) version.c
 	$(CC) -Wall -g -o $@ $^ $(LIBS)
 
-%.exe: %.c $(headers) $(common_c_files) version.c
+%.exe: %.c $(headers)
+
+%.exe: %.c $(common_c_files) version.c
 	$(CC_WIN32) -Wall -o $@ $^ $(LIBS_WIN32)
 
