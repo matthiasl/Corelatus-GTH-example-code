@@ -177,7 +177,7 @@ sub set {
 
     my $parsed = $self->next_non_event();
 
-    defined $parsed->{"ok"} || die("set failed");
+    expect_xml($parsed, "ok", "set failed");
 }
 
 sub unmap {
@@ -195,7 +195,7 @@ sub unmap {
 sub expect_xml {
     my ($parsed, $expected, $hint) = @_;
 
-    if (defined $parsed->{"ok"}) { 
+    if (defined $parsed->{$expected}) {
          return;
     }
     printf(STDERR "$hint\n");
