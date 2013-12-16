@@ -24,11 +24,17 @@ Example:
 }
 
 # Entry point
+my $verbose = 0;
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift @ARGV;
+}
+
 ($#ARGV == 1) || usage() && die();
 
 my ($host, $resource) = @ARGV;
 
-my $api = new gth_control($host);
+my $api = new gth_control($host, $verbose);
 $api->unmap($resource);
 
 $api->bye();

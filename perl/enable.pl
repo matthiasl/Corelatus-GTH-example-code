@@ -12,12 +12,13 @@ use Data::Dumper;
 
 sub usage() {
     print("
-enable.pl <hostname> <resource> [<attribute> [<value>]]
+enable.pl [-v] <hostname> <resource> [<attribute> [<value>]]
 
   <hostname>: the hostname or IP address of a GTH
-  <resource>:  an SDH/SONET or E1/T1 link on the GTH (hint: 'query inventory')
+  <resource>: an SDH/SONET or E1/T1 link on the GTH (hint: 'query inventory')
  <attribute>: optional, the name of an attribute of the given resource
      <value>: optional, sets the given attribute of the given resource
+          -v: verbose, for debugging
 
 Multiple <attribute> <value> arguments can be given to set multiple attributes.
 
@@ -32,13 +33,19 @@ Examples:
 }
 
 # Entry point
+my $verbose = 0;
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift @ARGV;
+}
+
 ($#ARGV >= 1) || usage() && die();
 
 my $host = $ARGV[0];
 shift @ARGV;
 my $resource = $ARGV[0];
 shift @ARGV;
-my $api = new gth_control($host);
+my $api = new gth_control($host, $verbose);
 
 $api->enable($resource, @ARGV);
 

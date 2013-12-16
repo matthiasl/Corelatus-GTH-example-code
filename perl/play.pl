@@ -12,12 +12,13 @@ use Data::Dumper;
 
 sub usage() {
     print("
-play <hostname> <span> <timeslot> <filename>
+play [-v] <hostname> <span> <timeslot> <filename>
 
   <hostname>: the hostname or IP address of a GTH
       <span>: the name of an E1/T1, e.g. 1A or 4D on a GTH 2.x
   <timeslot>: 1--31 on an E1 or 1--24 on a T1
   <filename>: which file to write the data to. - means stdin
+          -v: verbose, for debugging
 
 Typical invocation: ./play 172.16.1.10 1A 16 signalling.raw
 ");
@@ -42,8 +43,8 @@ sub warn_if_l1_dead {
 }
 
 sub play {
-    my ($host, $span, $timeslot, $file) = @_;
-    my $api = new gth_control($host);
+    my ($host, $span, $timeslot, $file, $verbose) = @_;
+    my $api = new gth_control($host, $verbose);
     warn_if_l1_dead($api, $span);
 
     my ($player_id, $data) = $api->new_player($span, $timeslot);
@@ -73,6 +74,12 @@ sub play {
 }
 
 # Entry point
+my $verbose = 0;
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift @ARGV;
+}
+
 ($#ARGV == 3) || usage() && die();
 
 my $host = $ARGV[0];
@@ -85,5 +92,5 @@ if ($ARGV[3] eq "-") {
     open($file, $ARGV[3]) || die("can't open $ARGV[3]");
 }
 
-play($ARGV[0], $ARGV[1], $ARGV[2], $file);
+play($ARGV[0], $ARGV[1], $ARGV[2], $file, $verbose);
 

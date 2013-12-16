@@ -8,9 +8,12 @@ use Data::Dumper;
 use XML::Simple;   # From CPAN. In Debian it's called libxml-simple-perl
 
 sub new {
-    my ($unused, $gth_ip_or_hostname) = @_;
+    my ($unused, $gth_ip_or_hostname, $verbose) = @_;
     my $self = {};
 
+    $self->{VERBOSE} = $verbose;
+
+    debug($self, "connecting to $gth_ip_or_hostname...");
     # Open a socket to the GTH command socket
     my $sock = new IO::Socket::INET->new(PeerAddr => $gth_ip_or_hostname,
 					 PeerPort => 2089,
@@ -22,6 +25,7 @@ sub new {
     $self->{MY_IP} = inet_ntoa($ia);
 
     bless($self);
+    $self->debug("...connected OK");
 
     return $self;
 }
@@ -33,6 +37,14 @@ sub bye {
     my $parsed = $self->next_non_event();
 
     expect_xml($parsed, "ok", "bye failed");
+}
+
+sub debug {
+    my ($self, $info) = @_;
+
+    if ($self->{VERBOSE}) {
+	print STDERR $info, "\n";
+    }
 }
 
 sub delete {
@@ -79,7 +91,7 @@ sub new_mtp2_monitor {
 		"<pcm_source span='$span' timeslot='$timeslot'/>".
 		"</mtp2_monitor></new>");
 
-    my $data_socket = $listen_socket->accept();
+    my $data_socket = $self->accept($listen_socket);
     my $job_id = parse_job_id($self->next_non_event());
 
     return ($job_id, $data_socket);
@@ -97,7 +109,7 @@ sub new_player {
 		"<pcm_sink span='$span' timeslot='$timeslot'/>".
 		"</player></new>");
 
-    my $data_socket = $listen_socket->accept();
+    my $data_socket = $self->accept($listen_socket);
     my $job_id = parse_job_id($self->next_non_event());
 
     return ($job_id, $data_socket);
@@ -116,7 +128,7 @@ sub new_recorder {
 		"</recorder></new>");
 
 
-    my $data_socket = $listen_socket->accept();
+    my $data_socket = $self->accept($listen_socket);
     my $job_id = parse_job_id($self->next_non_event());
 
     return ($job_id, $data_socket);
@@ -192,6 +204,16 @@ sub unmap {
 
 #-- Internal functions.
 
+sub accept {
+    my ($self, $listen) = @_;
+
+    $self->debug("waiting for accept...");
+    my $s = $listen->accept();
+    $self->debug("...accepted");
+
+    return $s;
+}
+
 sub expect_xml {
     my ($parsed, $expected, $hint) = @_;
 
@@ -226,6 +248,7 @@ sub send {
 
     if (! defined($type)) {
 	$type = "text/xml";
+	$self->debug("API command: $data");
     }
 
     $s->send("Content-type: $type\r\n");
@@ -245,6 +268,7 @@ sub receive_raw {
     my $length = $1;
 
     read($s, my $buffer, $length);
+    $self->debug("XML: $buffer");
 
     length($buffer) == $length || die("definite_read got a short read");
 

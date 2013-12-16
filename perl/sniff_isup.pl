@@ -16,10 +16,11 @@ use Data::Dumper;
 
 sub usage() {
     print("
-    sniff_isup.pl <hostname> <span> <timeslot>
+    sniff_isup.pl [-v] <hostname> <span> <timeslot>
        <hostname>: the hostname or IP address of a GTH
            <span>: the name of an E1/T1, e.g. 1A or 4D on a GTH 2.x
        <timeslot>: 1--31 on an E1 or 1--24 on a T1
+               -v: verbose; print debug information
 
 Typical invocation: ./sniff_isup.pl 172.16.1.10 1A 16
 ");
@@ -141,17 +142,18 @@ sub isup_ignore {
 }
 
 sub monitor_mtp2 {
-    my ($host, $span, $timeslot) = @_;
+    my ($host, $span, $timeslot, $verbose) = @_;
 
-    my $api = gth_control->new($host);
+    my $api = gth_control->new($host, $verbose);
 
     warn_if_l1_dead($api, $span);
 
     my ($mtp2_id, $data) = $api->new_mtp2_monitor($span, $timeslot);
 
-
     while (1) {
+	$api->debug("waiting for a packet...");
 	read($data, my $b, 2);
+	$api->debug("...got a header");
 	my $length = unpack("n", $b);
 	read($data, my $packet, $length);
 	decode_mtp2($packet);
@@ -164,9 +166,15 @@ sub monitor_mtp2 {
 }
 
 # Entry point
+my $verbose = 0;
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift @ARGV;
+}
+
 if ($#ARGV + 1 != 3) {
     usage();
     die();
 }
 
-monitor_mtp2($ARGV[0], $ARGV[1], $ARGV[2]);
+monitor_mtp2($ARGV[0], $ARGV[1], $ARGV[2], $verbose);
