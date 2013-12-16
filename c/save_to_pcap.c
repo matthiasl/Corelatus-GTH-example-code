@@ -821,15 +821,16 @@ process_arguments(char **argv,
 		  char **hostname,
 		  Channel_t channels[],
 		  int *n_channels,
-		  char **base_filename)
+		  char **base_filename,
+                  enum PCap_format *format)
 {
   int current_arg;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
-    case 'm': *monitoring = 1; break;
+    case 'c': *format = PCAP_CLASSIC; break;
 
-    case 'v': *verbose = 1; break;
+    case 'm': *monitoring = 1; break;
 
     case 'n':
       if (argc < 3) {
@@ -840,6 +841,8 @@ process_arguments(char **argv,
 	argv++;
       }
       break;
+
+    case 'v': *verbose = 1; break;
 
     default: usage();
     }
@@ -896,7 +899,7 @@ main(int argc, char **argv)
 
   process_arguments(argv, argc,
 		    &monitoring, &verbose, &n_sus_per_file, &hostname,
-		    channels, &n_channels, &base_filename);
+		    channels, &n_channels, &base_filename, &format);
 
   result = gth_connect(&api, hostname, verbose);
   if (result != 0) {
