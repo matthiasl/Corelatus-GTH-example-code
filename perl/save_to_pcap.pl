@@ -91,6 +91,7 @@ sub monitor_mtp2 {
     } else {
 	open($file, ">", $filename) || die("can't open $filename");
     }
+    binmode($file);
 
     write_pcap_global_header($file);
 
@@ -120,6 +121,7 @@ sub monitor_mtp2 {
 	print $file $pcap_packet_header;
 	my $payload = substr($packet, 10);  # strip the GTH header
 	print $file $payload;
+	$file->flush();
     }
 
     $api->delete($mtp2_id);
