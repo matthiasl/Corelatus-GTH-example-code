@@ -190,9 +190,9 @@ usage() {
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 1B 5 6 7 8 capture.pcapng\n"
 	  "./save_to_pcap -m 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
 	  "./save_to_pcap -m -n 1000 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
-	  "./save_to_pcap 172.16.1.10 1A 2A 16 - | tshark -V -i - \n"
-	  "./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n"
-	  "./save_to_pcap 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
+	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 - | tshark -V -i - \n"
+	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n"
+	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
 
   fprintf(stderr,
 	  "\nExamples (on SDH/SONET hardware, usually optical):\n"
