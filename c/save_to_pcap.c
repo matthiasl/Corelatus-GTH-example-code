@@ -55,6 +55,7 @@
 #include <windows.h>
 #else
 #include <sys/socket.h>
+#include <sys/select.h>
 #include <arpa/inet.h>
 #endif // WIN32
 
@@ -658,11 +659,63 @@ write_packet(HANDLE_OR_FILEPTR file,
   }
 }
 
+static int
+is_filename_a_pipe(const char *name)
+{
+  const char pipe_prefix[] = "\\\\.\\pipe\\";
+  return (strncmp(pipe_prefix, name, strlen(pipe_prefix)) == 0);
+}
+
+// windows.h has a max() function. On *nix, sys/param.h has a MAX macro
+// We write our own to avoid confusion.
+static int
+max_arg(int a, int b)
+{
+  return (a > b)?a:b;
+}
+
+
+
+// Block (or loop) until a packet arrives. Flush API events with <nop/>
+static void
+wait_for_packet(GTH_api *api, int data_socket)
+{
+  fd_set fds;
+  int result;
+  int nfds = max_arg(api->fd, data_socket) + 1;
+
+  FD_ZERO(&fds);
+
+  for (;;)
+    {
+      FD_SET(api->fd, &fds);
+      FD_SET(data_socket, &fds);
+
+      result = select(nfds, &fds, 0, 0, 0);
+
+      if (result == -1 || result == 0)
+	{
+	  die("internal error---select() returned -1 or 0");
+	}
+
+      if (FD_ISSET(api->fd, &fds))
+	{
+	  gth_nop(api);
+	}
+
+      if (FD_ISSET(data_socket, &fds))
+	{
+	  return;
+	}
+    }
+}
+
 #define MAX_FILENAME 100
 
 // Loop forever, converting the incoming GTH data to libpcap format
 static void
-convert_to_pcap(int data_socket,
+convert_to_pcap(GTH_api *api,
+		int data_socket,
 		const char *base_name,
 		const int n_sus_per_file,
 		Channel_t channels[],
@@ -675,11 +728,10 @@ convert_to_pcap(int data_socket,
   int file_number = 1;
   HANDLE_OR_FILEPTR file;
   int write_to_stdout = 0;
-  const char pipe_prefix[] = "\\\\.\\pipe\\";
   int write_to_pipe;
 
   write_to_stdout = (strcmp(base_name, "-") == 0);
-  write_to_pipe = (strncmp(pipe_prefix, base_name, strlen(pipe_prefix)) == 0);
+  write_to_pipe = is_filename_a_pipe(base_name);
 
   while (1) {
     char filename[MAX_FILENAME];
@@ -712,6 +764,7 @@ convert_to_pcap(int data_socket,
 	    || n_sus_per_file == 0
 	    || (su_count++ < n_sus_per_file) )
       {
+	wait_for_packet(api, data_socket);
 	read_exact(data_socket, (void*)&length, sizeof length);
 	length = ntohs(length);
 	assert(length <= sizeof signal_unit);
@@ -919,7 +972,7 @@ main(int argc, char **argv)
   }
 
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(data_socket, base_filename, n_sus_per_file,
+  convert_to_pcap(&api, data_socket, base_filename, n_sus_per_file,
 		  channels, n_channels, format);
 
   return 0; // not reached
