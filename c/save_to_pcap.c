@@ -446,7 +446,7 @@ write_pcap_classic_header(HANDLE_OR_FILEPTR file)
 #define MAX_HW_DESCRIPTION 400
 char hw_description[MAX_HW_DESCRIPTION];
 
-void 
+void
 read_hw_description(GTH_api *api, const char *hostname)
 {
   int result;
@@ -458,7 +458,7 @@ read_hw_description(GTH_api *api, const char *hostname)
     die("Unable to query hardware architecture. Giving up.");
 
   result = snprintf(hw_description, MAX_HW_DESCRIPTION,
-		    "save_to_pcap (Corelatus %s %s)", 
+		    "save_to_pcap (Corelatus %s %s)",
 		    architecture, hostname);
   if (result >= MAX_HW_DESCRIPTION)
     die("Hardware description is too long");
@@ -479,10 +479,10 @@ write_pcap_ng_shb(HANDLE_OR_FILEPTR file)
   PCap_NG_option end_of_options = {0, 0};
   userappl.length = strlen(hw_description);
 
-  btl = sizeof(PCap_NG_shb) 
-      + sizeof(userappl) + round_up_32_bit(userappl.length)
-      + sizeof(end_of_options)
-      + sizeof(shb.block_total_length);
+  btl = sizeof(PCap_NG_shb)
+    + sizeof(userappl) + round_up_32_bit(userappl.length)
+    + sizeof(end_of_options)
+    + sizeof(shb.block_total_length);
 
   shb.type                  = 0x0A0D0D0A;
   shb.block_total_length    = btl;
@@ -686,21 +686,21 @@ convert_to_pcap(int data_socket,
 
     if (!write_to_stdout && !write_to_pipe)
       {
-      snprintf(filename, MAX_FILENAME, "%s.%d",
-	       base_name, file_number);
-      open_file_for_writing(&file, filename);
-      fprintf(stderr, "saving to file %s\n", filename);
-    }
+	snprintf(filename, MAX_FILENAME, "%s.%d",
+		 base_name, file_number);
+	open_file_for_writing(&file, filename);
+	fprintf(stderr, "saving to file %s\n", filename);
+      }
     else if (write_to_stdout)
       {
-      file = stdout_handle_or_file();
-      fprintf(stderr, "saving capture to stdout\n");
-    }
+	file = stdout_handle_or_file();
+	fprintf(stderr, "saving capture to stdout\n");
+      }
     else
       {
-      fprintf(stderr, "saving capture to a windows named pipe\n");
-      file = open_windows_pipe(base_name);
-    }
+	fprintf(stderr, "saving capture to a windows named pipe\n");
+	file = open_windows_pipe(base_name);
+      }
 
     write_pcap_global_header(file, format, channels, n_channels);
 
