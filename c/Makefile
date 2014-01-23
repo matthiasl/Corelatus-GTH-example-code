@@ -44,7 +44,7 @@ unix: $(target_basenames)
 win32: $(win_targets)
 
 clean:
-	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos version.h
+	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos version.c
 
 ship: version.c
 	make clean
@@ -53,7 +53,7 @@ ship: version.c
 	sed -e 's/$$/\r/g' < README.unix > README.txt
 	zip gth_c_examples *.c *.h NMakefile Makefile audio/* README.* *.exe
 
-version.c: $(headers)
+version.c:
 	@echo "#include \"gth_apilib.h\"" > $@
 	@echo "const char git_head[] = \""$(repo_head)"\";" >> $@
 	@echo "const char build_hostname[] = \""$(shell hostname)"\";" >> $@
