@@ -46,9 +46,6 @@
 // Cases 1 & 2
 #else
 
-// Workalike for Microsoft's variant of fopen()
-int fopen_s(FILE **file, const char *filename, const char *mode);
-
 // GCC's pack pragma is a suffix, which is a bit messy.
 #define PACK_SUFFIX __attribute__((__packed__))
 
@@ -57,11 +54,6 @@ int fopen_s(FILE **file, const char *filename, const char *mode);
 //----------------------------------------------------------------------
 // Case 2
 #if ( !defined(_MSC_VER) && defined(WIN32))
-// Microsoft's sockets API has different names to the normal API, but
-// only if we're cross compiling. (why?)
-#define ENETUNREACH WSAENETUNREACH
-#define ENOTSOCK    WSAENOTSOCK
-
 #define HANDLE_OR_FILEPTR HANDLE
 #endif
 //----------------------------------------------------------------------
@@ -69,4 +61,6 @@ int fopen_s(FILE **file, const char *filename, const char *mode);
 #ifndef WIN32
 #define closesocket close
 #define HANDLE_OR_FILEPTR FILE*
+// Workalike for Microsoft's variant of fopen()
+int fopen_s(FILE **file, const char *filename, const char *mode);
 #endif

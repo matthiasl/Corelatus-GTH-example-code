@@ -1583,9 +1583,9 @@ void win32_specific_startup() {
   return;
 }
 
-#ifndef _MSC_VER
-// Microsoft use a "more secure" variant of fopen(). So if we're not using
-// a Microsoft compiler, provide a workalike:
+#ifndef WIN32
+// Microsoft use a "more secure" variant of fopen(). So, if we're using
+// gcc for a non-windows target, provide a workalike:
 int fopen_s(FILE **file, const char *filename, const char *mode)
 {
   *file = fopen(filename, mode);
