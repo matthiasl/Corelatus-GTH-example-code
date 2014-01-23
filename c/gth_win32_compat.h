@@ -6,7 +6,7 @@
 //    Case 3. visual studio 2010 native compiling on win32
 //
 //
-// There are three sources of problems
+// Sources of problems
 //
 //    A. GNU and Microsoft have fixed strcat/strcpy and friends in different
 //       ways with different names and different argument orders.
@@ -24,6 +24,9 @@
 //       GNU use __attribute__((__packed__)) but also support Microsoft's
 //       pragma, but it's unclear whether they always will; GNU don't
 //       seem to think the #pragma approach is a good idea.
+//
+//    D. Linux (and other *nix, not sure) have a 'z' format modifier
+//       for printing size_t. Windows doesn't.
 //
 //
 
@@ -63,4 +66,8 @@
 #define HANDLE_OR_FILEPTR FILE*
 // Workalike for Microsoft's variant of fopen()
 int fopen_s(FILE **file, const char *filename, const char *mode);
+#define SIZE_T_FORMAT "%zu"
+#else
+// Cases 2 and 3
+#define SIZE_T_FORMAT "%Iu"
 #endif
