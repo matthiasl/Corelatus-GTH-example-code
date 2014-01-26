@@ -588,9 +588,9 @@ static void write_classic_packet_header(HANDLE_OR_FILEPTR file,
 
   assert(sizeof ts_sec == 8);
 
-  ts_us = ntohs(timestamp_hi);
+  ts_us = timestamp_hi;
   ts_us <<= 32;
-  ts_us += ntohl(timestamp_lo);
+  ts_us += timestamp_lo;
 
   ts_sec = ts_us / 1000;
   ts_us = (ts_us % 1000) * 1000;
