@@ -311,20 +311,40 @@ int gth_wait_for_accept(int listen_socket)
   return data_socket;
 }
 
-// We're expecting an install-complete event, wait for it
-//
+// Return 1 if the given resp is an 'install_done' event, 0 otherwise.
+static int is_install_done_event(GTH_resp *resp)
+{
+    GTH_resp *child;
+
+    if (resp->type != GTH_RESP_EVENT)
+      return 0;
+
+    assert(resp->n_children == 1);
+
+    child = resp->children + 0;
+
+    if (child->type == GTH_RESP_INFO) {
+      if (!strcmp("install_done", attribute_value(child, "reason"))) {
+	return 1;
+      }
+    }
+
+    return 0;
+}
+
+
 // Return: 0 on success
-static int gth_wait_for_install_complete(GTH_api *api)
+static int gth_wait_for_install_complete(GTH_api *api, int need_install_done)
 {
   char buffer[MAX_COMMAND];
   int result;
   GTH_resp *resp = 0;
+  int looking_for_ok = 1;
+  int looking_for_install_done = need_install_done;
 
   assert(api);
 
   for (;;) {
-    GTH_resp *child;
-
     result = next_api_response(api, buffer, sizeof(buffer));
     if (result != 0) {
       return -1;
@@ -335,25 +355,28 @@ static int gth_wait_for_install_complete(GTH_api *api)
     if (resp == 0) {
       return -1;
     }
-    assert(resp->type == GTH_RESP_EVENT);
-    assert(resp->n_children == 1);
 
-    child = resp->children + 0;
-
-    if (child->type == GTH_RESP_INFO) {
-      if (!strcmp("install_done", attribute_value(child, "reason"))) {
-	gth_free_resp(resp);
-	return 0;
+    if (is_install_done_event(resp))
+      looking_for_install_done = 0;
+    else
+      {
+	assert(api->event_handler);
+	if (resp->type == GTH_RESP_EVENT)
+	  (*api->event_handler)(api, resp);
+	else if (resp->type == GTH_RESP_OK)
+	  looking_for_ok = 0;
+	else
+	  {
+	    gth_print_tree(resp);
+	    gth_free_resp(resp);
+	    return -1;
+	  }
       }
-      else {
-	gth_print_tree(resp);
-	gth_free_resp(resp);
-	return -1;
-      }
-    }
 
-    assert(api->event_handler);
-    (*api->event_handler)(api, resp);
+    gth_free_resp(resp);
+
+    if (!looking_for_install_done && !looking_for_ok)
+      return 0;
   }
 
   return 0;
@@ -414,7 +437,8 @@ int gth_install(GTH_api *api,
 		const int length)
 {
   char buffer[MAX_COMMAND];
-  GTH_resp *resp;
+  int result;
+  int is_firmware_install = !strcmp(type, "binary/filesystem");
 
   assert(api);
 
@@ -422,22 +446,9 @@ int gth_install(GTH_api *api,
   api_write(api, buffer);
   api_write_non_xml(api->fd, type, data, length);
 
-  if (check_api_response(api, GTH_RESP_OK, &resp))
-    {
-      if (resp)
-	{
-	  gth_print_tree(resp);
-	  gth_free_resp(resp);
-	}
-      return -1;
-    }
+  result = gth_wait_for_install_complete(api, is_firmware_install);
 
-  // Upgrades send an <info> when they're really complete.
-  if (!strcmp(type, "binary/filesystem")) {
-    gth_wait_for_install_complete(api);
-  }
-
-  return 0;
+  return result;
 }
 
 int gth_new_cas_r2_mfc_detector(GTH_api *api,
