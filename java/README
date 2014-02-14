@@ -2,54 +2,65 @@ Title: example code showing how to create a client API
 Author: Matthias (matthias@corelatus.com)
 ----------------------------------------------------------------------
 
-Before you start, you need
+This is Java sample code to help you get started with the GTH API.
 
-  - GNU make or equivalent
+  https://github.com/matthiasl/Corelatus-GTH-example-code
 
-  - A java compiler and VM. We use Sun's JDK 6.
+It includes a firmware installer, a basic GTH API library and a
+couple of demo programs for MTP-2 signalling.
 
-  - The XERCES parser and support libraries. You have a few options:
 
-       + if you have JDK 1.4 or later, you already have the necessary files
+Firmware installer
+------------------
 
-       + if you're using Debian linux, install libxerces-java and
-         libxalan-java
-
-       + otherwise, you can download the jarfiles from the apache
-         project. At a minimum, you need xalan.jar and xerces.jar
-
-  - To make sure the corelatus and xerces jar files are in your
-    classpath, e.g. if you use bash:
-
-     export CLASSPATH=xalan.jar:xerces.jar:gth_upgrade.jar
-
-Once that's sorted out, build the system with 'make'.
-
-What you get is
-
-   1. A package (corelatus.gth.*) which simplifies connecting
-      to the GTH and getting the XML parser to parse responses.
-
-   2. An installer to upgrade the software on the GTH. This is
-      what it looks like when running:
+  Here's a typical run of the firmware installer just showing which
+  firmware is installed:
 
      java -classpath gth_upgrade.jar:$CLASSPATH corelatus.gth.install 172.16.2.7
      System: gth2_system_32c. Failsafe: gth2_failsafe_9
      Currently running image: system
 
-   3. Demo code which demonstrates fault tolerance in the MTP-2
-      monitoring system: mtp2_api.java and mtp2_receiver.java.
 
-   4. Logging code which demonstrates a periodically sampling
-      L1 and L2 counters: timeseries.java
+  With an extra argument---a firmware file---it installs new firmware.
 
-Problems? Fixes? Questions? Send us some mail. Please keep
-in mind that this is sample code: we don't claim it's robust.
 
---------------------
-Changelog
----------
+A starting point for building Java applications which talk to a GTH
+-------------------------------------------------------------------
 
-  17. September 2004: eliminated use of deprecated thread::stop()
+  The corelatus.gth.* package simplifies connecting
+  to the GTH and getting the XML parser to parse responses.
 
-  29. Jan 2009: Updated the code to compile cleanly with Sun's JDK6
+
+MTP-2 monitoring demo
+---------------------
+
+   See mtp2_api.java and mtp2_receiver.java.
+
+
+Logging demo
+------------
+
+   'timeseries.java' demonstrates periodically logging L1 and L2 counters.
+
+
+
+Building the code from source
+-----------------------------
+
+  You need:
+
+  - GNU make or equivalent
+
+  - A java compiler and VM. We use Sun's JDK 6.
+
+  - The XERCES parser and support libraries. Included in JDK 1.4 and later.
+    On Debian, it's libxerces-java and libxalan-java
+
+  - A classpath with xerces in it, e.g.:
+
+     export CLASSPATH=xalan.jar:xerces.jar:gth_upgrade.jar
+
+  Once that's sorted out, build the system with 'make'.
+
+
+---eof---

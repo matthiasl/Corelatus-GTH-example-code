@@ -200,33 +200,43 @@ public class install {
 	c.send_command("<install name='" + system + "'/>");
 	c.send_binary("binary/filesystem", image, length);
 
-	Element ok = c.next_non_event();
-	if (ok.getNodeName().equals("ok"))
-	    wait_for_completed();
-	else
-	    fail(ok);
+	wait_for_ok_and_install_done();
 	w.die();
     }
 
-    // An install is fully completed when we get an "install_done" event
-    private void wait_for_completed() throws IOException
+    // An install is fully completed when we get both an <ok> and an
+    // "install_done" event. The order is undefined.
+    private void wait_for_ok_and_install_done() throws IOException
     {
-	Element e = c.next_reply(true);
-	if (e == null) die("response was empty");
+	boolean waiting_for_ok = true;
+	boolean waiting_for_event = true;
+	
+	while (waiting_for_ok || waiting_for_event) {
+	    Element e = c.next_reply(true);
+	    
+	    if (e == null) die("response was empty");
 
-	if (e.getNodeName().equals("event")) {
-	    Node i = e.getChildNodes().item(0);
-	    if (i != null && i.getNodeName().equals("info")) {
-		Node attr = i.getAttributes().item(0);
-		if (attr != null) {
-		    if (attr.getNodeValue().equals("install_done")) return;
-		    if (attr.getNodeValue().equals("install_failed"))
-			die("install failed");
+	    String name = e.getNodeName();
+	    
+	    if (name.equals("ok"))
+		waiting_for_ok = false;
+
+	    else if (name.equals("event")) {
+		Node i = e.getChildNodes().item(0);
+		if (i != null && i.getNodeName().equals("info")) {
+		    Node attr = i.getAttributes().item(0);
+		    if (attr != null) {
+			String value = attr.getNodeValue();
+			
+			if (value.equals("install_done"))
+			    waiting_for_event = false;
+
+			if (value.equals("install_failed"))
+			    die("install failed");
+		    }
 		}
 	    }
 	}
-
-	wait_for_completed();
     }
 
     public static void die(String reason) {
