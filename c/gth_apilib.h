@@ -262,6 +262,18 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port);
 
+// Start MTP-2 monitoring, with non-default options. The options are
+// key/value pairs exactly as per the API manual, for instance
+// option.name = "fisu"; option.value = "no".
+int gth_new_mtp2_monitor_opt(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslot,
+			     char *job_id,
+			     const char *ip,
+			     const int port,
+			     const GTH_attribute *options,
+			     const int n_options);
 
 // Return: the file descriptor (>= 0) on success.
 //

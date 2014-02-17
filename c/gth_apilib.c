@@ -382,6 +382,46 @@ static int gth_wait_for_install_complete(GTH_api *api, int need_install_done)
   return 0;
 }
 
+static int kv_to_tags(char *buffer,
+		      const size_t buflen,
+		      const GTH_attribute *attributes,
+		      int n)
+{
+  int used = 0;
+
+  *buffer = 0;
+
+  while (attributes && n > 0) {
+    used += snprintf(buffer + used, buflen - used,
+		     "<attribute name='%s' value='%s'/>",
+		     attributes->key, attributes->value);
+    n--;
+    attributes++;
+  }
+
+  return used;
+}
+
+static int kv_to_attributes(char *buffer,
+			    const size_t buflen,
+			    const GTH_attribute *attributes,
+			    int n)
+{
+  int used = 0;
+
+  *buffer = 0;
+
+  while (attributes && n > 0) {
+    used += snprintf(buffer + used, buflen - used,
+		     " %s='%s'",
+		     attributes->key, attributes->value);
+    n--;
+    attributes++;
+  }
+
+  return used;
+}
+
 // Internal; used by both gth_enable and gth_set
 static int gth_enable_or_set(const char *command,
 			     GTH_api *api,
@@ -397,13 +437,8 @@ static int gth_enable_or_set(const char *command,
 
   used = snprintf(buffer, MAX_COMMAND, "<%s name='%s'>", command, resource);
 
-  while (attributes && n_attributes > 0) {
-    used += snprintf(buffer + used, MAX_COMMAND - used,
-		     "<attribute name='%s' value='%s'/>",
-		     attributes->key, attributes->value);
-    n_attributes--;
-    attributes++;
-  }
+  used += kv_to_tags(buffer + used, MAX_COMMAND - used,
+		     attributes, n_attributes);
 
   used += snprintf(buffer + used, MAX_COMMAND - used, "</%s>", command);
 
@@ -590,17 +625,35 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port)
 {
+  return gth_new_mtp2_monitor_opt(api, tag, span, ts, job_id, ip, port, 0, 0);
+}
+
+
+int gth_new_mtp2_monitor_opt(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int ts,
+			     char *job_id,
+			     const char *ip,
+			     const int port,
+			     const GTH_attribute *options,
+			     const int n_options)
+{
   char command[MAX_COMMAND];
+  char attributes[MAX_COMMAND];
   int result;
   const char* template;
 
   assert(ts > 0 && ts < 32);
 
-  template = "<new><mtp2_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+  result = kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
+
+  template = "<new><mtp2_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
     "<pcm_source span='%s' timeslot='%d'/>"
     "</mtp2_monitor></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, ip, port, tag, span, ts);
+  result = snprintf(command, MAX_COMMAND, template,
+		    attributes, ip, port, tag, span, ts);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
