@@ -169,10 +169,11 @@ usage() {
 	  "\n\nSave decoded MTP-2 signal units to a file in libpcap format, "
 	  "\nsuitable for examining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
-	  "\n<options>: [-c] [-m] [-v] [-n <count>]"
+	  "\n<options>: [-c] [-f fisu=no] [-m] [-n <count>] [-v]"
+	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
+	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <count>: rotate the output file after <count> packets, 0 means never"
-	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<channels> is a list of spans and timeslots:"
@@ -381,15 +382,25 @@ monitor_mtp2(GTH_api *api,
 	     const char *span,
 	     int timeslot,
 	     int tag,
+	     int drop_fisus,
 	     int listen_port,
 	     int listen_socket
 	     )
 {
   int result;
   char job_id[MAX_JOB_ID];
+  GTH_attribute attrs[1];
+  int n_attrs = 0;
 
-  result = gth_new_mtp2_monitor(api, tag, span, timeslot,
-				job_id, api->my_ip, listen_port);
+  if (drop_fisus) {
+    attrs[0].key = "fisu";
+    attrs[0].value = "no";
+    n_attrs = 1;
+  }
+
+  result = gth_new_mtp2_monitor_opt(api, tag, span, timeslot,
+				    job_id, api->my_ip, listen_port,
+				    attrs, n_attrs);
   if (result != 0)
     die("Setting up MTP2 monitoring failed. (-v gives more information)");
 
@@ -871,6 +882,7 @@ process_arguments(char **argv,
 		  int *monitoring,
 		  int *verbose,
 		  int *n_sus_per_file,
+		  int *drop_fisus,
 		  char **hostname,
 		  Channel_t channels[],
 		  int *n_channels,
@@ -882,6 +894,15 @@ process_arguments(char **argv,
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'c': *format = PCAP_CLASSIC; break;
+
+    case 'f':
+      if (argc < 3 || strcmp("fisu=no", argv[2])) {
+	usage();
+      }
+      *drop_fisus = 1;
+      argc--; // consume 'fisu=no'
+      argv++;
+      break;
 
     case 'm': *monitoring = 1; break;
 
@@ -938,6 +959,7 @@ main(int argc, char **argv)
   int i;
   int n_channels = 0;
   int n_sus_per_file = 0;
+  int drop_fisus = 0;
   int listen_port = 0;
   int listen_socket = -1;
   enum PCap_format format = PCAP_NG;
@@ -951,8 +973,8 @@ main(int argc, char **argv)
   win32_specific_startup();
 
   process_arguments(argv, argc,
-		    &monitoring, &verbose, &n_sus_per_file, &hostname,
-		    channels, &n_channels, &base_filename, &format);
+		    &monitoring, &verbose, &n_sus_per_file, &drop_fisus,
+		    &hostname, channels, &n_channels, &base_filename, &format);
 
   result = gth_connect(&api, hostname, verbose);
   if (result != 0) {
@@ -965,7 +987,7 @@ main(int argc, char **argv)
   listen_socket = gth_make_listen_socket(&listen_port);
   for (i = 0; i < n_channels; i++){
     monitor_mtp2(&api, channels[i].pcm, channels[i].timeslot,
-		 i, listen_port, listen_socket);
+		 i, drop_fisus, listen_port, listen_socket);
     if (i == 0) {
       data_socket = gth_wait_for_accept(listen_socket);
     }
