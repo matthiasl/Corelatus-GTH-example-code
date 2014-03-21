@@ -1630,6 +1630,7 @@ flush(Pid) ->
 
 get_text_trailer(S, Name) ->
     case lists:member(Name, ["application_log", "application_log_recent",
+			     "start_script",
 			     "system_log", "system_log_recent",
 			     "standby_application_log",
 			     "standby_system_log"]) of
