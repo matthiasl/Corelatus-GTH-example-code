@@ -1280,7 +1280,7 @@ handle_call({update, ID, KVs}, _From, State) ->
 		],
     case lists:keyfind(string:substr(ID, 1, 4), 1, Job_types) of
 	false ->
-	    {reply, bogus_job, State};
+	    {reply, {error, bogus_job}, State};
 
 	{_, Job_type} ->
 	    send_xml(State, xml:tag("update", [],
