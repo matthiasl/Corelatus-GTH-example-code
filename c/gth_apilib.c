@@ -245,6 +245,14 @@ int gth_bye(GTH_api *api)
   return single_arg_ok_response(api, "<bye/>%s", "");
 }
 
+// Delete a job.
+//
+// Return: 0 on success
+int gth_delete(GTH_api *api, const char *job_id)
+{
+  return single_arg_ok_response(api, "<delete id='%s'/>", job_id);
+}
+
 int gth_make_listen_socket(int* port)
 {
   int s = -1;

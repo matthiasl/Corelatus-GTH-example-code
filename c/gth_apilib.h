@@ -134,6 +134,10 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id);
 // Print message and abort
 void die(const char *message);
 
+// Delete a job.
+//
+// Return: 0 on success
+int gth_delete(GTH_api *api, const char *job_id);
 
 // Disable an SDH/SONET or an E1/T1 interface
 //
