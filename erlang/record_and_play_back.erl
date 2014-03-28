@@ -61,7 +61,7 @@ copy_to_file(_Data, F, 0) ->
     ok = file:close(F);
 
 copy_to_file(Data, F, Octets) when Octets > 0 ->
-    Read = lists:min([Octets, 8000]),
+    Read = min(Octets, 8000),
     {ok, Bin} = gen_tcp:recv(Data, Read),
     ok = file:write(F, Bin),
     copy_to_file(Data, F, Octets - Read).
