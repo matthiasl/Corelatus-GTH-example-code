@@ -813,8 +813,11 @@ is_span_name(char *arg)
 static void
 print_channels(Channel_t *channels, int n)
 {
-  while (n-- > 0) {
-    fprintf(stderr, "monitoring %s:%d\n", channels->pcm, channels->timeslot);
+  int x;
+
+  for (x = 0; x < n; x++) {
+    fprintf(stderr, "monitoring %s:%d, interface_id=%d\n",
+	    channels->pcm, channels->timeslot, x);
     channels++;
   }
 }
