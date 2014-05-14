@@ -66,7 +66,7 @@ static void usage()
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
 	  "<span> is the E1/T1 interface, e.g. '1A'\n"
 	  "<timeslot> is the timeslot, 1--31\n"
-	  "<filename> is the filename to save to\n\n",
+	  "<filename> is the filename to save to. '-' means standard output\n\n",
 	  git_head, build_hostname);
 
   fprintf(stderr, "Typical use:\n");
@@ -172,10 +172,14 @@ static void record_a_file(GTH_api *api,
     exit(-1);
   }
 
-  fopen_s(&file, filename, "wb");
-  if (file == 0) {
-    fprintf(stderr, "unable to open %s, aborting\n", filename);
-    exit(-1);
+  if ( strcmp(filename, "-") == 0 ) {
+    file = stdout;
+  } else {
+    fopen_s(&file, filename, "wb");
+    if (file == 0) {
+      fprintf(stderr, "unable to open %s, aborting\n", filename);
+      exit(-1);
+    }
   }
 
   possibly_prepend_wav_header(filename, file, mulaw);
