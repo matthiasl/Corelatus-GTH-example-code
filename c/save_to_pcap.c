@@ -65,6 +65,7 @@
 // Types used for fixed-length packets. These typedefs are checked at runtime.
 typedef unsigned int u32;
 typedef unsigned short u16;
+typedef unsigned char u8;
 
 //--------------------------------------------------
 // PCap classic file format structures.
@@ -126,6 +127,46 @@ typedef struct {
   u32 packet_len;
 } PACK_SUFFIX PCap_NG_epb;
 
+//--------------------------------------------------
+// EEP packet header structures. EEP is an internet draft, dated Aug. 2013.
+#pragma pack(1)
+typedef struct {
+  u32 eep_id;
+  u16 total_length;
+} PACK_SUFFIX EEP_header;
+
+#pragma pack(1)
+typedef struct {
+  u16 vendor;
+  u16 type;
+  u16 length;
+  u8  payload;
+} PACK_SUFFIX EEP_chunk_u8;
+
+typedef struct {
+  u16 vendor;
+  u16 type;
+  u16 length;
+  u32  payload;
+} PACK_SUFFIX EEP_chunk_u32;
+
+typedef struct {
+  u16 vendor;
+  u16 type;
+  u16 length;
+} PACK_SUFFIX EEP_chunk_variable;
+
+#define EEP_PROTOCOL_TYPE    0x0b    // table 3.2.1
+#define EEP_TIMESTAMP_S      0x09    // table 3.2.1
+#define EEP_TIMESTAMP_US     0x0a    // table 3.2.1
+#define EEP_CAPTURE_AGENT_ID 0x0c    // table 3.2.1
+#define EEP_PAYLOAD          0x0f    // table 3.2.1
+
+#define EEP_PROTOCOL_MTP2    0x08    // table 3.2.2
+
+#define EEP_MAGIC         0x45455031  // table 3.1.1
+
+//----------------------------------------------------------------------
 // GTH socket structure. An SS7 MTP-2 signal unit can't be more than
 // 279 octets long according to Q.703.
 #define MAX_SIGNAL_UNIT 300
@@ -149,7 +190,10 @@ typedef struct {
   char payload[MAX_SIGNAL_UNIT];
 } GTH_mtp2;
 
-enum PCap_format { PCAP_CLASSIC, PCAP_NG };
+enum output_format { PCAP_CLASSIC,
+		     PCAP_NG,
+		     EEP              // Internet draft; experimental
+};
 
 // Link types, defined in PCap-NG spec appendix C
 #define LINK_TYPE_MTP2 140
@@ -169,8 +213,9 @@ usage() {
 	  "\n\nSave decoded MTP-2 signal units to a file in libpcap format, "
 	  "\nsuitable for examining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
-	  "\n<options>: [-c] [-f fisu=no] [-m] [-n <count>] [-v]"
+	  "\n<options>: [-c] [-e] [-f fisu=no] [-m] [-n <count>] [-v]"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
+	  "\n-e: save in the EEP format"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <count>: rotate the output file after <count> packets, 0 means never"
@@ -568,10 +613,10 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
 }
 
 static void
-write_pcap_global_header(HANDLE_OR_FILEPTR file,
-			 enum PCap_format format,
-			 Channel_t *channels,
-			 int n_channels)
+write_global_header(HANDLE_OR_FILEPTR file,
+		    enum output_format format,
+		    Channel_t *channels,
+		    int n_channels)
 {
   switch (format) {
   case PCAP_CLASSIC:
@@ -583,19 +628,23 @@ write_pcap_global_header(HANDLE_OR_FILEPTR file,
     write_pcap_idbs(file, channels, n_channels);
     break;
 
-  default: die("internal error writing global pcap header");
+  case EEP:
+    // EEP does not have a global file header; only per-packet headers
+    break;
+
+  default: die("unexpected format; internal error");
   }
 }
 
-static void write_classic_packet_header(HANDLE_OR_FILEPTR file,
-					u32 timestamp_hi,
-					u32 timestamp_lo,
-					int length)
+static void
+write_classic_packet_header(HANDLE_OR_FILEPTR file,
+			    u32 timestamp_hi,
+			    u32 timestamp_lo,
+			    int length)
 {
   PCap_classic_packet_header pcap_header;
   unsigned long long ts_sec;
   unsigned long long ts_us;
-  int result;
 
   assert(sizeof ts_sec == 8);
 
@@ -611,10 +660,7 @@ static void write_classic_packet_header(HANDLE_OR_FILEPTR file,
   pcap_header.incl_len = length;
   pcap_header.orig_len = length;
 
-  result = fwrite(&pcap_header, sizeof pcap_header, 1, file);
-  if (result != 1) {
-    die("Unable to write packet to the given file. (Is it writeable?)");
-  }
+  checked_fwrite(&pcap_header, sizeof pcap_header, file);
 }
 
 static u32
@@ -642,6 +688,86 @@ write_ng_packet_header(HANDLE_OR_FILEPTR file,
 }
 
 static inline void
+eep_write_chunk(HANDLE_OR_FILEPTR file, u16 type, int size, u32 payload)
+{
+  int header_length;
+
+  union {
+    EEP_chunk_u8  chunk_u8;
+    EEP_chunk_u32 chunk_u32;
+    EEP_chunk_variable chunk_variable;
+  } chunk;
+
+  chunk.chunk_u8.vendor = 0;
+  chunk.chunk_u8.type = htons(type);
+  chunk.chunk_u8.length = htons(sizeof(EEP_chunk_variable) + size);
+
+  switch (size) {
+  case 0:
+    header_length = sizeof(EEP_chunk_variable);
+    chunk.chunk_u8.length = htons(payload + header_length);
+    break;
+
+  case 1:
+    header_length = sizeof(EEP_chunk_u8);
+    chunk.chunk_u8.payload = payload;
+    break;
+
+  case 4:
+    header_length = sizeof(EEP_chunk_u32);
+    chunk.chunk_u32.payload = htonl(payload);
+    break;
+
+  default:
+    die("unexpected chunk size");
+  }
+
+  checked_fwrite(&chunk, header_length, file);
+}
+
+static void
+write_eep_header(HANDLE_OR_FILEPTR file,
+		 u32 timestamp_hi,
+		 u32 timestamp_lo,
+		 u32 tag,
+		 int payload_length)
+{
+  unsigned long long ts_sec;
+  unsigned long long ts_us;
+  int length = 0;
+  EEP_header eep;
+
+  assert(sizeof ts_sec == 8);
+
+  ts_us = timestamp_hi;
+  ts_us <<= 32;
+  ts_us += timestamp_lo;
+
+  ts_sec = ts_us / 1000;
+  ts_us = (ts_us % 1000) * 1000;
+
+  length =
+    sizeof(eep)
+    + sizeof(EEP_chunk_u8)
+    + sizeof(EEP_chunk_u32)
+    + sizeof(EEP_chunk_u32)
+    + sizeof(EEP_chunk_u32)
+    + sizeof(EEP_chunk_variable)
+    + payload_length;
+
+  eep.eep_id = htonl(EEP_MAGIC);
+  eep.total_length = htons(length);
+  checked_fwrite(&eep, sizeof eep, file);
+
+  eep_write_chunk(file, EEP_PROTOCOL_TYPE, 1, EEP_PROTOCOL_MTP2);
+  eep_write_chunk(file, EEP_TIMESTAMP_S,  4, (u32)ts_sec);
+  eep_write_chunk(file, EEP_TIMESTAMP_US, 4, (u32)ts_us);
+  eep_write_chunk(file, EEP_CAPTURE_AGENT_ID, 4, tag);
+  eep_write_chunk(file, EEP_PAYLOAD, 0, payload_length);
+}
+
+
+static inline void
 write_packet(HANDLE_OR_FILEPTR file,
 	     u32 timestamp_hi,
 	     u32 timestamp_lo,
@@ -663,6 +789,11 @@ write_packet(HANDLE_OR_FILEPTR file,
 					  timestamp_lo, tag, length);
     checked_fwrite(payload, round_up_32_bit(length), file);
     checked_fwrite(&total_length, sizeof total_length, file);
+    break;
+
+  case EEP:
+    write_eep_header(file, timestamp_hi, timestamp_lo, tag, length);
+    checked_fwrite(payload, length, file);
     break;
 
   default:
@@ -731,7 +862,7 @@ convert_to_pcap(GTH_api *api,
 		const int n_sus_per_file,
 		Channel_t channels[],
 		int n_channels,
-		const enum PCap_format format)
+		const enum output_format format)
 {
   u16 length;
   GTH_mtp2 signal_unit;
@@ -765,7 +896,7 @@ convert_to_pcap(GTH_api *api,
 	file = open_windows_pipe(base_name);
       }
 
-    write_pcap_global_header(file, format, channels, n_channels);
+    write_global_header(file, format, channels, n_channels);
 
     file_number++;
     su_count = 0;
@@ -887,13 +1018,15 @@ process_arguments(char **argv,
 		  Channel_t channels[],
 		  int *n_channels,
 		  char **base_filename,
-                  enum PCap_format *format)
+                  enum output_format *format)
 {
   int current_arg;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'c': *format = PCAP_CLASSIC; break;
+
+    case 'e': *format = EEP; break;
 
     case 'f':
       if (argc < 3 || strcmp("fisu=no", argv[2])) {
@@ -962,13 +1095,14 @@ main(int argc, char **argv)
   int drop_fisus = 0;
   int listen_port = 0;
   int listen_socket = -1;
-  enum PCap_format format = PCAP_NG;
+  enum output_format format = PCAP_NG;
   char *hostname;
   char *base_filename;
 
-  // Check a couple of assumptions about type size.
+  // Check a few of assumptions about type size.
   assert(sizeof(u32) == 4);
   assert(sizeof(u16) == 2);
+  assert(sizeof(u8) == 1);
 
   win32_specific_startup();
 
