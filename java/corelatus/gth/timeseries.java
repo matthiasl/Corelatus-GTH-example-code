@@ -2,23 +2,22 @@
 // Title: Layer 1 and Layer 2 statistics logging
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: November 2004
-// 
+//
 // Copyright (c) 2004 Corelatus AB Stockholm
 //
 // This is demonstration code. Use at your own risk. Permission granted to
 // copy, modify and integrate into other code.
 //
 // Purpose:
-// 
+//
 //   Query L1 and log counters periodically to standard output
 //   Query MTP-2 jobs and log counters periodically to standard output
 //
 // Use:
-//      java corelatus.gth.l1_timeseries <hostname> 
+//      java corelatus.gth.l1_timeseries <hostname>
 //
 //      hostname: hostname or dotted-quad IP address the GTH host
 //
-// $Id: timeseries.java,v 1.2 2009-01-29 12:03:09 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 
@@ -47,7 +46,7 @@ public class timeseries {
 	    if (args.length == 2) {
 		timeseries t = new timeseries(args[0]);
 		t.log(Integer.parseInt(args[1]));
-	    } else 
+	    } else
 		timeseries.usage();
 	}
 	catch (IOException e) {
@@ -88,7 +87,7 @@ public class timeseries {
 	    c.send_command("<query>" + resource_names + "</query>");
 
 	    Node child = c.next_non_event().getFirstChild();
-	    
+
 	    while (child != null) {
 		if (child.getNodeType() != Node.TEXT_NODE) {
 		    Resource r = new Resource(child);
@@ -114,14 +113,14 @@ public class timeseries {
 
 	    while (child != null) {
 		if (child.getNodeType() != Node.TEXT_NODE) {
-		    NamedNodeMap attrs = child.getAttributes();		
+		    NamedNodeMap attrs = child.getAttributes();
 		    String id = attrs.getNamedItem("id").getNodeValue();
 		    System.out.print(id + " ");
-		    
+
 		    Node attribute = child.getFirstChild();
 		    while (attribute != null) {
 			if (child.getNodeType() != Node.TEXT_NODE) {
-			    attrs = attribute.getAttributes();		
+			    attrs = attribute.getAttributes();
 			    String value = attrs.getNamedItem("value").getNodeValue();
 			    System.out.print(value + " ");
 
@@ -147,14 +146,14 @@ public class timeseries {
 
 	while (child != null) {
 	    if (child.getNodeType() != Node.TEXT_NODE) {
-		NamedNodeMap attrs = child.getAttributes();		
+		NamedNodeMap attrs = child.getAttributes();
 		String id = attrs.getNamedItem("id").getNodeValue();
 		if (id.startsWith("m2mo"))
 		    alljobs += "<job id='" + id + "'/>";
 	    }
 	    child = child.getNextSibling();
 	}
-	
+
 	return alljobs;
     }
 
@@ -178,7 +177,7 @@ public class timeseries {
 	int i;
 
 	n_pcms = 0;
-	
+
 	try {
 	    c.send_command("<query><resource name='inventory'/></query>");
 	    NodeList resources = c.next_non_event().getChildNodes();

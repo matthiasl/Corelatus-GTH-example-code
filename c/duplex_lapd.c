@@ -1,5 +1,5 @@
 //----------------------------------------------------------------------
-// An example program. 
+// An example program.
 //
 // Shows how to start duplex LAPD on a GTH, e.g. for making outgoing calls.
 
@@ -24,7 +24,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,8 +35,7 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-// $Id: duplex_lapd.c,v 1.2 2010-10-07 11:55:20 matthias Exp $
+//
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,38 +87,46 @@ typedef struct {
 } GTH_lapd_tx_su;
 
 void usage() {
-  fprintf(stderr, 
-	  "duplex_lapd <GTH-IP> <span> <timeslot> [<end>]"
-	  "\n\nEnable ISDN LAPD on the specified timeslot. If <end> is"
-	  "\nspecified, it must be either 'user' or 'network'\n\n");
+  fprintf(stderr,
+	  "duplex_lapd git_head: %s build_hostname: %s\n\n"
+
+	  "duplex_lapd [-v] <GTH-IP> <span> <timeslot> [<end>]\n\n"
+	  "Enable ISDN LAPD on the specified timeslot.\n\n"
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<span> is the E1/T1 interface, e.g. '1A'\n"
+	  "<timeslot> is the timeslot, 1--31\n"
+	  "<end> is either 'user' (default) or 'network'\n",
+	  git_head, build_hostname);
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./duplex_lapd 172.16.1.10 1A 16\n");
-  
+
   exit(-1);
 }
 
 // Start up L1 on the given span. It defaults to E1/doubleframe. We
 // disable the TX pins since we're only listening.
-static void enable_l1(GTH_api *api, const char* span) 
+static void enable_l1(GTH_api *api, const char* span)
 {
   int result;
   char pcm_name[20];
 
   // E1s carring ISDN LAPD normally use multiframe
-  GTH_attribute attributes[] = { {"status", "enabled"}, 
+  GTH_attribute attributes[] = { {"status", "enabled"},
 				 {"framing", "multiframe"}
   };
 
   assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
   strncpy(pcm_name, "pcm", sizeof pcm_name);
   strncat(pcm_name, span, sizeof pcm_name);
-  
+
   result = gth_set(api, pcm_name, attributes, 2);
+  if (result != 0) {
+    die("<set> command failed (-v shows more information)");
+  }
 
   // give L1 a chance to settle down
   sleep_seconds(1);
-  
-  assert(result == 0);
 }
 
 static void send_dl_establish_req(int data_socket)
@@ -127,7 +134,7 @@ static void send_dl_establish_req(int data_socket)
   GTH_lapd_tx_su su;
   int result;
 
-  // To activate the link, send DL_EST_REQ 
+  // To activate the link, send DL_EST_REQ
   su.length = htons(6);
   su.tag = 0;
   su.flags = 0x21;
@@ -155,7 +162,7 @@ static void send_dl_data_req(int data_socket)
 }
 
 // Start up duplex LAPD on the given timeslot
-static int setup_lapd(GTH_api *api, 
+static int setup_lapd(GTH_api *api,
 		      const char *span,
 		      const int timeslot,
 		      const char *end)
@@ -173,9 +180,11 @@ static int setup_lapd(GTH_api *api,
     exit(-1);
   }
 
-  result = gth_new_lapd_layer(api, 0, span, timeslot, end, sapi, tei, 
+  result = gth_new_lapd_layer(api, 0, span, timeslot, end, sapi, tei,
 			      job_id, api->my_ip, listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("starting LAPD failed. (re-run with -v for more information)");
+  }
 
   data_socket = gth_wait_for_accept(listen_socket);
 
@@ -188,7 +197,7 @@ void read_exact(int fd, char *buf, size_t count) {
 
   while (count > 0) {
     this_time = recv(fd, buf, count, 0);
-    if (this_time <= 0) 
+    if (this_time <= 0)
       die("LAPD data socket from GTH unexpectedly closed\n");
 
     count -= this_time;
@@ -196,7 +205,7 @@ void read_exact(int fd, char *buf, size_t count) {
   }
 }
 
-// This function is the hook for Q.931. For now, it prints out 
+// This function is the hook for Q.931. For now, it prints out
 // data and tries to establish a data link.
 static void dump_incoming_lapd(int data_socket)
 {
@@ -211,7 +220,7 @@ static void dump_incoming_lapd(int data_socket)
       read_exact(data_socket, (char *)&length, 2);
       length = ntohs(length);
       read_exact(data_socket, (char *)&su, length);
-      
+
       switch (su.opcode)
 	{
 	case Q921_DL_ESTABLISH_IND:
@@ -234,7 +243,7 @@ static void dump_incoming_lapd(int data_socket)
 
 	case Q921_DL_DATA_IND:
 	  printf("got LAPD payload data, len=%d, hexdump=%2x %2x %2x %2x %2x (%c%c%c%c%c)\n",
-		 length - 6, 
+		 length - 6,
 		 su.payload[0], su.payload[1], su.payload[2], su.payload[3], su.payload[4],
 		 su.payload[0], su.payload[1], su.payload[2], su.payload[3], su.payload[4]);
 	  break;
@@ -248,22 +257,33 @@ static void dump_incoming_lapd(int data_socket)
     }
 }
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   GTH_api api;
   int data_socket;
   int result;
   char *end = "user";
+  int verbose = 0;
 
-  if (argc != 4 && argc != 5) 
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
+
+  if (argc != 4 && argc != 5)
     {
       usage();
     }
 
   if (argc == 5)
     {
-      if (strcmp(argv[4], "user") && strcmp(argv[4], "network")) 
+      if (strcmp(argv[4], "user") && strcmp(argv[4], "network"))
 	{
 	  usage();
 	}
@@ -277,12 +297,14 @@ int main(int argc, char** argv)
 
   win32_specific_startup();
 
-  // Check a couple of assumptions about type size. 
+  // Check a couple of assumptions about type size.
   assert(sizeof(unsigned int) == 4);
   assert(sizeof(unsigned short) == 2);
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   enable_l1(&api, argv[2]);
   data_socket = setup_lapd(&api, argv[2], atoi(argv[3]), end);

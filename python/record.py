@@ -1,9 +1,7 @@
 #!/usr/bin/python
 #
-# Title: Record E1/T1 timeslot data from a Corelatus GTH 
+# Title: Record E1/T1 timeslot data from a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)
-#
-# $Id: record.py,v 1.5 2009-03-06 10:21:18 matthias Exp $
 
 import sys
 from sys import argv, stderr
@@ -13,7 +11,7 @@ import socket
 
 def usage():
     stderr.write("""
-record <hostname> <span> <timeslot> <octets> <filename>
+record.py <hostname> <span> <timeslot> <octets> <filename>
 
   <hostname>: the hostname or IP address of a GTH
       <span>: the name of an E1/T1, e.g. 1A or 4D on a GTH 2.x
@@ -21,32 +19,28 @@ record <hostname> <span> <timeslot> <octets> <filename>
     <octets>: how many octets to record. There are 8000 per second
   <filename>: which file to write the data to. - means stdout
 
-Typical invocation: ./record 172.16.1.10 1A 16 16000 signalling.raw
+Typical invocation: ./record.py 172.16.1.10 1A 16 16000 signalling.raw
 """)
 
 # Check that a given PCM is in a state where it could give useful data.
 # That means in 'OK' or 'RAI' status.
 def warn_if_l1_dead(api, span):
-    api.send("<query><resource name='pcm" + span + "'/></query>")
-    answer = api.next_non_event()
-    attributes = answer[0][3]
-
-    if attributes['status'] == "OK":
-        pass
-    elif attributes['status'] == "RAI":
-        pass
-    elif attributes['status'] == "disabled":
-        stderr.write("""
-Warning: pcm%s is disabled. Your recording won't have any useful data in it.
-         Hint: enable L1 with enable_l1.py
-""" % span)
+    attrs = api.query_resource("pcm" + span)
+    if attrs['status'] in ["OK", "RAI"]:
+        return
     else:
-        stderr.write("""
+        if attrs['status'] == "disabled":
+            stderr.write("""
+Warning: pcm%s is disabled. Your recording won't have any useful data in it.
+         Hint: enable L1 with 'gth.py'
+""" % span)
+        else:
+            stderr.write("""
 Warning: pcm%s status is %s
 
 Your recording won't have any useful data in it. Is there really a signal
  on pcm%s?
-""" % (span, attributes['status'], span))
+""" % (span, attrs['status'], span))
 
 def record(host, span, timeslot, octets_wanted, file):
     api = gth.apilib.API(host)
@@ -75,7 +69,7 @@ def main():
     if len(sys.argv) != 6:
         usage()
         sys.exit(-1)
-        
+
     # We only check the number of arguments. If the GTH doesn't like
     # the contents, it'll say so.
 

@@ -2,13 +2,13 @@
 // Title: GTH MTP-2 monitoring packet counter
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: February 2003
-// 
+//
 // Copyright (c) 2003 Corelatus AB Stockholm
 //
 // This is demonstration code. Use at your own risk. Permission granted to
 // copy, modify and integrate into other code.
 //
-// Emulates an MTP-2 packet processor which does not have any way of 
+// Emulates an MTP-2 packet processor which does not have any way of
 // communicating with the entity controlling the GTH through an API.
 // The failure situations emulated are:
 //
@@ -18,12 +18,10 @@
 //
 // A java VM crash can be simulated by killing the VM via OS methods.
 //
-// typical use: 
+// typical use:
 //       java corelatus.gth.mtp2_receiver 1234
 //
 // where '1234' is the port number the MTP-2 packets will arrive on.
-//
-// $Id: mtp2_receiver.java,v 1.4 2009-01-29 12:03:09 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 
@@ -49,7 +47,7 @@ public class mtp2_receiver implements Runnable {
 
     // The normal read in java.io.inputstream reads _up to_ the
     // number bytes we asked for. We loop to get all we want.
-    private static int forced_read(InputStream is, byte packet[], int length) 
+    private static int forced_read(InputStream is, byte packet[], int length)
     throws IOException {
 	int result = 0;
 	int offset = 0;
@@ -58,7 +56,7 @@ public class mtp2_receiver implements Runnable {
 	    result = is.read(packet, offset, length);
 	    length -= result;
 	    offset += result;
-	} 
+	}
 
 	if (result < 0) log("forced read failed");
 
@@ -78,7 +76,7 @@ public class mtp2_receiver implements Runnable {
 	    int next_event = random.nextInt() % 40000;
 	    if (next_event < 0) next_event = -next_event;
 	    log("next event will be at " + next_event);
-	    
+
 	    do {
 		result = forced_read(is, packet, 12);
 		if (result < 0) break;
@@ -127,8 +125,8 @@ public class mtp2_receiver implements Runnable {
     // Writes a timestamped message to stdout. Doesn't zero-pad digits.
     static public void log(String message) {
 	Calendar c = Calendar.getInstance();
-	System.out.println(c.get(Calendar.HOUR) + ":" + 
-			   c.get(Calendar.MINUTE) + ":" + 
+	System.out.println(c.get(Calendar.HOUR) + ":" +
+			   c.get(Calendar.MINUTE) + ":" +
 			   c.get(Calendar.SECOND) + " " + message);
     }
 

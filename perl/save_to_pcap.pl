@@ -23,11 +23,13 @@ use Data::Dumper;
 
 sub usage() {
     print("
-    save_to_pcap.pl <hostname> <span> <timeslot> <filename>
+    save_to_pcap.pl [-v] <hostname> <span> <timeslot> <filename>
+
        <hostname>: the hostname or IP address of a GTH
            <span>: the name of an E1/T1, e.g. 1A or 4D on a GTH 2.x
        <timeslot>: 1--31 on an E1 or 1--24 on a T1
        <filename>: a writeable file; - means standard output
+               -v: verbose; enables debugging output
 
 Typical invocation #1: ./save_to_pcap.pl 172.16.1.10 1A 16 /tmp/captured.pcap
 Typical invocation #2: ./save_to_pcap.pl 172.16.1.10 1A 16 - | tshark -i -
@@ -69,16 +71,16 @@ sub write_pcap_global_header {
     $snaplen = 65535;
     $network = 140;   # 140 == MTP-2
 
-    my $header = pack("LSSLLLL", $magic, $major_version, $minor_version, 
+    my $header = pack("LSSLLLL", $magic, $major_version, $minor_version,
 		      $GMT_to_localtime, $sigfigs, $snaplen, $network);
 
     print $file $header;
 }
 
 sub monitor_mtp2 {
-    my ($host, $span, $timeslot, $filename) = @_;
+    my ($host, $span, $timeslot, $filename, $verbose) = @_;
 
-    my $api = gth_control->new($host);
+    my $api = gth_control->new($host, $verbose);
     my $file;
 
     warn_if_l1_dead($api, $span);
@@ -89,17 +91,20 @@ sub monitor_mtp2 {
     } else {
 	open($file, ">", $filename) || die("can't open $filename");
     }
+    binmode($file);
 
     write_pcap_global_header($file);
 
     my ($mtp2_id, $data) = $api->new_mtp2_monitor($span, $timeslot);
 
     while (1) {
+	$api->debug("waiting for a packet...");
 	read($data, my $b, 2);
+	$api->debug("...got a header");
 	my $length = unpack("n", $b);
 	read($data, my $packet, $length);
 
-	my ($tag, $flags, $timestamp_hi, $timestamp_lo) 
+	my ($tag, $flags, $timestamp_hi, $timestamp_lo)
 	    = unpack("nnnN", $packet);
 	my ($ts_sec, $ts_us);
 
@@ -116,12 +121,19 @@ sub monitor_mtp2 {
 	print $file $pcap_packet_header;
 	my $payload = substr($packet, 10);  # strip the GTH header
 	print $file $payload;
+	$file->flush();
     }
-    
+
     $api->delete($mtp2_id);
     $data->close();
 
     $api->bye();
+}
+
+my $verbose = 0;
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift @ARGV;
 }
 
 # Entry point
@@ -130,4 +142,4 @@ if ($#ARGV + 1 != 4) {
     exit(-1);
 }
 
-monitor_mtp2($ARGV[0], $ARGV[1], $ARGV[2], $ARGV[3]);
+monitor_mtp2($ARGV[0], $ARGV[1], $ARGV[2], $ARGV[3], $verbose);

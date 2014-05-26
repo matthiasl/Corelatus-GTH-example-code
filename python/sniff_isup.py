@@ -6,8 +6,6 @@
 # Reference: ISUP decoding is in ITU-T Q.767 Annex C
 #            MTP-2 is in ITU-T Q.703
 #            MTP-3 is in ITU-T Q.704
-#
-# $Id: sniff_isup.py,v 1.1 2009-03-26 11:02:11 matthias Exp $
 
 import sys
 from sys import argv, stderr
@@ -30,9 +28,7 @@ Typical invocation: ./sniff_isup.py 172.16.1.10 1A 16
 # Check that a given PCM is in a state where it could give useful data.
 # That means in 'OK' or 'RAI' status.
 def warn_if_l1_dead(api, span):
-    api.send("<query><resource name='pcm" + span + "'/></query>")
-    answer = api.next_non_event()
-    attributes = answer[0][3]
+    attributes = api.query_resource("pcm" + span);
 
     if attributes['status'] == "OK":
         pass
@@ -63,7 +59,7 @@ def decode_mtp2(packet):
     #     next 3 octets is MTP-2 FSN, BSN and LI, which we can ignore
     #     next 1 octet SIO and at least 4 octets of SIF
     #     finally 2 octets of CRC
-    # 
+    #
     # So ignore anything shorter than 20 octets
     if len(packet) < 20:
         return
@@ -136,7 +132,7 @@ def monitor_mtp2(host, span, timeslot):
         length = ord(b[0]) * 256 + ord(b[1])
         packet = _definite_read(data, length)
         decode_mtp2(packet)
-        
+
     api.delete(mtp2_id)
     data.close()
 
@@ -146,7 +142,7 @@ def main():
     if len(sys.argv) != 4:
         usage()
         sys.exit(-1)
-        
+
     monitor_mtp2(argv[1], argv[2], int(argv[3]))
 
 main()

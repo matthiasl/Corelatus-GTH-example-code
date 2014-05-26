@@ -17,7 +17,7 @@ from the Perl examples. The quality varies:
           Both the parser and API are in fairly widespread use.
 
   Perl: A partial Perl API for the GTH.
-        Good enough to get you started, but doesn't support GTH features.
+        Good enough to get you started, but doesn't support all GTH features.
         We're not Perl experts, so the Perl may be a bit odd in places.
         Some customers use this code for ad-hoc O&M.
 
@@ -41,6 +41,10 @@ More information about GTH hardware:
 More information about the GTH API:
 
   http://www.corelatus.com/gth/api/
+
+Git repo of this code, with commit history:
+
+  https://github.com/matthiasl/Corelatus-GTH-example-code/
 
 The examples mostly have BSD licences. Feel free to fork the repository and
 please consider submitting changes back.

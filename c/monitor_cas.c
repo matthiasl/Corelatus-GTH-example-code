@@ -5,7 +5,7 @@
 // Doesn't attempt any error handling.
 // Doesn't keep track of L1 status
 // Doesn't log L1 errors and status changes
-// 
+//
 // Author: Matt Lang (matthias@corelatus.se)
 //
 // Copyright (c) 2009, Corelatus AB Stockholm
@@ -22,7 +22,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -33,8 +33,6 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// $Id: monitor_cas.c,v 1.11 2010-06-15 13:16:28 matthias Exp $
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
@@ -56,22 +54,31 @@
 #define PROTOCOL_LINESIG 0xe040
 #define PROTOCOL_MASK 0xe0e0
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, "Program expects an IP address as an argument.\n\n");
-  fprintf(stderr, "Typical use:\n");
-  fprintf(stderr, "monitor_cas 172.16.1.10\n");
-  
+  fprintf(stderr,
+	  "monitor_cas git_head: %s build_hostname: %s\n\n"
+
+	  "monitor_cas [-v] <GTH-IP>\n\n"
+	  "Monitor an E1, pcm2A, for CAS signalling, print the signalling\n\n"
+
+	  "-v: print the API commands and responses (verbose)\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n\n"
+
+	  "Typical use:\n"
+	  "monitor_cas 172.16.1.10\n",
+	  git_head, build_hostname);
+
   exit(-1);
 }
 
 // Enable listen-only operation on pcm2A and pcm2C.
 //
-// We use listen-only because 
+// We use listen-only because
 //      (a) that's what we want to do
 //  and (b) pcm2C can't do transmit at all (no pins for it)
 //
-// If we were getting a -20dB signal, we'd want to use 'monitoring=true' 
+// If we were getting a -20dB signal, we'd want to use 'monitoring=true'
 // instead.
 //
 // We use both pcm2A and pcm2C because we assume this is being used
@@ -79,7 +86,7 @@ static void usage()
 // cable, it'll appear on pcm2A, if it's a straight cable, it'll appear
 // on pcm2C.
 //
-static void layer1(GTH_api *api) 
+static void layer1(GTH_api *api)
 {
   fprintf(stderr, "setting up layer 1 (pcm2A, 2B, 2C, 2D)\n");
   gth_set_single(api, "pcm2A", "tx_enabled", "false");
@@ -89,14 +96,14 @@ static void layer1(GTH_api *api)
 }
 
 // Read the data that comes in on the signalling socket. The format
-// is documented in the GTH API manual, in the 
+// is documented in the GTH API manual, in the
 // section "new_cas_r2_mfc_monitor". Each packet is always 0x0e octets long,
 // not including the length header.
-static void read_loop(int s) 
+static void read_loop(int s)
 {
   short length;
   int result;
-  
+
 #pragma pack(1)
   struct mfc_detection {
     unsigned short tag;
@@ -131,7 +138,7 @@ static void read_loop(int s)
 
     md.tag = ntohs(md.tag);
     md.bitfield = ntohs(md.bitfield);
-    
+
     switch (md.bitfield & PROTOCOL_MASK) {
     case  PROTOCOL_MFC:
       printf("MFC tone. tag=%d type=%d digit=%d\n",
@@ -153,7 +160,7 @@ static void read_loop(int s)
 // We use different tags.
 //
 // Same thing for CAS line signalling.
-static void layer2(GTH_api *api) 
+static void layer2(GTH_api *api)
 {
   int listen_port = 0;
   int listen_socket = 0;
@@ -161,38 +168,62 @@ static void layer2(GTH_api *api)
   int result;
   char job_id[MAX_JOB_ID];
 
-  fprintf(stderr, 
+  fprintf(stderr,
 	  "setting up layer 2, MFC on timeslot 1, line signalling on 16\n");
 
   listen_socket = gth_make_listen_socket(&listen_port);
-  assert(listen_socket >= 0);
+  if (listen_socket < 0) {
+    die("Unable to create a listen() socket. Giving up.\n");
+  }
 
-  result = gth_new_cas_r2_mfc_detector(api, 1, "2A", 1, job_id, api->my_ip, 
+  result = gth_new_cas_r2_mfc_detector(api, 1, "2A", 1, job_id, api->my_ip,
 				       listen_port);
-  assert(result == 0);
-  result = gth_new_cas_r2_mfc_detector(api, 2, "2C", 1, job_id, api->my_ip, 
+  if (result != 0) {
+    die("unable to set up MFC detection (use -v for more information)");
+  }
+  result = gth_new_cas_r2_mfc_detector(api, 2, "2C", 1, job_id, api->my_ip,
 				       listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to set up MFC detection (use -v for more information)");
+  }
 
-  result = gth_new_cas_r2_linesig_monitor(api, 3, "2A", 16, job_id, api->my_ip, 
+  result = gth_new_cas_r2_linesig_monitor(api, 3, "2A", 16, job_id, api->my_ip,
 					  listen_port);
-  assert(result == 0);
-  result = gth_new_cas_r2_linesig_monitor(api, 4, "2C", 16, job_id, api->my_ip, 
+  if (result != 0) {
+    die("unable to set up linesig detection (use -v for more information)");
+  }
+
+  result = gth_new_cas_r2_linesig_monitor(api, 4, "2C", 16, job_id, api->my_ip,
 					  listen_port);
-  assert(result == 0);
+  if (result != 0) {
+    die("unable to set up linesig detection (use -v for more information)");
+  }
 
   fprintf(stderr, "waiting for GTH to connect to our signalling socket\n");
   data_socket = gth_wait_for_accept(listen_socket);
-  assert(data_socket >= 0);
+  if (data_socket < 0) {
+    die("unable to accept() the signalling socket (use -v for details)");
+  }
 
   read_loop(data_socket);
 }
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
+  int verbose = 0;
+
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
+  }
 
   if (argc != 2) {
     usage();
@@ -200,8 +231,10 @@ int main(int argc, char** argv)
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
-  assert(result == 0);
+  result = gth_connect(&api, argv[1], verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
 
   layer1(&api);
   layer2(&api);

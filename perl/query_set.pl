@@ -12,12 +12,13 @@ use Data::Dumper;
 
 sub usage() {
     print("
-query_set.pl <hostname> <resource> [<attribute> [<value>]]
+query_set.pl [-v] <hostname> <resource> [<attribute> [<value>]]
 
   <hostname>: the hostname or IP address of a GTH
   <resource>: the name of a resource on the GTH
  <attribute>: optional, the name of an attribute of the given resource
      <value>: optional, sets the given attribute of the given resource
+          -v: verbose; for debugging
 
 If no <value> argument is given, just query the GTH.
 If a  <value> argument is given, set the <attribute> to the <value>
@@ -33,11 +34,17 @@ Examples:
 }
 
 # Entry point
+my $verbose = 0;
+if ($ARGV[0] eq "-v") {
+    $verbose = 1;
+    shift @ARGV;
+}
+
 ($#ARGV >= 1) || usage() && die();
 
 my $host = $ARGV[0];
 my $resource = $ARGV[1];
-my $api = new gth_control($host);
+my $api = new gth_control($host, $verbose);
 
 if ($#ARGV == 1) {
     if ($resource eq "inventory") {

@@ -1,48 +1,19 @@
-# This makefile is only really useful if you're Corelatus, most of what
-# it does is copy source code out of our CVS tree and put it into this
-# directory for distribution.
-#
-# If you're a user, you probably just want to type 'erl -make', as a 
-# convenience 'make' does the same.
-#
+ERLC=erlc +warn_untyped_record
 
-ERLC=erlc
-
-# The 'test' and 'live' modules are copied in from other parts of the GTH
-# source tree.
-test_modules=gth xml 
-live_modules=gth_client_xml_parse gth_apilib gth_xml_parse gth_xml_scan
+live_modules=gth xml gth_client_xml_parse gth_apilib gth_xml_scan
 example_modules=save_to_pcap ss7_sniffer record_and_play_back
-beams=$(addsuffix .beam, $(test_modules) $(live_modules) $(example_modules))
+beams=$(addsuffix .beam, $(live_modules) $(example_modules))
 
-test_erls=$(addsuffix .erl, $(test_modules))
 live_erls=$(addsuffix .erl, $(live_modules))
 example_erls=$(addsuffix .erl, $(example_modules))
 
-default:
-	erl -make
+default: $(beams)
 
-all: $(beams)
-
-ship: $(test_erls) $(live_erls) $(example_erls) gth_api.hrl README
+ship: $(test_erls) $(live_erls) $(example_erls) gth_xml.hrl README
 	zip gth_erlang_api.zip $^
 
 clean:
 	rm -f *.beam
 
-spotless: clean
-	rm -f $(test_erls) $(live_erls) gth_api.hrl
-
-$(beams): gth_api.hrl
-
-%.beam: %.erl
-	$(ERLC) -W $<
-
-$(test_erls): %: ../../erl/test/%
-	cp $< .
-
-$(live_erls): %: ../../erl/src/%
-	cp $< .
-
-gth_api.hrl: ../../erl/include/gth_api.hrl
-	cp $< .
+%.beam: %.erl gth_xml.hrl
+	$(ERLC) $<

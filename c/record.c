@@ -25,7 +25,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -37,7 +37,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
-// $Id: record.c,v 1.9 2010-06-15 13:16:28 matthias Exp $
 //
 #include <stdio.h>
 #include <stdlib.h>
@@ -55,23 +54,32 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage() 
+static void usage()
 {
-  fprintf(stderr, "Program expects an IP address, a span name, a timeslot and"
-	  "\na filename as arguments.\n\n");
+  fprintf(stderr,
+	  "record git_head: %s build_hostname: %s\n\n"
+
+	  "record [-v] [-T] <GTH-IP> <span> <timeslot> <filename>\n\n"
+	  "Save bit-exact data from a timeslot to a file\n\n"
+	  "-v: print the API commands and responses (verbose)\n"
+	  "-T: use T1 (and mulaw) instead of the default E1 L1 setup\n"
+	  "<GTH-IP> is the GTH's IP address or hostname\n"
+	  "<span> is the E1/T1 interface, e.g. '1A'\n"
+	  "<timeslot> is the timeslot, 1--31\n"
+	  "<filename> is the filename to save to. '-' means standard output\n\n",
+	  git_head, build_hostname);
+
   fprintf(stderr, "Typical use:\n");
   fprintf(stderr, "./record    172.16.1.10 1A 1 my_capture.wav\n\n");
   fprintf(stderr, "./record -T 172.16.1.10 1A 1 my_capture.wav\n\n");
-  fprintf(stderr, "By default, layer 1 is set to E1 mode. The -T switch\n");
-  fprintf(stderr, "enables T1 mode (and, implicitly, mu-law).\n");
-  
+
   exit(-1);
 }
 
 typedef unsigned int   u32;
 typedef unsigned short u16;
 
-// The WAV header format, as described in 
+// The WAV header format, as described in
 //
 // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
 #pragma pack(1)
@@ -79,7 +87,7 @@ struct WAV_header {
   char ckID[4];
   u32 cksize;         // always 20 + the number of samples
   char WAVEID[4];
-  
+
   //----
   char format_id[4];
   u32 format_size;    // always 16 for this minimal header
@@ -102,13 +110,13 @@ struct WAV_header {
 // tool will still work, but the .wav header will be corrupt.
 #endif
 
-static void possibly_prepend_wav_header(const char *filename, 
+static void possibly_prepend_wav_header(const char *filename,
 					FILE *file,
 					const int mulaw)
 {
   int len = strlen(filename);
 
-  if (len < 4) 
+  if (len < 4)
     return;
 
   if (strcmp(filename + len - 4, ".wav") == 0)
@@ -140,16 +148,16 @@ static void possibly_prepend_wav_header(const char *filename,
       header.data_size = 80000;
 
       result = fwrite(&header, sizeof(header), 1, file);
-      
+
       assert(result == 1);
     }
 }
 
-static void record_a_file(GTH_api *api, 
-			  const char *span, 
+static void record_a_file(GTH_api *api,
+			  const char *span,
 			  const int timeslot,
 			  const char *filename,
-			  const int mulaw) 
+			  const int mulaw)
 {
   int data_socket;
   char buffer[2000];
@@ -164,22 +172,30 @@ static void record_a_file(GTH_api *api,
     exit(-1);
   }
 
-  fopen_s(&file, filename, "wb");
-  if (file == 0) {
-    fprintf(stderr, "unable to open %s, aborting\n", filename);
-    exit(-1);
+  if ( strcmp(filename, "-") == 0 ) {
+    file = stdout;
+  } else {
+    fopen_s(&file, filename, "wb");
+    if (file == 0) {
+      fprintf(stderr, "unable to open %s, aborting\n", filename);
+      exit(-1);
+    }
   }
 
   possibly_prepend_wav_header(filename, file, mulaw);
 
   data_socket = gth_new_recorder(api, span, timeslot, job_id);
-  assert(data_socket >= 0);
+  if (data_socket < 0) {
+    die("unable to start a <recorder> on the GTH. -v gives more information");
+  }
 
   fprintf(stderr, "started recording. Press ^C to end.\n");
 
   while ( (octet_count = recv(data_socket, buffer, sizeof buffer, 0)) ) {
     result = fwrite(buffer, octet_count, 1, file);
-    assert(result == 1);
+    if (result != 1) {
+      die("Writing to the output file failed. Giving up.");
+    }
     fprintf(stderr, "%d ", octet_sum);
     octet_sum += octet_count;
   }
@@ -206,7 +222,7 @@ static void setup_layer_1(GTH_api *api, const char *pcm_name, const int mulaw) {
   int result;
   const char e1[] = "E1";
   const char t1[] = "T1";
-  
+
   result = gth_set_single(api, pcm_name, "mode", (mulaw)?t1:e1);
 
   if (result != 0) {
@@ -215,30 +231,33 @@ static void setup_layer_1(GTH_api *api, const char *pcm_name, const int mulaw) {
 }
 
 
-// Entry point 
-int main(int argc, char** argv) 
+// Entry point
+int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
   char pcm_name[20];
   int t1_mulaw_mode = 0;
+  int verbose = 0;
 
-  if (argc != 5 && argc != 6) {
-    usage();
+  while (argc > 1 && argv[1][0] == '-') {
+    switch (argv[1][1]) {
+    case 'v': verbose = 1; break;
+    case 'T': t1_mulaw_mode = 1; break;
+
+    default: usage();
+    }
+    argc--;
+    argv++;
   }
 
-  if (argc == 6) {
-    if (strcmp("-T", argv[1]) == 0) {
-      argv++;
-      t1_mulaw_mode = 1;
-    } else {
-      usage();
-    }
+  if (argc != 5) {
+    usage();
   }
 
   win32_specific_startup();
 
-  result = gth_connect(&api, argv[1]);
+  result = gth_connect(&api, argv[1], verbose);
   if (result != 0) {
     die("unable to connect to the GTH");
   }

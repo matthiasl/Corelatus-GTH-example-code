@@ -23,7 +23,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -34,12 +34,9 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 //----------------------------------------------------------------------
 
-// 
-// $Id: gth_client_xml_parse.c,v 1.12 2010-06-14 13:20:49 matthias Exp $
-//
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
@@ -50,7 +47,7 @@
 //======================================================================
 // First, the scanner. (the parser is after the next line rule)
 
-enum Token_type 
+enum Token_type
   {
     TOK_END        = '.',
     TOK_WHITESPACE = 'w',
@@ -63,7 +60,7 @@ enum Token_type
     TOK_TEXT       = 't'
   };
 
-typedef struct 
+typedef struct
 {
   enum Token_type type;
   char* payload;
@@ -88,7 +85,7 @@ static int scan_string(const char* string, GTH_token *token, const char end)
   strncpy(token->payload, string, len);
   token->payload[len] = 0;
 
-  return len;  
+  return len;
 }
 
 // We're inside a name. Make a token out of it.
@@ -107,7 +104,7 @@ static int scan_name(const char* string, GTH_token *token)
   strncpy(token->payload, string, len);
   token->payload[len] = 0;
 
-  return len;  
+  return len;
 }
 
 // Turn the given string into an array of tokens, terminated by TOK_END
@@ -117,7 +114,7 @@ static int scan_name(const char* string, GTH_token *token)
 //
 // Returns zero on success
 //
-int gth_scan(const char *string, GTH_token **ret_tokens) 
+int gth_scan(const char *string, GTH_token **ret_tokens)
 {
   size_t len;
   int max_token = 0;
@@ -216,7 +213,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
 }
 
 // Free a sequence of tokens.
-void gth_free_tokens(GTH_token *token) 
+void gth_free_tokens(GTH_token *token)
 {
   GTH_token *current = token;
 
@@ -237,7 +234,7 @@ void gth_free_tokens(GTH_token *token)
 }
 
 // Constructor
-static void new_resp(GTH_resp *resp, const GTH_resp_type type) 
+static void new_resp(GTH_resp *resp, const GTH_resp_type type)
 {
   resp->type = type;
 
@@ -267,7 +264,7 @@ void gth_free_resp(GTH_resp *resp) {
   free(resp);
 }
 
-static void free_resp(GTH_resp *resp) 
+static void free_resp(GTH_resp *resp)
 {
   int x;
 
@@ -297,11 +294,11 @@ static GTH_resp *resp_add_child(GTH_resp *resp, GTH_resp_type type)
 {
   GTH_resp *newborn;
 
-  if (resp->n_children >= resp->allocated_children) 
+  if (resp->n_children >= resp->allocated_children)
     {
       resp->allocated_children = resp->allocated_children * 2 + 3;
-      resp->children = realloc(resp->children, 
-			       resp->allocated_children 
+      resp->children = realloc(resp->children,
+			       resp->allocated_children
 			       * sizeof(GTH_resp));
     }
 
@@ -309,7 +306,7 @@ static GTH_resp *resp_add_child(GTH_resp *resp, GTH_resp_type type)
   resp->n_children++;
 
   new_resp(newborn, type);
-  return newborn;  
+  return newborn;
 }
 
 // Add another attribute to a resp. The key and value are copied shallow,
@@ -319,8 +316,8 @@ static void resp_add_attribute(GTH_resp *resp, char *key, char *value)
   if (resp->allocated_attributes <= resp->n_attributes)
     {
       resp->allocated_attributes = 2*resp->allocated_attributes + 2;
-      resp->attributes = realloc(resp->attributes, 
-				 resp->allocated_attributes * 
+      resp->attributes = realloc(resp->attributes,
+				 resp->allocated_attributes *
 				 sizeof(GTH_attribute));
     }
 
@@ -344,7 +341,7 @@ void print_attributes(const GTH_resp *resp);
 
 // Scan a string. Return a pointer-to-resp tree. Caller must free the tree
 // when done, using gth_free_resp()
-GTH_resp *gth_parse(const char *string) 
+GTH_resp *gth_parse(const char *string)
 {
   GTH_token *tokens;
   GTH_token *end;
@@ -352,7 +349,7 @@ GTH_resp *gth_parse(const char *string)
   GTH_resp *old;
 
   new_resp(resp, GTH_RESP_ERROR);
-  
+
   gth_scan(string, &tokens);
   end = parse(tokens, resp);
 
@@ -366,12 +363,12 @@ GTH_resp *gth_parse(const char *string)
   *resp = resp->children[0];
   free(old);
 
-  return resp;  
+  return resp;
 }
 
 // Parse a sequence of tokens made by gth_scan().
 //
-// Return: 0 or a GTH_resp. The caller is responsible for 
+// Return: 0 or a GTH_resp. The caller is responsible for
 // calling gth_free_resp() on the returned GTH_resp.
 static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 {
@@ -396,7 +393,7 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 
     token = attributes(token, tree);
 
-    if (token->type == TOK_CLOSE) {  // Second case clause 
+    if (token->type == TOK_CLOSE) {  // Second case clause
       char *text;
       token++;
       token = parse_inside_tag(token, &text);
@@ -410,22 +407,22 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 	name = token++;
 	close = token++;
 
-	if (open->type     != TOK_OPEN 
-	    || slash->type != TOK_SLASH 
-	    || name->type  != TOK_NAME 
+	if (open->type     != TOK_OPEN
+	    || slash->type != TOK_SLASH
+	    || name->type  != TOK_NAME
 	    || strcmp(name->payload, tag_name) != 0
 	    || close->type != TOK_CLOSE) assert(!"parse ");
 
 	tree->text = text;
-	
+
 	return token;
       }
     }
-    else {                         // first case clause 
+    else {                         // first case clause
       if (can_lookahead(token, 2)) {
 	GTH_token *slash = token++;
 	GTH_token *close = token++;
-	
+
 	assert(slash->type == TOK_SLASH);
 	assert(close->type == TOK_CLOSE);
 
@@ -434,10 +431,10 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
       }
     }
   }
-    
+
   return token;
 }
-  
+
 GTH_token *parse_inside_tag(GTH_token *token, char **text) {
 
   if (token->type == TOK_TEXT) {
@@ -445,7 +442,7 @@ GTH_token *parse_inside_tag(GTH_token *token, char **text) {
     *text = token->payload;
     token->payload = 0;
     token++;
-  } 
+  }
   else {
     *text = 0;
   }
@@ -475,7 +472,7 @@ static GTH_token *attributes(GTH_token *token, GTH_resp *resp) {
   resp_add_attribute(resp, name->payload, string->payload);
 
   // Zero the string pointers in the tokens; the parse tree now owns them
-  name->payload = 0;  
+  name->payload = 0;
   string->payload = 0;
 
   return attributes(token, resp);
@@ -488,6 +485,7 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "alert"))           return  GTH_RESP_ALERT;
   if (!strcmp(name, "atm_message"))     return  GTH_RESP_ATM_MESSAGE;
   if (!strcmp(name, "attribute"))       return  GTH_RESP_ATTRIBUTE;
+  if (!strcmp(name, "backup"))          return  GTH_RESP_BACKUP;
   if (!strcmp(name, "controller"))      return  GTH_RESP_CONTROLLER;
   if (!strcmp(name, "ebs"))             return  GTH_RESP_EBS;
   if (!strcmp(name, "error"))           return  GTH_RESP_ERROR;
@@ -506,6 +504,8 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "mtp2_message"))    return  GTH_RESP_MTP2_MESSAGE;
   if (!strcmp(name, "ok"))              return  GTH_RESP_OK;
   if (!strcmp(name, "resource"))        return  GTH_RESP_RESOURCE;
+  if (!strcmp(name, "sdh_message"))     return  GTH_RESP_SDH_MESSAGE;
+  if (!strcmp(name, "sfp_message"))     return  GTH_RESP_SFP_MESSAGE;
   if (!strcmp(name, "slip"))            return  GTH_RESP_SLIP;
   if (!strcmp(name, "sync_message"))    return  GTH_RESP_SYNC_MESSAGE;
   if (!strcmp(name, "tone"))            return  GTH_RESP_TONE;
@@ -523,38 +523,38 @@ static enum Token_type name_to_token_type(const char* name)
 static int can_lookahead(const GTH_token *token, int n) {
   const GTH_token* current = token;
 
-  while (n > 0) 
+  while (n > 0)
     {
       if (current->type == TOK_END) return 0;
       current++;
       n--;
     }
   return 1;
-}   
+}
 //----------------------------------------------------------------------
 
 // for debugging
-void print_tokens(const GTH_token *token) 
+void print_tokens(const GTH_token *token)
 {
   while (token->type != TOK_END) {
     switch (token->type) {
 
-    case TOK_WHITESPACE: printf("-"); break;
+    case TOK_WHITESPACE: fprintf(stderr, "-"); break;
 
-    case TOK_STRING: printf("*%s*", token->payload); break;
+    case TOK_STRING: fprintf(stderr, "*%s*", token->payload); break;
 
-    case TOK_OPEN:  printf("<"); break;
-    case TOK_CLOSE: printf(">"); break;
-    case TOK_EQUAL: printf("="); break;
-    case TOK_SLASH: printf("/"); break;
-    case TOK_NAME:  printf("(%s)", token->payload); break;
-    case TOK_TEXT:  printf("[%s]", token->payload); break;
+    case TOK_OPEN:  fprintf(stderr, "<"); break;
+    case TOK_CLOSE: fprintf(stderr, ">"); break;
+    case TOK_EQUAL: fprintf(stderr, "="); break;
+    case TOK_SLASH: fprintf(stderr, "/"); break;
+    case TOK_NAME:  fprintf(stderr, "(%s)", token->payload); break;
+    case TOK_TEXT:  fprintf(stderr, "[%s]", token->payload); break;
     default:
-      assert(!"this cannot happen");
+      assert(!"attempted to print a token which doesn't exist");
     }
     token++;
   }
-  printf(".\n");
+  fprintf(stderr, ".\n");
 }
 
 void print_children(GTH_resp *resp) {
@@ -588,12 +588,12 @@ void gth_print_tree(GTH_resp *resp) {
     print_attributes(resp);
     break;
 
-  case GTH_RESP_ATTRIBUTE: 
+  case GTH_RESP_ATTRIBUTE:
     fprintf(stderr, "    attribute: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_CONTROLLER: 
+  case GTH_RESP_CONTROLLER:
     fprintf(stderr, "    controller: ");
     print_attributes(resp);
     break;
@@ -602,112 +602,122 @@ void gth_print_tree(GTH_resp *resp) {
     fprintf(stderr, "ebs message printing NYI\n");
     break;
 
-  case GTH_RESP_ERROR: 
+  case GTH_RESP_ERROR:
     fprintf(stderr, "error: ");
     print_attributes(resp);
     if (resp->text) fprintf(stderr, "[%s]", resp->text);
     fprintf(stderr, "\n");
     break;
 
-  case GTH_RESP_EVENT: 
-    fprintf(stderr, "event: "); 
+  case GTH_RESP_EVENT:
+    fprintf(stderr, "event: ");
     print_children(resp);
     fprintf(stderr, "\n");
     break;
 
-  case GTH_RESP_FATALITY: 
-    fprintf(stderr, "fatality: "); 
+  case GTH_RESP_FATALITY:
+    fprintf(stderr, "fatality: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_FAULT: 
-    fprintf(stderr, "fault: "); 
+  case GTH_RESP_FAULT:
+    fprintf(stderr, "fault: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_F_RELAY_MESSAGE: 
-    fprintf(stderr, "  f_relay_message: "); 
+  case GTH_RESP_F_RELAY_MESSAGE:
+    fprintf(stderr, "  f_relay_message: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_INFO: 
-    fprintf(stderr, "  info: "); 
+  case GTH_RESP_INFO:
+    fprintf(stderr, "  info: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_JOB: 
-    fprintf(stderr, "job, %d attrs, id=%s\n", resp->n_attributes, resp->attributes[0].value); 
+  case GTH_RESP_JOB:
+    fprintf(stderr, "job, %d attrs, id=%s\n", resp->n_attributes, resp->attributes[0].value);
     break;
 
-  case GTH_RESP_L1_MESSAGE: 
+  case GTH_RESP_L1_MESSAGE:
     fprintf(stderr, "  l1 message ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_L2_ALARM: 
-    fprintf(stderr, "  l2_alarm: "); 
+  case GTH_RESP_L2_ALARM:
+    fprintf(stderr, "  l2_alarm: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_L2_SOCKET_ALERT: 
-    fprintf(stderr, "  l2_socket_alert: "); 
+  case GTH_RESP_L2_SOCKET_ALERT:
+    fprintf(stderr, "  l2_socket_alert: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_LAPD_MESSAGE: 
-    fprintf(stderr, "  lapd_message: "); 
+  case GTH_RESP_LAPD_MESSAGE:
+    fprintf(stderr, "  lapd_message: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_LEVEL: 
-    fprintf(stderr, "  level: "); 
+  case GTH_RESP_LEVEL:
+    fprintf(stderr, "  level: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_MESSAGE_ENDED: 
-    fprintf(stderr, "  message ended:"); 
+  case GTH_RESP_MESSAGE_ENDED:
+    fprintf(stderr, "  message ended:");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_MTP2_MESSAGE: 
-    fprintf(stderr, "  mtp2_message: "); 
+  case GTH_RESP_MTP2_MESSAGE:
+    fprintf(stderr, "  mtp2_message: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_OK: 
-    fprintf(stderr, "ok\n"); 
+  case GTH_RESP_OK:
+    fprintf(stderr, "ok\n");
     break;
 
-  case GTH_RESP_RESOURCE: 
+  case GTH_RESP_RESOURCE:
     fprintf(stderr, "  resource: %s", resp->attributes[0].value);
     print_children(resp);
-    fprintf(stderr, "\n"); 
+    fprintf(stderr, "\n");
     break;
 
-  case GTH_RESP_SLIP: 
-    fprintf(stderr, "  slip: "); 
+  case GTH_RESP_SDH_MESSAGE:
+    fprintf(stderr, "  sdh_message: ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_STATE: 
+  case GTH_RESP_SFP_MESSAGE:
+    fprintf(stderr, "  sfp_message: ");
+    print_attributes(resp);
+    break;
+
+  case GTH_RESP_SLIP:
+    fprintf(stderr, "  slip: ");
+    print_attributes(resp);
+    break;
+
+  case GTH_RESP_STATE:
     fprintf(stderr, "state: ");
     print_children(resp);
     fprintf(stderr, "\n");
     break;
 
   case GTH_RESP_SYNC_MESSAGE:
-    fprintf(stderr, "  sync message "); 
+    fprintf(stderr, "  sync message ");
     print_attributes(resp);
     break;
 
-  case GTH_RESP_TONE: 
-    fprintf(stderr, "  tone: "); 
+  case GTH_RESP_TONE:
+    fprintf(stderr, "  tone: ");
     print_attributes(resp);
     break;
 
   default:
     fprintf(stderr, "default, type=%d\n", resp->type);
-    assert(!"impossible");
+    assert(!"encountered an <event> which we don't know how to handle");
   }
 }
 
@@ -716,7 +726,7 @@ void print_attributes(const GTH_resp *resp) {
 
   for (x = 0; x < resp->n_attributes; x++)
     {
-      fprintf(stderr, "%s=%s ", 
+      fprintf(stderr, "%s=%s ",
 	      resp->attributes[x].key, resp->attributes[x].value);
     }
 

@@ -2,7 +2,7 @@
 // Title: GTH MTP-2 API code
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: February 2003
-// 
+//
 // Copyright (c) 2003 Corelatus AB Stockholm
 //
 // This is demonstration code. Use at your own risk. Permission granted to
@@ -26,8 +26,6 @@
 //      timeslots from one receiver process to another at random.
 //
 // Using this program on live systems will disrupt signalling.
-//
-// $Id: mtp2_api.java,v 1.5 2009-01-29 12:03:08 matthias Exp $
 //----------------------------------------------------------------------
 package corelatus.gth;
 
@@ -46,14 +44,14 @@ public class mtp2_api {
 	public int port;
     }
 
-    int MAX_JOBS = 32;       
+    int MAX_JOBS = 32;
     int BASE_PORT = 1200;    // IP port we send to is 1200, 1201, etc.
     int JOBS_PER_DEST = 3;  // how many timeslots we send to each dest
 
     // Data
     private Client_conn c;       // connection to the GTH
     private String remote_host;
-    
+
     int n_dests = 0;
     int n_jobs = 0;
     monitor_job[] jobs = new monitor_job[MAX_JOBS];
@@ -76,9 +74,9 @@ public class mtp2_api {
     public static void main(String[] args) {
 	try {
 	    mtp2_api m = null;
-	    if (args.length == 1) 
+	    if (args.length == 1)
 		m = new mtp2_api(args[0], 1);
-	    else if (args.length == 2) 
+	    else if (args.length == 2)
 		m = new mtp2_api(args[0], (new Integer(args[1])).intValue());
 	    else usage();
 	    m.go();
@@ -98,7 +96,7 @@ public class mtp2_api {
 	mtp2_playback();
 	enable_pcms();
 	log("Enabling monitoring to " + n_dests + " dests");
-	for (int i = 0; i < n_dests; i++) 
+	for (int i = 0; i < n_dests; i++)
 	    for (int j = 0; j < JOBS_PER_DEST; j++) {
 		int timeslot = i * JOBS_PER_DEST + j + 1;
 		int port = BASE_PORT + i;
@@ -109,7 +107,7 @@ public class mtp2_api {
 	move_jobs();
     }
 
-    // Set up synthetic MTP-2 playback. We do this by 
+    // Set up synthetic MTP-2 playback. We do this by
     //
     //  1. Putting a clip on the system with nonstop MSUs (and one ESU)
     //  2. Playing the clip on timeslot 1 of PCM1
@@ -145,14 +143,14 @@ public class mtp2_api {
 			   + "</connection></new>" );
 		Client_conn.assert_name(c.next_non_event(), "job");
 	    }
-	} 
+	}
 	catch (IOException e) {
 	    die("mtp2_playback IO exception");
 	}
     }
-    
+
     //--------------------
-    // Enable PCM1 and PCM2 for normal transmission 
+    // Enable PCM1 and PCM2 for normal transmission
     //
     // Series 1 Monitor cards are not guaranteed to work in this mode.
     // In practice they do, but the outgoing signal levels are out-of-spec.
@@ -160,7 +158,7 @@ public class mtp2_api {
     private void enable_pcms() {
 	try {
 	    log("Enabling PCM 1 & 2");
-	    c.send_command("<set name='pcm1'>" 
+	    c.send_command("<set name='pcm1'>"
 			   + "<attribute name='status' value='enabled'/>"
 			   + "</set>");
 	    Client_conn.assert_name(c.next_non_event(), "ok");
@@ -169,7 +167,7 @@ public class mtp2_api {
 			   + "<attribute name='status' value='enabled'/>"
 			   + "</set>");
 	    Client_conn.assert_name(c.next_non_event(), "ok");
-	} 
+	}
 	catch (IOException e) {
 	    die("mtp2_playback IO exception");
 	}
@@ -205,7 +203,7 @@ public class mtp2_api {
 	    Node reply = c.next_non_event();
 	    Client_conn.assert_name(reply, "job");
 	    return reply.getAttributes().item(0).getNodeValue();
-	} 
+	}
 	catch (IOException e) {
 	    die("enable_monitoring IO exception: " + e);
 	}

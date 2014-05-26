@@ -7,9 +7,9 @@
 %%
 %%               This is a simple demo showing how to record and replay
 %%               an E1 timeslot with a GTH. It's useful for debugging
-%%               (e.g. you can be on-site and record a signalling link 
-%%               to a file and then take the file with you to analyse 
-%%               later). 
+%%               (e.g. you can be on-site and record a signalling link
+%%               to a file and then take the file with you to analyse
+%%               later).
 %%
 %%               The same API commands could be used to make a voicemail
 %%               system.
@@ -17,9 +17,6 @@
 %% Typical session:
 %%
 %%    1> record_and_play_back:record("172.16.2.7", "1A", 1, "ts_dump.raw", 10).
-%%
-%%
-%% $Id: record_and_play_back.erl,v 1.3 2010-03-31 10:36:01 matthias Exp $
 %%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
@@ -35,7 +32,7 @@
 %%     * Neither the name of Corelatus nor the
 %%       names of its contributors may be used to endorse or promote products
 %%       derived from this software without specific prior written permission.
-%% 
+%%
 %% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 %% EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -64,7 +61,7 @@ copy_to_file(_Data, F, 0) ->
     ok = file:close(F);
 
 copy_to_file(Data, F, Octets) when Octets > 0 ->
-    Read = lists:min([Octets, 8000]),
+    Read = min(Octets, 8000),
     {ok, Bin} = gen_tcp:recv(Data, Read),
     ok = file:write(F, Bin),
     copy_to_file(Data, F, Octets - Read).
@@ -74,9 +71,9 @@ copy_to_file(Data, F, Octets) when Octets > 0 ->
 %% Wait for the link to actually come up.
 setup_l1(A, Span) ->
     PCM = "pcm" ++ Span,
-    ok = gth:set(A, PCM, 
+    ok = gth:set(A, PCM,
 		 [{"mode", "E1"},
-		  {"status", "enabled"}, 
+		  {"status", "enabled"},
 		  {"framing", "doubleframe"}]),
     receive
 	{l1_message, A, {PCM, "OK"}} ->

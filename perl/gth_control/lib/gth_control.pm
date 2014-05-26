@@ -7,12 +7,13 @@ use IO::Socket;
 use Data::Dumper;
 use XML::Simple;   # From CPAN. In Debian it's called libxml-simple-perl
 
-our $VERSION = sprintf "%d.%03d", q$Revision: 1.3 $ =~ /: (\d+)\.(\d+)/;
-
 sub new {
-    my ($unused, $gth_ip_or_hostname) = @_;
+    my ($unused, $gth_ip_or_hostname, $verbose) = @_;
     my $self = {};
 
+    $self->{VERBOSE} = $verbose;
+
+    debug($self, "connecting to $gth_ip_or_hostname...");
     # Open a socket to the GTH command socket
     my $sock = new IO::Socket::INET->new(PeerAddr => $gth_ip_or_hostname,
 					 PeerPort => 2089,
@@ -24,6 +25,7 @@ sub new {
     $self->{MY_IP} = inet_ntoa($ia);
 
     bless($self);
+    $self->debug("...connected OK");
 
     return $self;
 }
@@ -34,7 +36,15 @@ sub bye {
     $self->send("<bye/>");
     my $parsed = $self->next_non_event();
 
-    defined $parsed->{"ok"} || die("bye failed");
+    expect_xml($parsed, "ok", "bye failed");
+}
+
+sub debug {
+    my ($self, $info) = @_;
+
+    if ($self->{VERBOSE}) {
+	print STDERR $info, "\n";
+    }
 }
 
 sub delete {
@@ -44,6 +54,30 @@ sub delete {
     my $parsed = $self->next_non_event();
 
     defined $parsed->{"ok"}
+}
+
+sub enable {
+    my ($self, $resource, %hash) = @_;
+
+    my $attributes = "";
+    while (my ($key, $value) = each %hash) {
+	$attributes .= "<attribute name='$key' value='$value'/>"
+    }
+
+    $self->send("<enable name='$resource'>$attributes</enable>");
+
+    my $parsed = $self->next_non_event();
+
+    expect_xml($parsed, "ok", "enable failed");
+}
+
+sub map {
+    my ($self, $resource) = @_;
+
+    $self->send("<map target_type='pcm_source'>".
+		"<sdh_source name='$resource'/></map>");
+    my $resource_id = parse_resource_name($self->next_non_event());
+    return $resource_id;
 }
 
 sub new_mtp2_monitor {
@@ -57,7 +91,7 @@ sub new_mtp2_monitor {
 		"<pcm_source span='$span' timeslot='$timeslot'/>".
 		"</mtp2_monitor></new>");
 
-    my $data_socket = $listen_socket->accept();
+    my $data_socket = $self->accept($listen_socket);
     my $job_id = parse_job_id($self->next_non_event());
 
     return ($job_id, $data_socket);
@@ -75,7 +109,7 @@ sub new_player {
 		"<pcm_sink span='$span' timeslot='$timeslot'/>".
 		"</player></new>");
 
-    my $data_socket = $listen_socket->accept();
+    my $data_socket = $self->accept($listen_socket);
     my $job_id = parse_job_id($self->next_non_event());
 
     return ($job_id, $data_socket);
@@ -93,8 +127,8 @@ sub new_recorder {
 		"<tcp_sink ip_addr='$my_ip' ip_port='$my_port'/>".
 		"</recorder></new>");
 
-    
-    my $data_socket = $listen_socket->accept();
+
+    my $data_socket = $self->accept($listen_socket);
     my $job_id = parse_job_id($self->next_non_event());
 
     return ($job_id, $data_socket);
@@ -155,18 +189,56 @@ sub set {
 
     my $parsed = $self->next_non_event();
 
-    defined $parsed->{"ok"} || die("set failed");
+    expect_xml($parsed, "ok", "set failed");
+}
+
+sub unmap {
+    my ($self, $resource) = @_;
+
+    $self->send("<unmap name='$resource'/>");
+    my $parsed = $self->next_non_event();
+
+    expect_xml($parsed, "ok", "unmap failed");
 }
 
 
 #-- Internal functions.
 
+sub accept {
+    my ($self, $listen) = @_;
+
+    $self->debug("waiting for accept...");
+    my $s = $listen->accept();
+    $self->debug("...accepted");
+
+    return $s;
+}
+
+sub expect_xml {
+    my ($parsed, $expected, $hint) = @_;
+
+    if (defined $parsed->{$expected}) {
+         return;
+    }
+    printf(STDERR "$hint\n");
+    die(Dumper($parsed));
+}
+
 sub parse_job_id {
     my ($parsed) = @_;
 
     defined($parsed->{'job'}) || die(Dumper($parsed));
-    
+
     my $hashref= $parsed->{'job'};
+    return (keys %$hashref)[0];
+}
+
+sub parse_resource_name {
+    my ($parsed) = @_;
+
+    defined($parsed->{'resource'}) || die(Dumper($parsed));
+
+    my $hashref= $parsed->{'resource'};
     return (keys %$hashref)[0];
 }
 
@@ -176,7 +248,8 @@ sub send {
 
     if (! defined($type)) {
 	$type = "text/xml";
-    } 
+	$self->debug("API command: $data");
+    }
 
     $s->send("Content-type: $type\r\n");
     $s->send("Content-length: " . length($data) . "\r\n\r\n");
@@ -186,7 +259,7 @@ sub send {
 sub receive_raw {
     my ($self) = @_;
     my $s = $self->{SOCKET};
-    
+
     my $first = <$s>;
     my $second = <$s>;
     my $blank = <$s>;
@@ -195,6 +268,7 @@ sub receive_raw {
     my $length = $1;
 
     read($s, my $buffer, $length);
+    $self->debug("XML: $buffer");
 
     length($buffer) == $length || die("definite_read got a short read");
 
@@ -204,7 +278,7 @@ sub receive_raw {
 sub receive {
     my ($self) = @_;
     my $s = $self->{SOCKET};
-    
+
     my $parsed = XMLin($self->receive_raw(), KeepRoot => 1, ForceArray => 1);
 
     return $parsed;
@@ -225,9 +299,9 @@ sub next_event {
     my ($self) = @_;
     my $parsed = $self->receive();
 
-    defined $parsed->{"event"} 
+    defined $parsed->{"event"}
     || die("expected event, got " . Dumper($parsed) );
-    
+
     return $parsed;
 }
 
@@ -252,7 +326,9 @@ E1/T1 line to decode signalling, record or play back voice, detect
 tones or connect timeslots.
 
 A GTH is controlled through a socket using a text protocol. This
-module wraps that text protocol in a Perl API.
+module wraps that text protocol in a Perl API. The function names map
+1:1 to the commands in the API, e.g. new_mtp_monitor() corresponds to
+the <new><mtp2_monitor>... command.
 
 =head1 CONSTRUCTOR
 
@@ -276,12 +352,22 @@ module wraps that text protocol in a Perl API.
 
   Delete (stop) a job on the GTH.
 
+=item enable (Resource, Attributes)
+
+  The <enable> command.
+
+=item map (Resource, Attributes)
+
+  The <map> command.
+
 =item new_mtp2_monitor (Span, Timeslot)
+
+  The <new><mtp2_monitor> command.
 
   Commands the GTH to start decoding MTP-2 on the given timeslot.
 
   Returns a job identifier (needed to delete the MTP-2 decoding job)
-  and a socket with the signalling on it. The socket uses the 
+  and a socket with the signalling on it. The socket uses the
   format described in the GTH API manual, under new_fr_monitor.
 
 =item new_player (Span, Timeslot)
@@ -306,7 +392,7 @@ module wraps that text protocol in a Perl API.
 
 =item query_resource (Name)
 
-  Queries the given resource. 
+  Queries the given resource.
 
   For most values of <Name>, returns a hash of all the attributes.
 
@@ -322,6 +408,11 @@ module wraps that text protocol in a Perl API.
   Sets the given attribute of a resource.
 
   Multiple Attribute, Value pairs can be given.
+
+=item unmap (Resource, Attributes)
+
+  The <unmap> command.
+
 
 =back
 

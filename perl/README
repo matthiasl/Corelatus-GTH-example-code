@@ -3,13 +3,13 @@ Title: README file for Perl example code
 ----------------------------------------------------------------------
 
 This is example code in Perl for a Corelatus GTH. The examples were
-tested on Perl 5.10.0 on linux. 
+tested on Perl 5.10.0 on linux.
 
 Keep in mind that I'm a Perl dabbler, i.e. if it looks weird, then
 that's most likely because I didn't know better. Suggestions for
 improvement are welcome to matthias@corelatus.se
 
-There are four examples:
+There are six examples:
 
 Recorded file playback
 ----------------------
@@ -29,7 +29,7 @@ Recorded file playback
 E1 timeslot dump to a file
 --------------------------
 
-  This is the opposite of the first example, it copies the 
+  This is the opposite of the first example, it copies the
   data on the given E1 to a file on your PC. Typical use:
 
     >./record.pl 172.16.2.7 1A 16 4000 signalling.raw
@@ -76,8 +76,35 @@ Sniff ISUP
      ignoring ISUP release
      RLC on CIC=0
 
+Enable L1
+---------
+
+   Enable Layer 1 on SDH/SONET and E1/T1 hardware. Typical use:
+
+     >./enable.pl 172.16.11.9 sdh1
+
+Map and unmap E1/T1 links carried on SDH/SONET
+----------------------------------------------
+
+   This example is only useful on SDH/SONET hardware. It's used
+   to get access to E1/T1 links carried on SDH/SONET.
+
+     >./map.pl 172.16.1.10 sdh1:hop1_1:lop1_1_1
+    pcm1
+
+   the 'pcm1' is the dynamically assigned name of the E1/T1 link.
+   Once you've got a name assigned, you can use it, e.g.:
+
+     >./enable.pl 172.16.1.10 pcm1
+
+   When you're finished, you can clean up:
+
+     >./unmap.pl 172.16.1.10 pcm1
+
+
 The examples are built on top of a little library, gth_command.pm,
 which lets you hack up Perl code to do pretty much anything
 supported by the GTH, i.e. you don't have to write your own parser.
+
 
 # eof

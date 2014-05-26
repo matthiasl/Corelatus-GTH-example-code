@@ -7,19 +7,21 @@
 // Typical use:
 //
 //     #include "gth_apilib.h"
-// 
+//
 //     GTH_api api;
 //     char buffer[MAX_JOB_ID];
-// 
-//     gth_connect(&api, "172.16.1.10");
+//
+//     gth_connect(&api, "172.16.1.10", 0);
 //     gth_new_player(&api, "3A", 16, buffer);
-// 
+//
 // This API supports a subset of the GTH's features.
 // Corelatus will extend that subset on request.
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2009, Corelatus AB Stockholm
+// Copyright (c) 2013, 2009, Corelatus AB Stockholm
+//
+// Licence: BSD
 //
 // All rights reserved.
 //
@@ -33,7 +35,7 @@
 //     * Neither the name of Corelatus nor the
 //       names of its contributors may be used to endorse or promote products
 //       derived from this software without specific prior written permission.
-// 
+//
 // THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 // EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 // WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -44,7 +46,7 @@
 // ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//
 //----------------------------------------------------------------------
 
 #include "gth_client_xml_parse.h"
@@ -54,11 +56,13 @@
 
 typedef void(GTH_event_handler)(void *data, GTH_resp *resp);
 
+typedef void(GTH_tone_handler)(const char *name, const int length);
+
 // GTH_api is a structure used by all calls to this API code, it's initially
 // filled in by gth_connect().
 //
 // For most uses, consider this structure to be opaque.
-// 
+//
 // Exceptions to the opaqueness:
 //
 //     - if you use poll/select to multiplex IO, then you probably want
@@ -82,29 +86,42 @@ typedef struct {
   int print_cmds;       // nonzero means we want commands to echo on stderr
   int print_responses;  // nonzero means we want responses to echo on stderr
 
-  void *event_handler_data;
   GTH_event_handler *event_handler;
+  GTH_tone_handler *tone_handler;
 } GTH_api;
 
-// Close an API connection to the GTH, cleanly. 
+// For embedding the version into the object file
+extern const char git_head[];
+extern const char build_hostname[];
+
+// Close an API connection to the GTH, cleanly.
 //
 // Return: 0 on success.
 int gth_bye(GTH_api *api);
 
 // Make a socket which is connected to the API on a GTH module.
 //
+// Address is a hostname or a dotted quad, e.g. "172.16.1.10"
+// Verbose is boolean
+//
 // Return: 0 on success
-int gth_connect(GTH_api *api, const char *address);
+int gth_connect(GTH_api *api, const char *address, const int verbose);
 
 // Make a TCP socket and put it in the listening state.
 //
-// Return: the socket file descriptor 
+// Return: the socket file descriptor
 //
 // This function also writes the port number to the *port argument so that
 //   you know which port the OS selected.
 int gth_make_listen_socket(int *port);
 
-// Given a socket, wait for an accept on it. 
+// Return: the socket file descriptor
+//
+// This function also writes the port number to the *port argument so that
+//   you know which port the OS selected.
+int gth_make_udp_socket(int *port);
+
+// Given a socket, wait for an accept on it.
 //
 // Return: the accepted socket.
 int gth_wait_for_accept(int listen_socket);
@@ -117,6 +134,26 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id);
 // Print message and abort
 void die(const char *message);
 
+// Delete a job.
+//
+// Return: 0 on success
+int gth_delete(GTH_api *api, const char *job_id);
+
+// Disable an SDH/SONET or an E1/T1 interface
+//
+// Return: 0 on success.
+int gth_disable(GTH_api *api,
+		const char *resource);
+
+
+// Enable an SDH/SONET or an E1/T1 interface
+//
+// Return: 0 on success.
+int gth_enable(GTH_api *api,
+	       const char *resource,
+	       const GTH_attribute *attributes,
+	       int n_attributes);
+
 // Install.
 //
 // Return: 0 on success
@@ -126,14 +163,23 @@ int gth_install(GTH_api *api,
 		const char *data,
 		const int length); // in octets (bytes)
 
-// Start CAS MFC monitoring. 
+// Map
+//
+// Return: 0 on success
+// Also writes the resource name to the supplied 'name'
+int gth_map(GTH_api *api,
+	    const char *resource,
+	    char *name,
+	    int max_name);
+
+// Start CAS MFC monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
-// listening state before entering this function, e.g. by 
+// listening state before entering this function, e.g. by
 // calling gth_make_listen_socket() first.
 //
 // This function writes the resulting job-id to job_id.
-// 
+//
 // Return: 0 on success
 int gth_new_cas_r2_mfc_detector(GTH_api *api,
 				const int tag,
@@ -167,13 +213,13 @@ int gth_new_connection(GTH_api *api,
 // Start a LAPD layer.
 //
 // The TCP port specified by (ip/port) is expected to be in a
-// listening state before entering this function, e.g. by 
+// listening state before entering this function, e.g. by
 // calling gth_make_listen_socket() first.
 //
 // 0 is a reasonable default value for 'sapi' and 'tei'
 //
 // This function writes the resulting job-id to job_id.
-// 
+//
 // Return: 0 on success
 int gth_new_lapd_layer(GTH_api *api,
 		       const int tag,
@@ -186,14 +232,31 @@ int gth_new_lapd_layer(GTH_api *api,
 		       const char *ip,
 		       const int port);
 
-// Start MTP-2 monitoring. 
+// Start a LAPD monitor.
 //
 // The TCP port specified by (ip/port) is expected to be in a
-// listening state before entering this function, e.g. by 
+// listening state before entering this function, e.g. by
 // calling gth_make_listen_socket() first.
 //
 // This function writes the resulting job-id to job_id.
-// 
+//
+// Return: 0 on success
+int gth_new_lapd_monitor(GTH_api *api,
+			 const int tag,
+			 const char *span,
+			 const int timeslot,
+			 char *job_id,
+			 const char *ip,
+			 const int port);
+
+// Start MTP-2 monitoring.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
 // Return: 0 on success
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
@@ -203,23 +266,54 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port);
 
+// Start MTP-2 monitoring, with non-default options. The options are
+// key/value pairs exactly as per the API manual, for instance
+// option.name = "fisu"; option.value = "no".
+int gth_new_mtp2_monitor_opt(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslot,
+			     char *job_id,
+			     const char *ip,
+			     const int port,
+			     const GTH_attribute *options,
+			     const int n_options);
 
-// Return: the file descriptor (>= 0) on success. 
+// Return: the file descriptor (>= 0) on success.
 //
 // The file descriptor is a socket to write the player data to.
-int gth_new_player(GTH_api *api, 
-		   const char *span, 
+int gth_new_player(GTH_api *api,
+		   const char *span,
 		   int timeslot,      // E1: 1--31   T1: 1--24
 		   char *job_id);     // function writes the job-id here
-		   
-// Return: the file descriptor (>= 0) on success. 
+
+// Return: the file descriptor (>= 0) on success.
 //
 // The file descriptor is a socket the recorder data gets written to
-int gth_new_recorder(GTH_api *api, 
-		     const char *span, 
+int gth_new_recorder(GTH_api *api,
+		     const char *span,
 		     int timeslot,      // E1: 1--31   T1: 1--24
 		     char *job_id);     // function writes the job-id here
-		   
+
+// Return: 0 on success
+//
+// The file descriptor is a socket the recorder data gets written to
+int gth_new_tone_detector(GTH_api *api,
+			  const char *span,
+			  int timeslot,      // E1: 1--31   T1: 1--24
+			  char *job_id,      // function writes the job-id here
+			  GTH_tone_handler* handler); // callback
+
+// Return: the file descriptor (>= 0) on success.
+//
+// The file descriptor is a UDP socket the incoming data appears on
+int gth_new_wide_recorder(GTH_api *api,
+			  const char *span,
+			  char *job_id);    // function writes the job-id here
+
+// Send a 'no-operation' command to the GTH. Useful for supervision and
+// for polling events.
+void gth_nop(GTH_api *api);
 
 // Set a attributes on a resource.
 //
@@ -243,15 +337,15 @@ int gth_reset(GTH_api *api, const char *resource);
 // Query one attribute on a resource. Returns the value in result, using up
 // to max_size characters, including the terminating 0.
 //
-// On error, result is set to the empty string and the function 
+// On error, result is set to the empty string and the function
 // return value is nonzero.
-int gth_query_resource_attribute(GTH_api *api, 
-				 const char *resource, 
+int gth_query_resource_attribute(GTH_api *api,
+				 const char *resource,
 				 const char *attribute,
 				 char *result,
 				 int max_size);
 
-// Query a resource. 
+// Query a resource.
 //
 // **attributes is set to an array of attributes. The caller is responsible
 // for calling gth_free_attributes() to free the attributes.
@@ -263,16 +357,27 @@ int gth_query_resource_attribute(GTH_api *api,
 int gth_query_resource(GTH_api *api,
 		       const char *name,
 		       GTH_attribute **attributes,
-		       int *n_attributes);				    
+		       int *n_attributes);
+
+// Unmap
+//
+// Return: 0 on success
+int gth_unmap(GTH_api *api,
+	      const char *resource);
+
+// Send a raw XML command. Intended for debugging only.
+//
+// Returns a pointer to the response, or 0 if something goes wrong.
+GTH_resp *gth_raw_xml(GTH_api *api, const char* string);
 
 // Free an array of attributes, typically obtained from gth_query_resource()
 void gth_free_attributes(GTH_attribute *attributes, int n_attributes);
 
-// Return an ascii representation of this machine's IP address as 
+// Return an ascii representation of this machine's IP address as
 // observed by the GTH.
 const char *gth_my_ip_address(GTH_api *api);
 
-// Wait for a GTH to reboot. Assumes that the GTH has just been 
+// Wait for a GTH to reboot. Assumes that the GTH has just been
 // given a boot command or just plugged in.
 //
 // Return: 0 on success
@@ -284,14 +389,14 @@ int gth_wait_for_reboot(const char *hostname);
 //
 // system_name: either 'failsafe' or 'system'
 //     verbose: if nonzero, a couple of progress reports are printed on stderr
-void gth_switch_to(const char *hostname, 
-		   const char *system_name, 
+void gth_switch_to(const char *hostname,
+		   const char *system_name,
 		   const int verbose);
 
 // The Win32 socket library needs some startup actions before it works.
 // So call this before doing anything if you're running on win32.
 // This function does nothing on non windows platforms.
-void win32_specific_startup();
+void win32_specific_startup(void);
 
 // posix and Win32 have different APIs for sleeping. Unify them.
 void sleep_seconds(int seconds);

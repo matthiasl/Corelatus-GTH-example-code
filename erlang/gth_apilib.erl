@@ -10,6 +10,9 @@
 %%%
 %%% In either case, the sockets you pass to this module must have the
 %%% 'binary' option set.
+%%%
+%%% If you're unsure whether you should be using this module, then
+%%% you probably don't want to. Take a look at gth.erl instead.
 %%%----------------------------------------------------------------------
 -module(gth_apilib).
 -author("matthias@corelatus.com").
@@ -20,7 +23,7 @@
 	 next_non_event/1, next_non_event/2, next_non_event/3]).
 
 %%% Functions you can ONLY use with sockets set up with
-%%% [{active, once}, {packet, line}, binary] 
+%%% [{active, once}, {packet, line}, binary]
 -export([active_content/3]).
 
 %%% Functions which don't care which sort of socket is passed in
@@ -33,7 +36,7 @@
 %% should be streamed.
 -define(MAX_CONTENT_SIZE, 500002).
 
--include("gth_api.hrl").
+-include("gth_xml.hrl").
 
 %%======================================================================
 %% API
@@ -49,7 +52,7 @@
 %% The Socket must be passive and binary
 %%
 passive_content(Socket, Timeout) ->
-    inet:setopts(Socket, [{packet, line}]),
+    ok = inet:setopts(Socket, [{packet, line}]),
     case gen_tcp:recv(Socket, 0, Timeout) of
 	{ok, Line1} ->
 	    case gen_tcp:recv(Socket, 0, Timeout) of
@@ -73,7 +76,7 @@ passive_content(Socket, Timeout) ->
 passive_stream_content(Socket, Timeout, Fun) ->
     passive_stream_content(Socket, "binary/filesystem", Timeout, Fun).
 passive_stream_content(Socket, Type, Timeout, Fun) ->
-    inet:setopts(Socket, [{packet, line}]),
+    ok = inet:setopts(Socket, [{packet, line}]),
     case gen_tcp:recv(Socket, 0, Timeout) of
 	{ok, Line1} ->
 	    case gen_tcp:recv(Socket, 0, Timeout) of
@@ -101,7 +104,7 @@ active_content(Socket, Line1, Timeout) ->
 		 X ->
 		     X
 	     end,
-    inet:setopts(Socket, [{packet, line}, {active, once}]),
+    ok = inet:setopts(Socket, [{packet, line}, {active, once}]),
     Return.
 
 %% For backwards compatibility.
@@ -125,7 +128,7 @@ stream_content(Socket, Type, Timeout, Fun) ->
 header(Type, Content) when is_binary(Content) ->
     ["Content-type: ", Type, "\r\n",
      "Content-length: ",
-     integer_to_list(size(Content)),
+     integer_to_list(byte_size(Content)),
      "\r\n\r\n"];
 
 header(Type, Content) when is_list(Content) ->
@@ -215,9 +218,9 @@ next_non_event(Socket, Timeout, Verbose) ->
 collect_entire_content(S, <<"Content-type: ", Type/binary>>,
 		       <<"Content-length: ", BLen/binary>>,
 		       Timeout) ->
-    Slength = string:substr(binary_to_list(BLen), 1, size(BLen) - 2),
+    Slength = string:substr(binary_to_list(BLen), 1, byte_size(BLen) - 2),
     Length = list_to_integer(Slength) + 2,     %% +2 for crlf
-    inet:setopts(S, [{packet, 0}]),
+    ok = inet:setopts(S, [{packet, 0}]),
 
     Atomic_type = case Type of
 		      <<"text/xml\r\n">> -> 'text/xml';
@@ -229,18 +232,18 @@ collect_entire_content(S, <<"Content-type: ", Type/binary>>,
 
     case (Length > ?MAX_CONTENT_SIZE) of
 	true ->
-	    dump_rest(S, Length, Timeout),
+	    _ = dump_rest(S, Length, Timeout),
 	    {error, content_too_large};
 	_ ->
 	    case gen_tcp:recv(S, Length, Timeout) of
-		{ok, <<_:16, Packet/binary>>} 
-		when Atomic_type =/= invalid_content_type -> 
+		{ok, <<_:16, Packet/binary>>}
+		when Atomic_type =/= invalid_content_type ->
 		    {Atomic_type, Packet};
 
 		{ok, _} ->
 		    {error, invalid_content_type};
 
-		{error, Reason} -> 
+		{error, Reason} ->
 		    {error, Reason}
 	    end
     end;
@@ -249,18 +252,18 @@ collect_entire_content(_S, _, _, _) ->
     {error, invalid_xml_header}.
 
 %%--------------------
-%% Returns ok 
-%%       | {error, fun_failed} 
-%%       | {error, content_type_mismatch} 
+%% Returns ok
+%%       | {error, fun_failed}
+%%       | {error, content_type_mismatch}
 %%       | {error, Reason}
 %%
 stream_entire_content(S, Expected_type, <<"Content-type: ", Sent_type/binary>>,
 		      <<"Content-length: ", Blen/binary>>,
 		      Timeout, Supplied_fun) ->
-    Slength = string:substr(binary_to_list(Blen), 1, size(Blen) - 2),
+    Slength = string:substr(binary_to_list(Blen), 1, byte_size(Blen) - 2),
     Length = list_to_integer(Slength),
     {ok, _Line} = gen_tcp:recv(S, 0, Timeout),  %% remove leading CRLF
-    inet:setopts(S, [{packet, 0}]),
+    ok = inet:setopts(S, [{packet, 0}]),
 
     case Expected_type of
 	Sent_type ->  % normal case
@@ -280,26 +283,25 @@ stream_entire_content(_S, _Type, _Typeline, _Length, _Timeout, _Fun) ->
 
 %% Returns ok | {error, Reason}
 
-stream_rest(_, 0, _, _) ->                           %% nothing left to stream
-    ok;
+stream_rest(_, 0, _, Fun) ->                       %% nothing left to stream
+    Fun(eof);
 stream_rest(S, Bytes, Timeout, Fun) ->
-    Read_now = min(13216, Bytes),                  %% Arbitrary number
+    %% 13216 is an arbitrary number
+    Read_now = min(13216, Bytes),
     erlang:garbage_collect(),
     case gen_tcp:recv(S, Read_now, Timeout) of
 	{ok, Lump} ->
+	    Remaining = Bytes - Read_now,
 	    case (catch Fun(Lump)) of
 		ok ->
-		    stream_rest(S, Bytes - Read_now, Timeout, Fun);
+		    stream_rest(S, Remaining, Timeout, Fun);
 		Other ->
 		    error_logger:error_report({"stream fun failed", Other}),
-		    dump_rest(S, Bytes, Timeout)
+		    dump_rest(S, Remaining, Timeout)
 	    end;
 	X = {error, _Reason} ->
 	    X
     end.
-
-min(A, B) when A < B -> A;
-min(_A, B) -> B.
 
 dump_rest(S, Bytes, Timeout) ->
     Dummy_fun = fun(_) -> ok end,

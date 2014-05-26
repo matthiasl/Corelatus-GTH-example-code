@@ -2,14 +2,14 @@
 %% File    : ss7_sniffer.erl
 %% Author  : matthias <matthias@corelatus.se>
 %%
-%% Description : An SS7 call sniffer. 
+%% Description : An SS7 call sniffer.
 %%
 %%               A quick demo of how to use the GTH to listen in on a
 %%               live SS7 link and decode enough of ISUP to show when
 %%               calls start and stop.
 %%
 %%               If you're not connected to a live link, you can use
-%%               a loopback cable and record_and_play_back:play/2 to 
+%%               a loopback cable and record_and_play_back:play/2 to
 %%               replay data from a file.
 %%
 %% Typical session:
@@ -23,12 +23,11 @@
 %%    ignoring release complete
 %%    ...
 %%
-%%
-%% $Id: ss7_sniffer.erl,v 1.4 2010-03-31 10:36:01 matthias Exp $
-%%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
 %% All rights reserved.
+%%
+%% Licence: BSD
 %%
 %% Redistribution and use in source and binary forms, with or without
 %% modification, are permitted provided that the following conditions are met:
@@ -40,7 +39,7 @@
 %%     * Neither the name of Corelatus nor the
 %%       names of its contributors may be used to endorse or promote products
 %%       derived from this software without specific prior written permission.
-%% 
+%%
 %% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 %% EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -56,6 +55,7 @@
 -module(ss7_sniffer).
 -export([go/1, go/4]).
 
+-spec go(inet:ip_address()) -> no_return().
 go(GTH_IP) ->
     go(GTH_IP, "1A", 16, false).
 
@@ -63,10 +63,15 @@ go(GTH_IP) ->
 %% Tell the GTH to start extracting MTP-2 from the given timeslot.
 %%
 %% Monitoring = boolean() % true if a -20dB monitor point is used
+-spec go(GTH_IP::inet:ip_address(),
+	 Span::string(),
+	 Timeslot::integer(),
+	 Monitoring::boolean())
+	-> no_return().
 go(GTH_IP, Span, Timeslot, Monitoring) ->
     {ok, A} = gth:start_link(GTH_IP),
     setup_l1(A, Span, Monitoring),
-    {ok, _Job, Packet_socket} 
+    {ok, _Job, Packet_socket}
 	= gth:new_mtp2_monitor(A, Span, Timeslot, [{"fisu", "no"}]),
     decode_packets(Packet_socket),
     ok = gth:bye(A).
@@ -75,9 +80,9 @@ go(GTH_IP, Span, Timeslot, Monitoring) ->
 %% Wait for the link to actually come up.
 setup_l1(A, Span, Monitoring) ->
     PCM = "pcm" ++ Span,
-    ok = gth:set(A, PCM, 
+    ok = gth:set(A, PCM,
 		 [{"mode", "E1"},
-		  {"status", "enabled"}, 
+		  {"status", "enabled"},
 		  {"monitoring", atom_to_list(Monitoring)},
 		  {"framing", "doubleframe"}]),
     receive
@@ -97,7 +102,7 @@ decode_packets(D) ->
 %% The rest of is just protocol decoding, i.e. nothing GTH-specific.
 
 mtp2(<<_BSN_BIB, _FSN_FIB, _LI, SIO, SIF_CRC/binary>>) ->
-    SIF_length = size(SIF_CRC) - 2,
+    SIF_length = byte_size(SIF_CRC) - 2,
     <<SIF:SIF_length/binary, _CRC:16>> = SIF_CRC,
     mtp3(<<SIO>>, SIF).
 
@@ -119,7 +124,7 @@ mtp3(<<_Sub:4, Service_indicator:4>>, <<DPC:14, OPC:14, SLS:4, Rest/binary>>) ->
     end.
 
 %% Q.767 tells us how to decode ISUP. Annex C is the best place to start.
-%% 
+%%
 %% We're only interested in the IAM packets, they tell us when someone's
 %% setting up a call.
 isup(_DPC, _OPC, _SLS, <<_:4, CIC:12, Type:8, Tail/binary>>) ->
@@ -132,7 +137,7 @@ isup(_DPC, _OPC, _SLS, <<_:4, CIC:12, Type:8, Tail/binary>>) ->
 	16#0e  -> isup_ignore("resume");
 	16#10  -> isup_rlc(CIC, Tail);
 	16#2c  -> isup_ignore("call progress");
-	_  -> io:fwrite("ISUP: CIC=~p Message_type:~p Tail=~p\n", 
+	_  -> io:fwrite("ISUP: CIC=~p Message_type:~p Tail=~p\n",
 			[CIC, Type, Tail])
     end.
 
@@ -145,12 +150,12 @@ isup_iam(CIC, <<_Nature_of_connection,  %% 3.23
 	       2:8,   %% pointer to the number
 	       Pointer_to_optional:8,
 	       Parameters/binary>>) ->
-    
+
     A = isup_number(Parameters),
     Skip_bits = (Pointer_to_optional + 0) * 8,
     <<_:Skip_bits, Optional/binary>> = Parameters,
     B = isup_number(Optional),
-    io:fwrite("IAM: CIC=~p Calling (A) number=~s Called (B) number=~s\n", 
+    io:fwrite("IAM: CIC=~p Calling (A) number=~s Called (B) number=~s\n",
 	      [CIC, A, B]).
 
 isup_rlc(CIC, Tail) ->
@@ -169,7 +174,7 @@ isup_number_string(0, 0, _) ->
 isup_number_string(1, 1, <<_:4, High:4, _/binary>>) ->
     [High + $0];
 isup_number_string(Length, OE, <<Low:4, High:4, Tail/binary>>) ->
-    [High + $0, Low + $0|isup_number_string(Length - 1, OE, Tail)].    
+    [High + $0, Low + $0|isup_number_string(Length - 1, OE, Tail)].
 
 isup_ignore(Name) ->
     io:fwrite("ignoring ~s\n", [Name]),

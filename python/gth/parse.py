@@ -1,8 +1,6 @@
-# Title: A parser for the commands which can come out of a Corelatus GTH.
+# Title: A parser for the responses which can come out of a Corelatus GTH.
 #
 # Author: Matthias Lang (matthias@corelatus.se)
-#
-# $Id: parse.py,v 1.3 2008-09-01 12:47:46 matthias Exp $
 #
 # The GTH uses a text protocol which is a cut-down XML. It can be parsed
 # using an XML parser (probably a DOM one), but that would be overkill.
@@ -39,7 +37,7 @@ def _empty_tag(tagname, expect_attrs = 1):
 
 # This is ugly but works. There must be a better way. In Erlang, I'd
 # do this
-# 
+#
 #  collapse_attributes(_, []) -> [];
 #  collapse_attributes(_, ['attribute', ['name', K], ['value', V] | T]) ->
 #    [{K,V}|collapse_attributes(T)]
@@ -81,12 +79,13 @@ def gth_out():
 
         attributes = ZeroOrMore(_empty_tag("attribute"))
         attributes.setParseAction(_collapse_attributes)
-        resource = _tag("resource", attributes)
+        resource = _empty_tag("resource") ^ _tag("resource", attributes)
+        resources = ZeroOrMore(resource) ^ error
 
         # REVISIT: state grammar below is incomplete
-        state   = _tag("state", resource, 0)
+        state   = _tag("state", resources, 0)
 
-        gth_out_grammar = ok ^ job ^ ok ^ event ^ state ^ error
+        gth_out_grammar = ok ^ job ^ event ^ state ^ resource ^ error
 
     return gth_out_grammar
 

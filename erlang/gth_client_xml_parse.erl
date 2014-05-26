@@ -6,8 +6,6 @@
 %%
 %% Author: Matthias Lang (matthias@corelatus.com)
 %%
-%% $Id: gth_client_xml_parse.erl,v 1.42 2010-03-02 15:40:31 matthias Exp $
-%%
 %% Copyright (c) 2009, Corelatus AB Stockholm
 %%
 %% All rights reserved.
@@ -22,7 +20,7 @@
 %%     * Neither the name of Corelatus nor the
 %%       names of its contributors may be used to endorse or promote products
 %%       derived from this software without specific prior written permission.
-%% 
+%%
 %% THIS SOFTWARE IS PROVIDED BY Corelatus ''AS IS'' AND ANY
 %% EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
 %% WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -33,13 +31,13 @@
 %% ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 %% (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 %% SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-%% 
+%%
 
 %%
 %%----------------------------------------------------------------------
 -module(gth_client_xml_parse).
--export([string/1]).
--include("gth_api.hrl").
+-export([string/1, job_state/2]).
+-include("gth_xml.hrl").
 
 %% for debugging
 -export([step/0, trace/0, tracer/0]).
@@ -57,7 +55,7 @@ string(S) ->
 	    error_logger:error_report(xml_command, {exit, Reason}),
 	    error_logger:error_report(xml_command, {bad_reply, S}),
 	    {error, parse};
-	
+
 	X ->
 	    {error, X}
     end.
@@ -70,88 +68,128 @@ do_string(S) ->
 %%======================================================================
 %% Check the parse tree. Not an exhaustive check, but useful anyway.
 %%
-%% All the mapping from plain tuples to records is for backwards
-%% compatibility with earlier versions of this parser. A customer who
-%% wanted to eliminate that step, most easily by using
-%% gth_xml_scan:scan_and_parse(), i.e. no need for this module at all.
-%% 
+%% The mapping from plain tuples to records is partly for backwards
+%% compatibility (with earlier versions of this parser) and partly
+%% for readability.
+%%
+%% If you want to skip the records, you can, by just using
+%% gth_xml_scan:scan_and_parse(), in which case this module is unnecessary.
+%%
 
 checked({N, A, C, T})
   when N == error;
        N == job;
-       N == ok ->
+       N == ok;
+       N == resource ->
     [] = C,
     {ok, #resp_tuple{name=N, attributes=A, clippings=T}};
 
-checked({event, [], C, T}) ->  
+checked({event, [], C, T}) ->
     Map = lists:map(fun event_child/1, C),
     {ok, #resp_tuple{name=event, children = Map, clippings=T}};
 
-checked({state, [], C, T}) ->  
+checked({state, [], C, T}) ->
     Map = lists:map(fun state_child/1, C),
     {ok, #resp_tuple{name=state, children=Map, clippings=T}};
 
-checked(_) -> 
+checked({jobs, [], C, T}) ->
+    Map = lists:map(fun job_child/1, C),
+    {ok, #resp_tuple{name=jobs, children=Map, clippings=T}};
+
+checked(_) ->
     {error, unknown_tle}.
 
-event_child({Name, A, [], T}) 
-  when Name == alarm; 
-       Name == alert; 
-       Name == atm_message; 
-       Name == ebs; 
-       Name == fatality; 
-       Name == fault; 
-       Name == f_relay_message; 
-       Name == info; 
-       Name == l1_message; 
-       Name == l2_alarm; 
-       Name == l2_socket_alert; 
-       Name == lapd_message; 
-       Name == level; 
-       Name == message_ended; 
-       Name == mtp2_message; 
-       Name == slip; 
-       Name == sync_message; 
+event_child({Name, A, [], T})
+  when Name == alarm;
+       Name == alert;
+       Name == atm_message;
+       Name == ebs;
+       Name == fatality;
+       Name == fault;
+       Name == f_relay_message;
+       Name == info;
+       Name == l1_message;
+       Name == l2_alarm;
+       Name == l2_socket_alert;
+       Name == lapd_message;
+       Name == level;
+       Name == message_ended;
+       Name == mtp2_message;
+       Name == sdh_message;
+       Name == sfp_message;
+       Name == slip;
+       Name == sync_message;
        Name == tone ->
     #resp_tuple{name=Name, attributes=A, children=[], clippings=T};
 
 event_child({backup, [], C, T}) ->
-    F = fun({job, A, [], []}) -> #resp_tuple{name=job, attributes=A} end, 
+    F = fun({job, A, [], []}) -> #resp_tuple{name=job, attributes=A} end,
     #resp_tuple{name=backup, children=lists:map(F, C), clippings=T}.
 
-%% These state children have no children
-state_child({Name, A, [], T})
-  when Name == controller;
-       Name == error;
-       Name == job;
-       Name == player ->
-    #resp_tuple{name=Name, attributes=A, clippings=T};
+state_child({Name, A, C, T}) ->
+    Map = lists:map(fun state_grandchild/1, C),
+    #resp_tuple{name=Name, attributes=A, children=Map, clippings=T}.
 
-%% These state children have (only) attributes  as their children
-state_child({Name, A, C, T})
-  when Name == resource;
-       Name == atm_aal0_monitor;
-       Name == atm_aal2_monitor;
-       Name == atm_aal5_monitor;
-       Name == ss5_linesig_monitor;
-       Name == ss5_registersig_monitor;
-       Name == cas_r2_linesig_monitor;
-       Name == cas_r2_mfc_detector;
-       Name == f_relay_monitor;
-       Name == lapd_monitor;
-       Name == mtp2_monitor ->
-    Map = lists:map(fun attribute/1, C),
-    #resp_tuple{name=Name, attributes=A, children=Map, clippings=T};
+state_grandchild({Name, A, [], []}) ->
+    #resp_tuple{name=Name, attributes=A}.
 
-state_child({ebs, A, C, T}) ->
-    Map = lists:map(fun module/1, C),
-    #resp_tuple{name=ebs, attributes=A, children=Map, clippings=T}.
+job_child({Name, A, C, T})
+  when Name == error;
+       Name == connection;
+       Name == clip ->
+    #resp_tuple{name=Name, attributes=A, children=C, clippings=T}.
 
-attribute({attribute, A, [], []}) ->
-    #resp_tuple{name=attribute, attributes=A}.
+%%--------------------
+%% job_state: Parse the output of <query>.
 
-module({module, A, [], []}) ->
-    #resp_tuple{name=module, attributes=A}.
+%% Query of "self" only returns an ID
+job_state(Verbose, #resp_tuple{name=job, attributes=[{"id", I}]}) ->
+    case Verbose of
+	true ->  {job, I, I, undefined, []};
+	false -> {job, I, I, []}
+    end;
+
+%% Query of a controller
+job_state(Verbose, #resp_tuple{name=controller, attributes=A}) ->
+    ID = case proplists:get_value("id", A) of
+	     undefined -> "";     %% Prior to 33a, no ID in apic query return
+	     X -> X
+	 end,
+    case Verbose of
+	true ->	 {job, ID, ID, undefined, []};
+	false -> {job, ID, ID, []}
+    end;
+
+job_state(Verbose, RT = #resp_tuple{attributes=A}) ->
+    {I, O, Attributes} = job_state_id_and_owner(A),
+    {Tree, Status} = job_state_split_rt(RT),
+    case Verbose of
+	true ->
+	    Simple_tree = Tree#resp_tuple{attributes=Attributes},
+	    {job, I, O, Simple_tree, Status};
+	false when RT#resp_tuple.name == player ->
+	    {job, I, O, Attributes};
+	false ->
+	    {job, I, O, Status}
+    end.
+
+%% All the counters are 'attribute' children. Parse those into
+%% a key-value list. Leave the rest of the tree alone.
+job_state_split_rt(RT = #resp_tuple{children = C}) ->
+    F = fun(#resp_tuple{name=attribute,
+			attributes=[{"name", K}, {"value", V}]},
+	    {KVs, Other}) ->
+		{[{K, V}|KVs], Other};
+
+	   (Child, {KVs, Other}) ->
+		{KVs, [Child|Other]}
+	end,
+    {Status, Other} = lists:foldr(F, {[], []}, C),
+    Tree = RT#resp_tuple{children = Other},
+    {Tree, Status}.
+
+job_state_id_and_owner([{"id", I}, {"owner", O}|T]) -> {I, O, T};
+job_state_id_and_owner([{"id", I}|T]) -> {I, "", T}.
 
 %%----------------------------------------------------------------------
 %% For debugging.
