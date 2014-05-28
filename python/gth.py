@@ -51,7 +51,9 @@ def main():
     sys.argv.pop(0)
 
     verbosity = 0
-    if "-v" in sys.argv[0]:
+    if len(sys.argv) > 0 and "-v" in sys.argv[0]:
+        if len(sys.argv[0]) < 3:
+            usage()
 	if sys.argv[0][2].isdigit:
 		verbosity = int(sys.argv[0][2])
 	sys.argv.pop(0)
