@@ -62,8 +62,8 @@ def main():
         usage()
 
     bad_command = (usage, len(sys.argv))
-    f, expected_args = commands.get(sys.argv.pop(0), bad_command)
     host = sys.argv.pop(0)
+    f, expected_args = commands.get(sys.argv.pop(0), bad_command)
 
     if len(sys.argv) < abs(expected_args):
         usage()
