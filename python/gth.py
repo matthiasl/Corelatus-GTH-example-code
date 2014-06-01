@@ -14,7 +14,7 @@ import gth.apilib
 
 def usage():
     stderr.write("""
-gth.py [-vN] <command> <hostname> [<argument> [<argument> ...]]
+gth.py [-vN] <hostname> <command> [<argument> [<argument> ...]]
 
    <command>: disable | enable | query | reset | set
   <hostname>: the hostname or IP address of a GTH
