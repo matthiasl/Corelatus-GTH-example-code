@@ -872,7 +872,7 @@ static int recv_job_id(GTH_api *api, char *id)
       id_attr = attribute_value(resp, "id");
       assert(id_attr && strlen(id_attr) < MAX_JOB_ID);
 
-      strcpy(id, id_attr);
+      strncpy(id, id_attr, MAX_JOB_ID);
     }
   else
     {
@@ -970,6 +970,8 @@ static int next_api_response(GTH_api *api,
 			     char *response,
 			     const int max_response_length)
 {
+  const char *key1 = "Content-type: ";
+  const char *key2 = "Content-length: ";
   char content_type[GTH_HEADER_BUFFER_LEN];
   char content_length[GTH_HEADER_BUFFER_LEN];
   char type[GTH_HEADER_BUFFER_LEN];
@@ -988,17 +990,17 @@ static int next_api_response(GTH_api *api,
     return -1;
   }
 
-  result1 = sscanf(content_type, "Content-type: %s", type);
-  result2 = sscanf(content_length, "Content-length: %d", &length);
-
-  if (result1 != 1 || result2 != 1) {
+  if (strstr(content_type,   key1) != content_type ||
+      strstr(content_length, key2) != content_length) {
     closesocket(api->fd);
     api->fd = -1;
     return -2;
   }
 
-  if (strcmp(type, "text/xml") != 0
-      && strcmp(type, "text/plain") != 0) {
+  strncpy(type, content_type + strlen(key1), GTH_HEADER_BUFFER_LEN);
+  length = atoi(content_length + strlen(key2));
+
+  if (strcmp(type, "text/xml") != 0 && strcmp(type, "text/plain") != 0) {
     closesocket(api->fd);
     api->fd = -1;
     return -3;
@@ -1479,7 +1481,7 @@ static void my_ip_address(GTH_api *api)
   ip_addr = attribute_value(resp->children+0, "ip_addr");
   assert(strlen(ip_addr) < sizeof(api->my_ip));
 
-  strcpy(api->my_ip, ip_addr);
+  strncpy(api->my_ip, ip_addr, sizeof(api->my_ip));
   gth_free_resp(resp);
 }
 

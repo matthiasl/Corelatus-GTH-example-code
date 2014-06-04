@@ -43,6 +43,7 @@
 #include <malloc.h>
 
 #include "gth_client_xml_parse.h"
+#include "gth_win32_compat.h"
 
 //======================================================================
 // First, the scanner. (the parser is after the next line rule)
