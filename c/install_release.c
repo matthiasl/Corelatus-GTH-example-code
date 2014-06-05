@@ -85,31 +85,35 @@ static void install_release(const char *hostname,
 
   result = gth_connect(&api, hostname, verbose);
 
-  fopen_s(&image, filename, "rb");
-
   fprintf(stderr, "installing software image %s\n", filename);
 
-  if (!image) die("unable to open software image file");
+  fopen_s(&image, filename, "rb");
 
-  fseek(image, 0, SEEK_END);
-  image_length = ftell(image);
-  rewind(image);
+  if (image)
+    {
+      fseek(image, 0, SEEK_END);
+      image_length = ftell(image);
+      rewind(image);
 
-  image_data = malloc(image_length);
-  assert(image_data);
-  result = fread(image_data, image_length, 1, image);
-  assert(result == 1);
+      image_data = checked_malloc(image_length);
+      result = fread(image_data, image_length, 1, image);
+      assert(result == 1);
 
-  fclose(image);
+      fclose(image);
 
-  result = gth_set_single(&api, image_name, "locked", "false");
-  assert(result == 0);
+      result = gth_set_single(&api, image_name, "locked", "false");
+      assert(result == 0);
 
-  result = gth_install(&api, image_name, "binary/filesystem",
-		       image_data, image_length);
-  free(image_data);
+      result = gth_install(&api, image_name, "binary/filesystem",
+			   image_data, image_length);
+      free(image_data);
 
-  if (result != 0) die("install failed");
+      if (result != 0) die("install failed");
+    }
+  else
+    {
+      die("unable to open software image file");
+    }
 }
 
 static void show_releases(const char *hostname, const int verbose)

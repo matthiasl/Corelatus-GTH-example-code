@@ -43,6 +43,7 @@
 #include <malloc.h>
 
 #include "gth_client_xml_parse.h"
+#include "gth_win32_compat.h"
 
 //======================================================================
 // First, the scanner. (the parser is after the next line rule)
@@ -79,8 +80,7 @@ static int scan_string(const char* string, GTH_token *token, const char end)
 
   len = endptr - string;
   token->type = TOK_STRING;
-  token->payload = malloc(len + 1);
-  assert(token->payload);
+  token->payload = checked_malloc(len + 1);
 
   strncpy(token->payload, string, len);
   token->payload[len] = 0;
@@ -98,8 +98,7 @@ static int scan_name(const char* string, GTH_token *token)
   len = strcspn(string, " =\r\n/><");
 
   token->type = TOK_NAME;
-  token->payload = malloc(len + 1);
-  assert(token->payload);
+  token->payload = checked_malloc(len + 1);
 
   strncpy(token->payload, string, len);
   token->payload[len] = 0;
@@ -117,17 +116,17 @@ static int scan_name(const char* string, GTH_token *token)
 int gth_scan(const char *string, GTH_token **ret_tokens)
 {
   size_t len;
-  int max_token = 0;
+  int max_token = 5;
   int tokens_used = 0;
-  GTH_token *start = 0;
-  GTH_token *current = 0;
+  GTH_token *start = malloc(max_token * sizeof(GTH_token));
+  GTH_token *current = start;
 
   //----
  outside_tag:
   tokens_used = (current - start);
   if ( tokens_used == max_token) {
-    max_token = max_token * 2 + 5;  // 0, 5, 15, 35, 75
-    start = realloc(start, max_token * sizeof(GTH_token));
+    max_token = max_token * 2;
+    start = checked_realloc(start, max_token * sizeof(GTH_token));
     current = start + tokens_used;
   }
 
@@ -144,7 +143,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   // Make a text token, but only if the text is non-whitespace
   if (strspn(string, "\r\n\t ") < len) {
     current->type = TOK_TEXT;
-    current->payload = malloc(len + 1);
+    current->payload = checked_malloc(len + 1);
     strncpy(current->payload, string, len);
     current->payload[len] = 0;
     current++;
@@ -161,7 +160,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   tokens_used = (current - start);
   if ( tokens_used == max_token) {
     max_token = max_token * 2 + 5;  // 0, 5, 15, 35, 75
-    start = realloc(start, max_token * sizeof(GTH_token));
+    start = checked_realloc(start, max_token * sizeof(GTH_token));
     current = start + tokens_used;
   }
 
@@ -297,9 +296,9 @@ static GTH_resp *resp_add_child(GTH_resp *resp, GTH_resp_type type)
   if (resp->n_children >= resp->allocated_children)
     {
       resp->allocated_children = resp->allocated_children * 2 + 3;
-      resp->children = realloc(resp->children,
-			       resp->allocated_children
-			       * sizeof(GTH_resp));
+      resp->children = checked_realloc(resp->children,
+				       resp->allocated_children
+				       * sizeof(GTH_resp));
     }
 
   newborn = resp->children + resp->n_children;
@@ -316,9 +315,9 @@ static void resp_add_attribute(GTH_resp *resp, char *key, char *value)
   if (resp->allocated_attributes <= resp->n_attributes)
     {
       resp->allocated_attributes = 2*resp->allocated_attributes + 2;
-      resp->attributes = realloc(resp->attributes,
-				 resp->allocated_attributes *
-				 sizeof(GTH_attribute));
+      resp->attributes = checked_realloc(resp->attributes,
+					 resp->allocated_attributes *
+					 sizeof(GTH_attribute));
     }
 
   resp->attributes[resp->n_attributes].key = key;
@@ -345,7 +344,7 @@ GTH_resp *gth_parse(const char *string)
 {
   GTH_token *tokens;
   GTH_token *end;
-  GTH_resp *resp = malloc(sizeof(GTH_resp));
+  GTH_resp *resp = checked_malloc(sizeof(GTH_resp));
   GTH_resp *old;
 
   new_resp(resp, GTH_RESP_ERROR);

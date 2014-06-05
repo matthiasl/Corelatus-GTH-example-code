@@ -29,6 +29,8 @@
 //       for printing size_t. Windows doesn't.
 //
 //
+#ifndef GTH_WIN32_COMPAT_H
+#define GTH_WIN32_COMPAT_H
 
 //----------------------------------------------------------------------
 // Case 3
@@ -70,4 +72,16 @@ int fopen_s(FILE **file, const char *filename, const char *mode);
 #else
 // Cases 2 and 3
 #define SIZE_T_FORMAT "%Iu"
+#endif
+
+
+//----------------------------------------------------------------------
+// All cases
+
+// Print message and abort
+void die(const char *message);
+
+// Wrapped memory allocation; exits on failure.
+void *checked_realloc(void *ptr, size_t size);
+void *checked_malloc(size_t size);
 #endif

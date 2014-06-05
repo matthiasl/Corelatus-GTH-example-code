@@ -122,6 +122,30 @@ void die(const char* message)
   exit(-1);
 }
 
+
+void *checked_realloc(void *ptr, size_t size)
+{
+  void *result;
+
+  result = realloc(ptr, size);
+
+  if (!result) die("realloc failed. Out of memory?");
+
+  return result;
+}
+
+void *checked_malloc(size_t size)
+{
+  void *result;
+
+  result = malloc(size);
+
+  if (!result) die("malloc failed. Out of memory?");
+
+  return result;
+}
+
+
 void gth_event_handler(void *data, GTH_resp *resp)
 {
   GTH_resp *child;
@@ -872,7 +896,7 @@ static int recv_job_id(GTH_api *api, char *id)
       id_attr = attribute_value(resp, "id");
       assert(id_attr && strlen(id_attr) < MAX_JOB_ID);
 
-      strcpy(id, id_attr);
+      strncpy(id, id_attr, MAX_JOB_ID);
     }
   else
     {
@@ -970,6 +994,8 @@ static int next_api_response(GTH_api *api,
 			     char *response,
 			     const int max_response_length)
 {
+  const char *key1 = "Content-type: ";
+  const char *key2 = "Content-length: ";
   char content_type[GTH_HEADER_BUFFER_LEN];
   char content_length[GTH_HEADER_BUFFER_LEN];
   char type[GTH_HEADER_BUFFER_LEN];
@@ -988,17 +1014,17 @@ static int next_api_response(GTH_api *api,
     return -1;
   }
 
-  result1 = sscanf(content_type, "Content-type: %s", type);
-  result2 = sscanf(content_length, "Content-length: %d", &length);
-
-  if (result1 != 1 || result2 != 1) {
+  if (strstr(content_type,   key1) != content_type ||
+      strstr(content_length, key2) != content_length) {
     closesocket(api->fd);
     api->fd = -1;
     return -2;
   }
 
-  if (strcmp(type, "text/xml") != 0
-      && strcmp(type, "text/plain") != 0) {
+  strncpy(type, content_type + strlen(key1), GTH_HEADER_BUFFER_LEN);
+  length = atoi(content_length + strlen(key2));
+
+  if (strcmp(type, "text/xml") != 0 && strcmp(type, "text/plain") != 0) {
     closesocket(api->fd);
     api->fd = -1;
     return -3;
@@ -1290,8 +1316,7 @@ static int query_single_resource(GTH_api *api,
       if (is_text_following_resource_query(name))
 	{
 	  int result;
-	  char *text_buffer = malloc(MAX_LOGFILE);
-	  assert(text_buffer);
+	  char *text_buffer = checked_malloc(MAX_LOGFILE);
 
 	  result = next_api_response(api, text_buffer, MAX_LOGFILE);
 	  if (result != 0)
@@ -1302,15 +1327,13 @@ static int query_single_resource(GTH_api *api,
 	    }
 
 	  (*n_attributes)++;
-	  *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
-	  assert(*attributes);
+	  *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
 	  (*attributes)[*n_attributes - 1].key = "log_body";
 	  (*attributes)[*n_attributes - 1].value = text_buffer;
 	}
       else
 	{
-	  *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
-	  assert(*attributes);
+	  *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
 	}
 
       for (x = 0; x < resource->n_children; x++) {
@@ -1358,8 +1381,7 @@ static int query_inventory(GTH_api *api,
 
   if (resp->type == GTH_RESP_STATE)
     {
-      *attributes = malloc(sizeof(GTH_attribute) * resp->n_children);
-      assert(*attributes);
+      *attributes = checked_malloc(sizeof(GTH_attribute) * resp->n_children);
       *n_attributes = resp->n_children;
 
       for (x = 0; x < resp->n_children; x++) {
@@ -1479,7 +1501,7 @@ static void my_ip_address(GTH_api *api)
   ip_addr = attribute_value(resp->children+0, "ip_addr");
   assert(strlen(ip_addr) < sizeof(api->my_ip));
 
-  strcpy(api->my_ip, ip_addr);
+  strncpy(api->my_ip, ip_addr, sizeof(api->my_ip));
   gth_free_resp(resp);
 }
 
