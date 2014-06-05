@@ -131,9 +131,6 @@ int gth_wait_for_accept(int listen_socket);
 // Return: 0 on success
 int gth_wait_for_message_ended(GTH_api *api, const char *job_id);
 
-// Print message and abort
-void die(const char *message);
-
 // Delete a job.
 //
 // Return: 0 on success

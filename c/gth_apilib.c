@@ -122,6 +122,30 @@ void die(const char* message)
   exit(-1);
 }
 
+
+void *checked_realloc(void *ptr, size_t size)
+{
+  void *result;
+
+  result = realloc(ptr, size);
+
+  if (!result) die("realloc failed. Out of memory?");
+
+  return result;
+}
+
+void *checked_malloc(size_t size)
+{
+  void *result;
+
+  result = malloc(size);
+
+  if (!result) die("malloc failed. Out of memory?");
+
+  return result;
+}
+
+
 void gth_event_handler(void *data, GTH_resp *resp)
 {
   GTH_resp *child;
@@ -1292,8 +1316,7 @@ static int query_single_resource(GTH_api *api,
       if (is_text_following_resource_query(name))
 	{
 	  int result;
-	  char *text_buffer = malloc(MAX_LOGFILE);
-	  assert(text_buffer);
+	  char *text_buffer = checked_malloc(MAX_LOGFILE);
 
 	  result = next_api_response(api, text_buffer, MAX_LOGFILE);
 	  if (result != 0)
@@ -1304,15 +1327,13 @@ static int query_single_resource(GTH_api *api,
 	    }
 
 	  (*n_attributes)++;
-	  *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
-	  assert(*attributes);
+	  *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
 	  (*attributes)[*n_attributes - 1].key = "log_body";
 	  (*attributes)[*n_attributes - 1].value = text_buffer;
 	}
       else
 	{
-	  *attributes = malloc(sizeof(GTH_attribute) * *n_attributes);
-	  assert(*attributes);
+	  *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
 	}
 
       for (x = 0; x < resource->n_children; x++) {
@@ -1360,8 +1381,7 @@ static int query_inventory(GTH_api *api,
 
   if (resp->type == GTH_RESP_STATE)
     {
-      *attributes = malloc(sizeof(GTH_attribute) * resp->n_children);
-      assert(*attributes);
+      *attributes = checked_malloc(sizeof(GTH_attribute) * resp->n_children);
       *n_attributes = resp->n_children;
 
       for (x = 0; x < resp->n_children; x++) {

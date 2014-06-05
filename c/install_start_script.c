@@ -36,6 +36,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "gth_win32_compat.h"
 #include "gth_apilib.h"
 #include "gth_client_xml_parse.h"
 
@@ -84,7 +85,7 @@ static void install_start_script(const char *hostname,
   script_length = ftell(script);
   rewind(script);
 
-  script_data = malloc(script_length);
+  script_data = checked_malloc(script_length);
   assert(script_data);
   result = fread(script_data, script_length, 1, script);
 
