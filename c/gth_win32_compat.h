@@ -37,12 +37,12 @@
 
 #ifdef _MSC_VER
 
-// Microsoft's equivalents of the GNU strncat and strncpy are called
-// strcat_s and strcpy_s, and they have the second and third arguments
-// the other way around.
-#define strncpy(A,B,C) strcpy_s(A,C,B)
+// Microsoft's strncat_s isn't exactly a drop-in replacement for strncat.
 #define strncat(A,B,C) strcat_s(A,C,B)
 #define snprintf sprintf_s
+
+// As of Visual Studio 2013, Microsoft do not support C99 'inline'.
+#define inline
 
 #define HANDLE_OR_FILEPTR HANDLE
 #define PACK_SUFFIX
@@ -68,6 +68,13 @@
 #define HANDLE_OR_FILEPTR FILE*
 // Workalike for Microsoft's variant of fopen()
 int fopen_s(FILE **file, const char *filename, const char *mode);
+
+// Workalike for Microsoft's variant of strncpy
+int strncpy_s(char *dest,
+	      size_t dest_size,
+	      const char *src,
+	      size_t copy_count);
+
 #define SIZE_T_FORMAT "%zu"
 #else
 // Cases 2 and 3

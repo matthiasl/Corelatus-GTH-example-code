@@ -64,6 +64,45 @@ typedef int socklen_t;
 
 const int GTH_API_PORT = 2089;        // TCP port a Corelatus GTH listens on
 
+#ifndef WIN32   // i.e. unix.
+
+// strncpy_s is provided by Microsoft, but not GNU.
+// This implementation is meant to do the same as Microsoft's, except
+//    - no support for _TRUNCATE
+//    - no "invalid parameter handler"
+int
+strncpy_s(char *dest,
+	  size_t dest_size,
+	  const char *src,
+	  size_t copy_count)
+{
+  int x;
+
+  if (!dest) return EINVAL;
+  if (dest_size == 0) return EINVAL;
+
+  if (!src)
+    {
+      dest[0] = 0;
+      return EINVAL;
+    }
+
+  for (x = 0; x < copy_count && x < dest_size - 1 && src[x] != 0; x++)
+      dest[x] = src[x];
+
+  if (x >= dest_size)
+    {
+      dest[0] = 0;
+      return ERANGE;
+    }
+
+  dest[x] = 0;
+
+  return 0;
+}
+#endif
+
+
 //----------------------------------------------------------------------
 // Forward declarations.
 
@@ -894,9 +933,7 @@ static int recv_job_id(GTH_api *api, char *id)
   if (resp->type == GTH_RESP_JOB)
     {
       id_attr = attribute_value(resp, "id");
-      assert(id_attr && strlen(id_attr) < MAX_JOB_ID);
-
-      strncpy(id, id_attr, MAX_JOB_ID);
+      strncpy_s(id, MAX_JOB_ID, id_attr, MAX_JOB_ID - 1);
     }
   else
     {
@@ -1021,7 +1058,10 @@ static int next_api_response(GTH_api *api,
     return -2;
   }
 
-  strncpy(type, content_type + strlen(key1), GTH_HEADER_BUFFER_LEN);
+  strncpy_s(type,
+	    GTH_HEADER_BUFFER_LEN,
+	    content_type + strlen(key1),
+	    GTH_HEADER_BUFFER_LEN - 1);
   length = atoi(content_length + strlen(key2));
 
   if (strcmp(type, "text/xml") != 0 && strcmp(type, "text/plain") != 0) {
@@ -1252,7 +1292,7 @@ int gth_query_resource_attribute(GTH_api *api,
 	assert(value);
 
 	if (strcmp(name, key) == 0) {
-	  strncpy(result, value, max_result);
+	  strncpy_s(result, max_result, value, max_result - 1);
 	  result[max_result - 1] = 0;
 	  retval = 0;
 	}
@@ -1501,7 +1541,7 @@ static void my_ip_address(GTH_api *api)
   ip_addr = attribute_value(resp->children+0, "ip_addr");
   assert(strlen(ip_addr) < sizeof(api->my_ip));
 
-  strncpy(api->my_ip, ip_addr, sizeof(api->my_ip));
+  strncpy_s(api->my_ip, sizeof(api->my_ip), ip_addr, sizeof(api->my_ip) - 1);
   gth_free_resp(resp);
 }
 
@@ -1640,13 +1680,14 @@ int gth_map(GTH_api *api,
 
   if (resp == 0) return -9;
 
-  if (resp->type == GTH_RESP_RESOURCE) {
-    strncpy(name, resp->attributes[0].value, max_name);
-    name[max_name - 1] = 0;
-  }
-  else {
-    retval = -1;
-  }
+  if (resp->type == GTH_RESP_RESOURCE)
+    {
+      strncpy_s(name, max_name, resp->attributes[0].value, max_name - 1);
+    }
+  else
+    {
+      retval = -1;
+    }
 
   gth_free_resp(resp);
 
