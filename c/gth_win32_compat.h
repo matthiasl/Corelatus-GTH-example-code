@@ -13,7 +13,7 @@
 //
 //       Case 3 does it one way, cases 1&2 the other.
 //
-//    B. Microsoft's socket library often uses names for things.
+//    B. Microsoft's socket library often uses different names for things.
 //
 //       Case 1 does it one way, cases 2 & 3 the other.
 //
@@ -41,7 +41,7 @@
 #define strncat(A,B,C) strcat_s(A,C,B)
 #define snprintf sprintf_s
 
-// As of Visual Studio 2013, Microsoft do not support C99 'inline'.
+// Microsoft VS 2013 does not support C99 'inline'
 #define inline
 
 #define HANDLE_OR_FILEPTR HANDLE
@@ -65,7 +65,7 @@
 // Case 1
 #ifndef WIN32
 #define closesocket close
-#define HANDLE_OR_FILEPTR FILE*
+#define HANDLE_OR_FILEPTR  FILE*
 // Workalike for Microsoft's variant of fopen()
 int fopen_s(FILE **file, const char *filename, const char *mode);
 

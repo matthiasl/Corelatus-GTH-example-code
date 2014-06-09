@@ -34,6 +34,7 @@ CC_WIN32_32bit=i586-mingw32msvc-gcc
 
 CC_WIN32:=$(shell if test -x `which $(CC_WIN32_64bit)` ; then echo $(CC_WIN32_64bit); else echo $(CC_WIN32_32bit); fi)
 LIBS_WIN32=-lws2_32
+LIBS=-lrt
 
 CC=gcc
 

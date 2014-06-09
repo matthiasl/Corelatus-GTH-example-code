@@ -49,6 +49,8 @@
 #include <sys/types.h>
 #include <assert.h>
 #include <string.h>
+#include <signal.h>
+#include <time.h>
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -169,11 +171,12 @@ usage() {
 	  "\n\nSave decoded MTP-2 signal units to a file in libpcap format, "
 	  "\nsuitable for examining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
-	  "\n<options>: [-c] [-f fisu=no] [-m] [-n <count>] [-v]"
+	  "\n<options>: [-c] [-f fisu=no] [-m] [-n <rotation>] [-v]"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
-	  "\n-n <count>: rotate the output file after <count> packets, 0 means never"
+	  "\n-n <packets:c>: rotate the output file after <c> packets"
+	  "\n-n <duration:s>: rotate the output file after <s> seconds"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<channels> is a list of spans and timeslots:"
@@ -191,7 +194,8 @@ usage() {
 	  "./save_to_pcap 172.16.1.10 1A 2A 3A 4A 1 2 3 4 isup_capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 1B 5 6 7 8 capture.pcapng\n"
 	  "./save_to_pcap -m 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
-	  "./save_to_pcap -m -n 1000 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
+	  "./save_to_pcap -m -n packets:1000 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
+	  "./save_to_pcap -m -n duration:60 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
 	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 - | tshark -V -i - \n"
 	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n"
 	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
@@ -688,7 +692,8 @@ max_arg(int a, int b)
 
 
 // Block (or loop) until a packet arrives. Flush API events with <nop/>
-static void
+// Returns 0 on timeout, 1 otherwise.
+static int
 wait_for_packet(GTH_api *api, int data_socket)
 {
   fd_set fds;
@@ -699,14 +704,20 @@ wait_for_packet(GTH_api *api, int data_socket)
 
   for (;;)
     {
+      struct timeval tv = {1, 0};
       FD_SET(api->fd, &fds);
       FD_SET(data_socket, &fds);
 
-      result = select(nfds, &fds, 0, 0, 0);
+      result = select(nfds, &fds, 0, 0, &tv);
 
-      if (result == -1 || result == 0)
+      if (result < 0)
 	{
-	  die("internal error---select() returned -1 or 0");
+	  die("internal error---select() returned error");
+	}
+
+      if (result == 0)
+	{
+	  return 0;
 	}
 
       if (FD_ISSET(api->fd, &fds))
@@ -716,9 +727,107 @@ wait_for_packet(GTH_api *api, int data_socket)
 
       if (FD_ISSET(data_socket, &fds))
 	{
-	  return;
+	  return 1;
 	}
     }
+}
+
+// Timers are totally different on Windows and the Unixes. We just
+// write the code twice to handle that.
+#ifdef WIN32
+static HANDLE timer;
+
+static void
+set_timer(int seconds)
+{
+  LARGE_INTEGER liDueTime;
+  int result;
+
+  liDueTime.QuadPart = seconds;
+  // Timer is in 100ns units. Negative means relative timeout.
+  liDueTime.QuadPart *= -10000000LL;
+
+  result = SetWaitableTimer(timer, &liDueTime, 0, NULL, NULL, 0);
+  if (!result) die("SetWaitableTimer failed");
+}
+
+static void
+init_timer(int seconds)
+{
+  timer = CreateWaitableTimer(NULL, TRUE, "file_rotation_timer");
+  if (timer == NULL) die("CreateWaitableTimer failed");
+  set_timer(seconds);
+}
+
+// Return: 0 if the timer has expired
+static int
+read_and_restart_timer(int seconds)
+{
+	
+  if (WaitForSingleObject(timer, 0) == WAIT_OBJECT_0)
+    {
+      set_timer(seconds);
+      return 0;
+    }
+  return 1;
+}
+
+
+#else   // unix version
+static timer_t timer;
+
+static void
+set_timer(int seconds)
+{
+  int result;
+  struct itimerspec new_timer = { {0, 0}, {seconds, 0} };
+
+  result = timer_settime(timer, 0, &new_timer, 0);
+  if (result != 0) die("timer_settime failed");
+}
+
+static void
+init_timer(int seconds)
+{
+  int result;
+  struct sigevent se;
+
+  se.sigev_notify = SIGEV_NONE;
+
+  result = timer_create(CLOCK_REALTIME, &se, &timer);
+  if (result != 0) die("unable to create a timer");
+
+  set_timer(seconds);
+}
+
+// Return: 0 if the timer has expired
+static int
+read_and_restart_timer(int seconds)
+{
+  int result;
+  struct itimerspec current;
+
+  result = timer_gettime(timer, &current);
+  if (result != 0) die("timer_gettime() failed");
+
+  if (current.it_value.tv_sec == 0 && current.it_value.tv_nsec == 0)
+    {
+      set_timer(seconds);
+      return 0;
+    }
+
+  return 1;
+}
+#endif
+
+static inline int
+is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
+{
+  if (duration > 0 && read_and_restart_timer(duration) == 0)
+    {
+      return 1;
+    }
+  return (n_sus_per_file > 0 && (su_count >= n_sus_per_file));
 }
 
 #define MAX_FILENAME 100
@@ -729,6 +838,7 @@ convert_to_pcap(GTH_api *api,
 		int data_socket,
 		const char *base_name,
 		const int n_sus_per_file,
+		const int duration_per_file,
 		Channel_t channels[],
 		int n_channels,
 		const enum PCap_format format)
@@ -743,6 +853,8 @@ convert_to_pcap(GTH_api *api,
 
   write_to_stdout = (strcmp(base_name, "-") == 0);
   write_to_pipe = is_filename_a_pipe(base_name);
+
+  init_timer(duration_per_file);
 
   while (1) {
     char filename[MAX_FILENAME];
@@ -770,31 +882,31 @@ convert_to_pcap(GTH_api *api,
     file_number++;
     su_count = 0;
 
-    while ( write_to_stdout
-	    || write_to_pipe
-	    || n_sus_per_file == 0
-	    || (su_count++ < n_sus_per_file) )
+    do
       {
-	wait_for_packet(api, data_socket);
-	read_exact(data_socket, (void*)&length, sizeof length);
-	length = ntohs(length);
-	assert(length <= sizeof signal_unit);
-	read_exact(data_socket, (void*)&signal_unit, length);
-
-	length -= (signal_unit.payload - (char*)&(signal_unit.tag));
-	write_packet(file,
-		     ntohs(signal_unit.timestamp_hi),
-		     ntohl(signal_unit.timestamp_lo),
-		     ntohs(signal_unit.tag),
-		     signal_unit.payload,
-		     length,
-		     format);
-
-	if (write_to_stdout)
+	if (wait_for_packet(api, data_socket) != 0)
 	  {
-	    fflush(stdout);
+	    read_exact(data_socket, (void*)&length, sizeof length);
+	    length = ntohs(length);
+	    assert(length <= sizeof signal_unit);
+	    read_exact(data_socket, (void*)&signal_unit, length);
+
+	    length -= (signal_unit.payload - (char*)&(signal_unit.tag));
+	    write_packet(file,
+			 ntohs(signal_unit.timestamp_hi),
+			 ntohl(signal_unit.timestamp_lo),
+			 ntohs(signal_unit.tag),
+			 signal_unit.payload,
+			 length,
+			 format);
+	    fflush(file);
+	    su_count++;
 	  }
       }
+    while ( !is_time_to_rotate(su_count, n_sus_per_file, duration_per_file)
+	    || write_to_pipe
+	    || write_to_stdout );
+
     fclose(file);
   }
 }
@@ -879,12 +991,43 @@ arguments_to_channels(int argc,
   return current_arg;
 }
 
+// Two possible rotation syntaxes.
+//
+// '-n packets:123' means rotate after 123 packets
+// '-n duration:60' means rotate after 60 seconds
+//
+// The old syntax, e.g. '-n 55' is still supported.
+//
+// It's possible to specify multiple, separate -n arguments.
+void static
+parse_rotation(char *arg, int *n_sus_per_file, int *duration_per_file)
+{
+  int n;
+
+  if (sscanf(arg, "packets:%d", &n) == 1
+      || sscanf(arg, "%d", &n) == 1)
+    {
+      *n_sus_per_file = n;
+      return;
+    }
+
+  if (sscanf(arg, "duration:%d", &n) == 1)
+    {
+      *duration_per_file = n;
+      return;
+    }
+
+  usage();
+}
+
+
 void static
 process_arguments(char **argv,
 		  int argc,
 		  int *monitoring,
 		  int *verbose,
 		  int *n_sus_per_file,
+		  int *duration_per_file,
 		  int *drop_fisus,
 		  char **hostname,
 		  Channel_t channels[],
@@ -912,11 +1055,10 @@ process_arguments(char **argv,
     case 'n':
       if (argc < 3) {
 	usage();
-      } else {
-	*n_sus_per_file = atoi(argv[2]);
-	argc--;
-	argv++;
       }
+      parse_rotation(argv[2], n_sus_per_file, duration_per_file);
+      argc--;
+      argv++;
       break;
 
     case 'v': *verbose = 1; break;
@@ -936,10 +1078,7 @@ process_arguments(char **argv,
   argv += 2;
   argc -= 2;
 
-  current_arg = arguments_to_channels(argc,
-				      argv,
-				      channels,
-				      n_channels);
+  current_arg = arguments_to_channels(argc, argv, channels, n_channels);
   if (!n_channels){
     die("No timeslots given (or, perhaps, no output filename given).");
   }
@@ -962,6 +1101,7 @@ main(int argc, char **argv)
   int i;
   int n_channels = 0;
   int n_sus_per_file = 0;
+  int duration_per_file = 0;
   int drop_fisus = 0;
   int listen_port = 0;
   int listen_socket = -1;
@@ -976,9 +1116,9 @@ main(int argc, char **argv)
   win32_specific_startup();
 
   process_arguments(argv, argc,
-		    &monitoring, &verbose, &n_sus_per_file, &drop_fisus,
-		    &hostname, channels, &n_channels, &base_filename, &format);
-
+		    &monitoring, &verbose, &n_sus_per_file, &duration_per_file,
+		    &drop_fisus, &hostname, channels, &n_channels,
+		    &base_filename, &format);
   result = gth_connect(&api, hostname, verbose);
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
@@ -997,7 +1137,8 @@ main(int argc, char **argv)
   }
 
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(&api, data_socket, base_filename, n_sus_per_file,
+  convert_to_pcap(&api, data_socket, base_filename,
+		  n_sus_per_file, duration_per_file,
 		  channels, n_channels, format);
 
   return 0; // not reached
