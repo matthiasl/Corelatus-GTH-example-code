@@ -124,7 +124,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   size_t len;
   int max_token = 5;
   int tokens_used = 0;
-  GTH_token *start = malloc(max_token * sizeof(GTH_token));
+  GTH_token *start = checked_malloc(max_token * sizeof(GTH_token));
   GTH_token *current = start;
 
   //----
@@ -163,7 +163,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   current++;
   tokens_used = (current - start);
   if ( tokens_used == max_token) {
-    max_token = max_token * 2 + 5;  // 0, 5, 15, 35, 75
+    max_token = max_token * 2;
     start = checked_realloc(start, max_token * sizeof(GTH_token));
     current = start + tokens_used;
   }
