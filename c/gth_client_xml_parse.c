@@ -67,6 +67,18 @@ typedef struct
   char* payload;
 } GTH_token;
 
+static char *
+copy_to_new_add_null(const char *src, int len)
+{
+  char *result;
+
+  result = checked_malloc(len + 1);
+  memcpy(result, src, len);
+  result[len] = 0;
+
+  return result;
+}
+
 // We're inside a string. Make a token out of the rest of the string.
 //
 // Return: the number of characters that were in the string.
@@ -80,10 +92,7 @@ static int scan_string(const char* string, GTH_token *token, const char end)
 
   len = endptr - string;
   token->type = TOK_STRING;
-  token->payload = checked_malloc(len + 1);
-
-  strncpy(token->payload, string, len);
-  token->payload[len] = 0;
+  token->payload = copy_to_new_add_null(string, len);
 
   return len;
 }
@@ -98,10 +107,7 @@ static int scan_name(const char* string, GTH_token *token)
   len = strcspn(string, " =\r\n/><");
 
   token->type = TOK_NAME;
-  token->payload = checked_malloc(len + 1);
-
-  strncpy(token->payload, string, len);
-  token->payload[len] = 0;
+  token->payload = copy_to_new_add_null(string, len);
 
   return len;
 }
@@ -143,9 +149,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   // Make a text token, but only if the text is non-whitespace
   if (strspn(string, "\r\n\t ") < len) {
     current->type = TOK_TEXT;
-    current->payload = checked_malloc(len + 1);
-    strncpy(current->payload, string, len);
-    current->payload[len] = 0;
+    current->payload = copy_to_new_add_null(string, len);
     current++;
   }
   string += len;

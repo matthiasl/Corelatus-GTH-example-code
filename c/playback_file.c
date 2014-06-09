@@ -148,7 +148,7 @@ int main(int argc, char **argv)
   }
 
   assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
-  strncpy(pcm_name, "pcm", sizeof pcm_name);
+  strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
   strncat(pcm_name, argv[2], sizeof pcm_name);
   gth_set_single(&api, pcm_name, "status", "enabled");
 

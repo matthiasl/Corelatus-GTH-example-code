@@ -336,7 +336,7 @@ enable_electrical_l1(GTH_api *api,
   };
 
   assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
-  strncpy(pcm_name, "pcm", sizeof pcm_name);
+  strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
   strncat(pcm_name, span, sizeof pcm_name);
 
   // Use <set> here: <enable> isn't supported until gth2_system_37a.
