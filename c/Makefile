@@ -11,14 +11,12 @@ target_basenames=\
 	install_release \
 	install_start_script \
 	map \
-	monitor_cas \
 	monitor_dtmf \
 	playback_file\
 	query_set\
 	record\
 	save_to_pcap\
-	unmap\
-	wide_recorder
+	unmap
 
 headers=gth_apilib.h gth_client_xml_parse.h
 

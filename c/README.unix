@@ -10,7 +10,6 @@ a BSD licence. It includes:
 
   Examples which use the C API:
     - an SS7 sniffer
-    - a CAS sniffer
     - a DTMF sniffer
     - a timeslot recorder
     - a timeslot playback program
@@ -73,26 +72,6 @@ SS7 sniffer which saves to PCAP (wireshark) format files
     > start save_to_pcap 172.16.1.10 1A 2A 16 \\.\pipe\isup.1
     > wireshark -k -i \\.\pipe\isup.1
 
-CAS line and register signalling sniffer
-----------------------------------------
-
-  Sniffs CAS R5 tones and line signalling from an E1 and
-  prints them to standard output.
-
-  Assumes you have a GTH module and a loopback cable connected
-  from P1 to P2. Typical use:
-
-   > ./monitor_cas 172.16.2.7
-   setting up layer 1
-   setting up layer 2
-   waiting for GTH to connect to our signalling socket
-   Waiting for tone detections
-
-  And in another window:
-
-   >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3
-   wrote 800 octets to the <player>
-   all done
 
 DTMF sniffer
 ------------
