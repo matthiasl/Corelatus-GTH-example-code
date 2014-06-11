@@ -1314,6 +1314,7 @@ static int is_text_following_resource_query(const char *name)
 
   return (!strcmp(name, "system_log")
 	  || !strcmp(name, "system_log_recent")
+	  || !strcmp(name, "start_script")
 	  || !strcmp(name, "application_log")
 	  || !strcmp(name, "application_log_recent")
 	  || !strcmp(name, "standby_application_log")

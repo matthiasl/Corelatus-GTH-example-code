@@ -360,11 +360,13 @@ GTH_resp *gth_parse(const char *string)
   gth_free_tokens(tokens);
 
   // After parsing's done, turn the forest into a tree
-  assert(resp->n_children == 1);
-  assert(resp->n_attributes == 0);
-  old = resp->children;
-  *resp = resp->children[0];
-  free(old);
+  if (resp->n_children == 1)
+    {
+      assert(resp->n_attributes == 0);
+      old = resp->children;
+      *resp = resp->children[0];
+      free(old);
+    }
 
   return resp;
 }
