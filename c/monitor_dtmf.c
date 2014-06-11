@@ -78,8 +78,11 @@ static void usage()
   exit(-1);
 }
 
+int detections = -1;
+
 void tone_handler(const char *name, int length)
 {
+  if (detections > 0) detections--;
   printf("detected DTMF digit %s (duration: %d ms)\n", name, length);
 }
 
@@ -96,13 +99,14 @@ int main(int argc, char** argv)
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'v': verbose = 1; break;
+    case 'n': detections = atoi(argv[2]); argc--; argv++; break; // undocumented
     default: usage();
     }
     argc--;
     argv++;
   }
 
-  if (argc != 4) {
+  if (argc < 4) {
     usage();
   }
 
@@ -127,10 +131,11 @@ int main(int argc, char** argv)
   FD_ZERO(&readfds);
   FD_SET(api.fd, &readfds);
 
-  while (1) {
+  while (detections != 0) {
     result = select(api.fd + 1, &readfds, 0, 0, 0);
     assert(result == 1);
     gth_nop(&api);
+    fprintf(stderr, "detections=%d\n", detections);
   }
 
   return 0;
