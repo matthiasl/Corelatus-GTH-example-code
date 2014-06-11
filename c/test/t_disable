@@ -18,7 +18,7 @@ die()
 
 valid_disable()
 {
-    ../enable $IP $1 tx_enabled false 2>/dev/null
+    ../enable $IP $@ 2>/dev/null
     ../disable $IP $1 2>/dev/null
 }
 
@@ -44,7 +44,7 @@ case $version in
 	    sth*)
 		valid_disable sdh1;;
 	    *)
-		valid_disable pcm1
+		valid_disable pcm1 tx_enabled false
 	esac
 esac
 

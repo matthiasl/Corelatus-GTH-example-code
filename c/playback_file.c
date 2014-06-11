@@ -58,6 +58,7 @@ static void usage()
 	  "playback_file [-v] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Play the contents of a file on a timeslot.\n"
 	  "\n-v: print the API commands and responses (verbose)"
+	  "\n-l: do not set up L1; assume it's already set up"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<ts> is a timeslot number, from 1 to 31"
@@ -124,11 +125,13 @@ int main(int argc, char **argv)
   GTH_api api;
   char pcm_name[20];
   int verbose = 0;
+  int setup_l1 = 1;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
 
     case 'v': verbose = 1; break;
+    case 'l': setup_l1 = 0; break;
 
     default: usage();
     }
@@ -150,7 +153,11 @@ int main(int argc, char **argv)
   assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
   strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
   strncat(pcm_name, argv[2], sizeof pcm_name);
-  gth_set_single(&api, pcm_name, "status", "enabled");
+
+  if (setup_l1)
+    {
+      gth_set_single(&api, pcm_name, "status", "enabled");
+    }
 
   play_a_file(&api, argv[2], atoi(argv[3]), argv[4]);
 

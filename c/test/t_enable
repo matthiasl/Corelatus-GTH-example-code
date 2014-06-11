@@ -26,7 +26,7 @@ invalid_enable() {
 }
 
 valid_enable() {
-    ../enable $IP $1 tx_enabled false 2>/dev/null
+    ../enable $IP $@ 2>/dev/null
     ../disable $IP $1
 }
 
@@ -42,7 +42,7 @@ gth2_system_36b)
 
 	case $arch in
 	    gth*)
-		valid_enable pcm1A ;;
+		valid_enable pcm1A tx_enabled false;;
 	    sth*)
 		valid_enable sdh1 ;;
 	esac

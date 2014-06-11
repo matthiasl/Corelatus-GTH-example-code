@@ -92,7 +92,6 @@ int main(int argc, char** argv)
   int result;
   GTH_api api;
   char job_id[MAX_JOB_ID];
-  char pcm_name[20];
   fd_set readfds;
   int verbose = 0;
 
@@ -117,15 +116,6 @@ int main(int argc, char** argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  // Enable L1 with default parameters. If you want to use monitor
-  // mode or multiframe or ... see save_to_pcap.c
-  result = snprintf(pcm_name, sizeof(pcm_name), "pcm%s", argv[2]),
-  assert(result < sizeof(pcm_name));
-  result = gth_set_single(&api, pcm_name, "status", "enabled");
-  if (result != 0) {
-    die("unable to enable L1. (use -v to see more information)");
-  }
-
   gth_new_tone_detector(&api, argv[2], atoi(argv[3]), job_id, &tone_handler);
 
   FD_ZERO(&readfds);
@@ -135,7 +125,6 @@ int main(int argc, char** argv)
     result = select(api.fd + 1, &readfds, 0, 0, 0);
     assert(result == 1);
     gth_nop(&api);
-    fprintf(stderr, "detections=%d\n", detections);
   }
 
   return 0;
