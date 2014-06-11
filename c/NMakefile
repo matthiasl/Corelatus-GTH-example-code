@@ -1,0 +1,36 @@
+# Makefile for Microsoft nmake
+
+targets=\
+	connect_timeslots.exe \
+	disable.exe \
+	duplex_lapd.exe\
+	enable.exe \
+	install_release.exe\
+	install_start_script.exe\
+	map.exe\
+	monitor_dtmf.exe\
+	playback_file.exe\
+	query_set.exe\
+	record.exe\
+	save_to_pcap.exe \
+	unmap.exe
+
+header_files=gth_client_xml_parse.h gth_apilib.h version.h
+common_c_files=gth_client_xml_parse.c gth_apilib.c version.c
+
+LIBS_WIN32=ws2_32.lib
+CFLAGS=/DWIN32 /nologo /DEBUG /Zi /MDd
+
+CC=cl
+RM=del
+
+all: $(targets)
+
+clean:
+	$(RM) $(targets) *~ *.zip
+
+.exe: $(header_files) $(common_c_files)
+
+.c.exe:
+	$(CC) $(CFLAGS) $< $(common_c_files) $(LIBS_WIN32)
+

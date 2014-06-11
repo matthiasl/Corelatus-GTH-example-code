@@ -29,7 +29,7 @@ from the Perl examples. The quality varies:
   C: A complete parser for GTH responses
      Several examples to get you started.
      Support for compiling on either *nix systems or win32.
-     Some customers use this code for ad-hoc O&M.
+     Multiple customers use some of this code in production.
 
   Java: Basic example code. We're not proud of it, we're no good at Java.
 

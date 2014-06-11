@@ -50,7 +50,7 @@ ship: version.c
 	make
 	make win32
 	sed -e 's/$$/\r/g' < README.unix > README.txt
-	zip gth_c_examples *.c *.h NMakefile Makefile audio/* README.* *.exe
+	zip gth_c_examples *.c *.h Corelatus-GTH-example-code.sln Build_all.vcxproj NMakefile Makefile audio/* README.* *.exe
 
 version.c:
 	@echo "#include \"gth_apilib.h\"" > $@
