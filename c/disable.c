@@ -98,6 +98,7 @@ int main(int argc, char** argv)
   result = gth_disable(&api, argv[2]);
   if (result != 0) {
     fprintf(stderr, "failed to disable %s\n", argv[2]);
+    exit(1);
   }
 
   gth_bye(&api);

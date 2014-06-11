@@ -119,6 +119,7 @@ int main(int argc, char** argv)
   result = gth_enable(&api, argv[2], attrs, n_attrs);
   if (result != 0) {
     fprintf(stderr, "failed to enable %s\n", argv[2]);
+    exit(1);
   }
 
   gth_bye(&api);

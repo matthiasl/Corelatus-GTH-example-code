@@ -100,6 +100,7 @@ int main(int argc, char** argv)
 
   if (result != 0) {
     fprintf(stderr, "unmap failed, use -v for clues\n");
+    exit(1);
   }
 
   gth_bye(&api);
