@@ -184,6 +184,7 @@ int main(int argc, char** argv)
       if (result != 0)
 	{
 	  fprintf(stderr, "failed to set attributes on %s\n", argv[2]);
+	  exit(1);
 	}
     }
 
