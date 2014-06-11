@@ -1,0 +1,81 @@
+#!/bin/bash -eu
+
+# Exercise the query_set sample code.
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+query_everything()
+{
+    local inventory=`../query_set $IP inventory`
+    for resource in $inventory; do
+	echo "querying $resource"
+	../query_set $IP $resource > /dev/null
+    done
+}
+
+query_single_attribute()
+{
+    local result=`../query_set $IP board "LED mode" | cut -d '=' -f 2`
+    if [ $result != "normal" ]
+    then die "unexpected LED mode"
+    fi
+}
+
+query_invalid()
+{
+    if ../query_set $IP bogus_resource ;
+    then die "bogus query succeeded"
+    fi
+}
+
+set_invalid()
+{
+    if ../query_set $IP bogus_resource_8 a b ;
+    then die "bogus set 1 succeeded"; fi
+
+    if ../query_set $IP os bogus_attribute_9 a b ;
+    then die "bogus set 2 succeeded"; fi
+
+    if ../query_set $IP board "LED mode" bogus
+    then die "bogus set 3 succeeded"; fi
+}
+
+
+set_valid()
+{
+    ../query_set $IP cpu "load limit" 33
+
+    result=`../query_set $IP cpu "load limit" | cut -d '=' -f 2`
+    if [ $result != "33" ]; then die "set failed"; fi
+
+    ../query_set $IP cpu "load limit" 200
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+
+query_everything
+query_single_attribute
+query_invalid
+
+set_invalid
+set_valid
+
+echo "Test completed successfully"

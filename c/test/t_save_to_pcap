@@ -1,0 +1,98 @@
+#!/bin/bash -eu
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+invalid()
+{
+    if ../save_to_pcap $IP bogus 2>/dev/null
+    then die "unexpecte success of a bogus command"; fi
+}
+
+valid()
+{
+    ../save_to_pcap -m $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 1
+    kill $!
+
+    ../save_to_pcap $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 1
+    kill $!
+
+    ../save_to_pcap -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 1
+    kill $!
+
+    ../save_to_pcap -n duration:1 -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcap 2>/dev/null &
+    sleep 3
+    kill $!
+    file $tempdir/capture.pcap.1 | grep -q tcpdump.capture.file
+
+    ../save_to_pcap -n duration:1 $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 3
+    kill $!
+    file $tempdir/capture.pcapng.1 | grep -q pcap-ng.capture.file
+}
+
+live()
+{
+    # Known-good MTP-2 packet
+    echo -ne '\x7e\x16\xa6\x36\x36\xf6\x04\xee\xf6\x4e\x36\x26\x60\x75\x7e' > $tempdir/hw
+    ../save_to_pcap -n packets:2 $IP $pcm1 16 $tempdir/live.pcapng 2>/dev/null&
+    sleep 1
+    ../query_set $IP pcm$pcm1 status enabled 2>/dev/null
+    ../query_set $IP pcm$pcm2 status enabled 2>/dev/null
+    sleep 1
+    pid=$!
+    for i in {1..5}; do
+	../playback_file -l $IP $pcm2 16 $tempdir/hw 2>/dev/null
+    done
+    sleep 1
+    kill $pid
+
+    for i in {1..2}; do
+	[ `tshark -r $tempdir/live.pcapng.$i | wc -l` -eq 2 ]
+    done
+}
+
+map_l1()
+{
+    ../enable $IP sdh1
+    pcm1=`../map $IP sdh1:hop1_1:lop1_1_1`
+    pcm2=`../map $IP sdh1:hop1_1:lop1_1_2`
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+tempdir=`mktemp --directory`
+arch=`../query_set $IP board architecture | cut -d = -f 2`
+pcm1="3A"
+pcm2="4A"
+
+case $arch in
+    gth2.1)
+	live;;
+    sth*)
+	map_l1
+esac
+
+invalid
+valid
+
+rm -rf $tempdir

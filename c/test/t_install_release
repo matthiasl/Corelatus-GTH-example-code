@@ -1,0 +1,100 @@
+#!/bin/bash -eu
+
+# Exercise the install_release sample code. Installs many different
+# releases and checks that the install actually worked.
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+release_archive=/home/matthias/noncvs_corelatus/releases/
+
+systems()
+{
+    local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
+
+    if [ $arch = "sth3.0" ]; then
+	ls $release_archive/sth3_system_*
+
+    elif [ $arch = "gth3.0" ]; then
+	ls $release_archive/gth3_system_*
+
+    elif [ $arch = "gth2.1" ]; then
+	echo "$release_archive/gth2_system_36b.gth"
+
+    else
+	die "Target $IP is an unknown architecture: $arch"
+    fi
+}
+
+failsafes()
+{
+    local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
+
+    if [ $arch = "sth3.0" ]; then
+	ls $release_archive/sth3_failsafe_*
+
+    elif [ $arch = "gth3.0" ]; then
+	ls $release_archive/gth3_failsafe_*
+
+    elif [ $arch = "gth2.1" ]; then
+	echo "$release_archive/gth2_failsafe_10c.gth"
+
+    else
+	die "Target $IP is an unknown architecture: $arch"
+    fi
+}
+
+ensure_failsafe_is_running()
+{
+    local busy=`../query_set $IP failsafe_image busy | sed -e 's/.*=//'`
+
+    if [ $busy != "true" ]; then die "failsafe should be busy"; fi
+    ensure_both_non_empty
+}
+
+ensure_system_is_running()
+{
+    local busy=`../query_set $IP system_image busy | sed -e 's/.*=//'`
+
+    if [ $busy != "true" ]; then die "system should be busy"; fi
+    ensure_both_non_empty
+}
+
+ensure_both_non_empty()
+{
+    local fs_ver=`../query_set $IP failsafe_image version | sed -e 's/.*=//'`
+    local sys_ver=`../query_set $IP system_image version | sed -e 's/.*=//'`
+
+    if [ $fs_ver = "empty" ]; then die "failsafe is empty"; fi
+    if [ $sys_ver = "empty" ]; then die "system is empty"; fi
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+
+for sys in $(systems); do
+    for fs in $(failsafes); do
+	../install_release -f $IP $fs
+	ensure_failsafe_is_running
+	../install_release $IP $sys
+	ensure_system_is_running
+    done
+done
+
+echo "Test completed successfully"

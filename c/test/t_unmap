@@ -1,0 +1,52 @@
+#!/bin/bash -eu
+
+# Exercise the unmap sample code
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+unmap_valid()
+{
+    ../enable $IP sdh1 2>/dev/null
+    local new_pcm=`../map $IP sdh1:hop1_1:lop1_5_3`
+    ../query_set $IP $new_pcm >/dev/null
+    ../unmap $IP $new_pcm
+    ../disable $IP sdh1 2>/dev/null
+}
+
+unmap_invalid()
+{
+    if ../unmap $IP bogus 2>/dev/null
+    then die "invalid unmap bogus succeeded"; fi
+
+    if ../unmap $IP pcm536 2>/dev/null
+    then die "invalid unmap pcm536 succeeded"; fi
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+arch=`../query_set $IP board architecture | cut -d = -f 2`
+case $arch in
+sth3.0)
+    unmap_valid
+    unmap_invalid
+    echo "Test completed successfully" ;;
+*)
+    echo "skipping unmap test because DUT is a $arch"
+esac

@@ -1,0 +1,49 @@
+#!/bin/bash -eu
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+invalid_enable() {
+    if ../enable $IP bogus 2>/dev/null
+    then die "invalid enable 1 succeeded"; fi
+}
+
+valid_enable() {
+    ../enable $IP $1 tx_enabled false 2>/dev/null
+    ../disable $IP $1
+}
+
+IP=$1
+version=`../query_set $IP system_image version | cut -d = -f 2`
+arch=`../query_set $IP board architecture | cut -d = -f 2`
+
+case $version in
+gth2_system_36b)
+    echo "skipping $0 because DUT is running a release without 'enable'" ;;
+*)
+	invalid_enable
+
+	case $arch in
+	    gth*)
+		valid_enable pcm1A ;;
+	    sth*)
+		valid_enable sdh1 ;;
+	esac
+esac

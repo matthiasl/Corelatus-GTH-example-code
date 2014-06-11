@@ -1,0 +1,40 @@
+#!/bin/bash -eu
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+invalid()
+{
+    if ../install_start_script $IP 2>/dev/null
+    then echo "invalid command succeeded"; exit 1; fi
+}
+
+valid()
+{
+    # Installs this test script as a start script. It won't actually
+    # work, but we don't care about that.
+    echo "this test takes roughly 60s"
+    ../install_start_script $IP ./t_install_start_script 1>/dev/null 2>/dev/null
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+
+invalid
+valid

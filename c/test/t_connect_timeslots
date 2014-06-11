@@ -1,0 +1,54 @@
+#!/bin/bash -eu
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+invalid_connect()
+{
+    if ../connect_timeslots $IP 1A 5 2>/dev/null
+    then die "invalid connect command succeeded"; fi
+}
+
+# Start a connection. If starting it fails, there won't be a process
+# to kill and we'll bomb out---just like we want
+single_connect()
+{
+    ../connect_timeslots $IP $@ 2>/dev/null &
+    sleep 1
+    pid=$!
+    kill $!
+}
+
+valid_connect()
+{
+    single_connect 1A 1 2A 1
+    single_connect 1A 1 2A 13  1A 2 3A 1  2A 13 1A 1
+    single_connect 1A 16 2A 16  2A 16 1A 16
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+arch=`../query_set $IP board architecture | cut -d = -f 2`
+case $arch in
+    gth2.1)
+	invalid_connect
+	valid_connect ;;
+    *)
+	echo "skipping connect_timeslots test because DUT is a $arch"
+esac

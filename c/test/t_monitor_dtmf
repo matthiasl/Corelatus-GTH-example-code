@@ -1,0 +1,74 @@
+#!/bin/bash -eu
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+# STH 3.0 needs an E1 mapped before this test can run
+arch_specific_setup()
+{
+    case $arch in
+	sth*)
+	    ../enable $IP sdh1 2>/dev/null
+	    pcm=`../map $IP sdh1:hop1_1:lop1_5_3 | sed -e 's/^pcm//'`
+	    ../query_set $IP pcm$pcm 1>/dev/null 2>/dev/null ;;
+	*)
+	    pcm="3A"
+    esac
+}
+
+arch_specific_cleanup()
+{
+    case $arch in
+	sth*)
+	    ../disable $IP sdh1
+    esac
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+invalid_dtmf()
+{
+    if ../monitor_dtmf $IP bogus 2>/dev/null
+    then die "invalid command succeeded"; fi
+}
+
+# Start DTMF. If starting it fails, there won't be a process to kill
+# and we'll bomb out---just like we want
+valid_dtmf()
+{
+    case $arch in
+	gth2.1)
+	    ../query_set $IP pcm$pcm status enabled 2>/dev/null
+	    ../query_set $IP pcm4A status enabled 2>/dev/null
+	    (sleep 1; ../playback_file $IP 4A 1 ../audio/dtmf7 2>/dev/null) &
+	    (sleep 2; ../playback_file $IP 4A 1 ../audio/dtmf6 2>/dev/null) &
+	    (sleep 3; ../playback_file $IP 4A 1 ../audio/dtmf5 2>/dev/null)&
+	    ../monitor_dtmf -n 3 $IP $pcm 1 2>/dev/null;;
+
+	*)
+	    ../monitor_dtmf -n 0 $IP $pcm 1 2>/dev/null
+    esac
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+arch=`../query_set $IP board architecture | cut -d = -f 2`
+
+arch_specific_setup
+invalid_dtmf
+valid_dtmf
+arch_specific_cleanup

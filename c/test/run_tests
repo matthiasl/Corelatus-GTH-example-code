@@ -1,0 +1,19 @@
+#!/bin/bash -eu
+# Run all tests. One argument: the DUT IP
+if [ $# -ne 1 ]; then echo "usage: $0 <DUT-IP>"; exit 1; fi
+IP=$1
+
+tests=""
+tests="$tests t_connect_timeslots t_disable t_duplex_lapd"
+tests="$tests t_enable t_map t_monitor_dtmf t_query_set"
+tests="$tests t_playback_file t_record t_save_to_pcap t_unmap"
+tests="$tests t_install_start_script t_install_release"
+
+for i in $tests
+do
+    echo "--------------"
+    if ./$i $IP
+    then echo "Test $i OK"
+    else echo "Test $i FAIL"; exit 1
+    fi
+done

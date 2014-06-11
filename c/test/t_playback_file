@@ -1,0 +1,43 @@
+#!/bin/bash -eu
+
+export TOP_PID=$$
+trap "exit 2" TERM
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+die()
+{
+    echo $@ 1>&2
+    kill -s TERM $TOP_PID
+}
+
+invalid_playback()
+{
+    if ../playback_file $IP bogus 2>/dev/null
+    then die "unexpected success on bad command"; fi
+}
+
+valid_playback()
+{
+    ../playback_file $IP 3A 1 ../audio/dtmf5 2>/dev/null
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+arch=`../query_set $IP board architecture | cut -d = -f 2`
+
+case $arch in
+    gth2*)
+	invalid_playback
+	valid_playback;;
+    *)
+	echo "skipping because DUT is not capable of transmit"
+esac
