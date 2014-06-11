@@ -78,6 +78,7 @@ int main(int argc, char** argv)
   GTH_api api;
   int verbose = 0;
   char name[MAX_RESOURCE_NAME];
+  char *sdh_resource;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -93,6 +94,8 @@ int main(int argc, char** argv)
     usage();
   }
 
+  sdh_resource = argv[2];
+
   win32_specific_startup();
 
   result = gth_connect(&api, argv[1], verbose);
@@ -100,13 +103,15 @@ int main(int argc, char** argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  result = gth_map(&api, argv[2], name, MAX_RESOURCE_NAME);
+  result = gth_map(&api, sdh_resource, name, MAX_RESOURCE_NAME);
 
   if (result == 0) {
     printf("%s\n", name);
   }
   else {
-    fprintf(stderr, "unable to map %s. Re-run with -v for more info.\n", name);
+    fprintf(stderr, "unable to map %s. Is SDH enabled? -v for more info.\n",
+	    sdh_resource);
+    exit(-1);
   }
 
   gth_bye(&api);
