@@ -15,7 +15,7 @@ targets=\
 	save_to_pcap.exe \
 	unmap.exe
 
-header_files=gth_client_xml_parse.h gth_apilib.h version.h
+header_files=gth_client_xml_parse.h gth_apilib.h
 common_c_files=gth_client_xml_parse.c gth_apilib.c version.c
 
 LIBS_WIN32=ws2_32.lib
@@ -29,8 +29,14 @@ all: $(targets)
 clean:
 	$(RM) $(targets) *~ *.zip
 
-.exe: $(header_files) $(common_c_files)
+$(targets): $(header_files) $(common_c_files) version.c
 
 .c.exe:
 	$(CC) $(CFLAGS) $< $(common_c_files) $(LIBS_WIN32)
 
+# To avoid a dependency on git on the VS build, use blank
+# version information.
+version.c:
+	echo #include "gth_apilib.h" > version.c
+	echo const char git_head[] = "VS build at %DATE% %TIME%"; >> version.c
+	echo const char build_hostname[] = "%COMPUTERNAME%"; >> version.c
