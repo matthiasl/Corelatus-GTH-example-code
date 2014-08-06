@@ -281,6 +281,16 @@ open_windows_pipe(const char *filename)
 }
 
 static void
+flush_file(HANDLE_OR_FILEPTR hf)
+{
+#ifdef WIN32
+  FlushFileBuffers(hf);
+#else
+  fflush(hf);
+#endif
+}
+
+static void
 open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
 {
   int result = 0;
@@ -763,7 +773,7 @@ init_timer(int seconds)
 static int
 read_and_restart_timer(int seconds)
 {
-	
+
   if (WaitForSingleObject(timer, 0) == WAIT_OBJECT_0)
     {
       set_timer(seconds);
@@ -899,7 +909,7 @@ convert_to_pcap(GTH_api *api,
 			 signal_unit.payload,
 			 length,
 			 format);
-	    fflush(file);
+	    flush_file(file);
 	    su_count++;
 	  }
       }
