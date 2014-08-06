@@ -967,6 +967,8 @@ arguments_to_channels(int argc,
       }
       pcms[n_pcms] = argv[current_arg];
       n_pcms++;
+      if (n_pcms > MAX_PCMS)
+	die("Too many interfaces given");
     }
     else {
       timeslot = atoi(argv[current_arg]);
