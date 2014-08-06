@@ -44,7 +44,7 @@ valid()
     ../save_to_pcap -n duration:1 $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
     sleep 3
     kill $!
-    file $tempdir/capture.pcapng.1 | grep -q pcap-ng.capture.file
+    hexdump -C $tempdir/capture.pcapng.1 | grep -q "00000000  0a 0d 0d 0a"
 }
 
 live()
