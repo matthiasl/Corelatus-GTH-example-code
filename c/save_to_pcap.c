@@ -137,7 +137,7 @@ typedef struct {
 
 // GTH 2.x has 16 E1/T1 inputs
 // RAN probe has 64
-#define MAX_PCMS 64
+#define MAX_SPANS 64
 
 // How many MTP-2 channels can we run at the same time? (Also limited by
 // hardware)
@@ -157,8 +157,9 @@ enum PCap_format { PCAP_CLASSIC, PCAP_NG };
 #define LINK_TYPE_MTP2 140
 
 typedef struct {
-  char *pcm;
-  int timeslot;
+  char *span;
+  int timeslots[MAX_TIMESLOTS];
+  int n_timeslots;
 } Channel_t;
 
 //----------------------------------------------------------------------
@@ -174,15 +175,22 @@ usage() {
 	  "\n<options>: [-c] [-f fisu=no] [-m] [-n <rotation>] [-v]"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
+	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
 	  "\n-v: print API commands and responses (verbose)"
+	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<channels> is a list of spans and timeslots:"
 	  "\n  <span> [<span>...] <timeslot> [<timeslot>...]"
 	  "\n  e.g. 1A 2A 1 2 3 monitors timeslots 1, 2 and 3 on span 1A and 2A."
 	  "\n  e.g. 1A 1 2A 2 3A 3 4 monitors timeslot 1 on 1A, 2 on 2A and 3 and 4 on 3A."
+	  "\n<channels> can also be a range of timeslots for Nx64kbit/s signalling):"
+	  "\n  <span> <timeslot>-<timeslot>[,<timeslot>-<timeslot>]"
+	  "\n  e.g. 1A 1-31 monitors one 1980kbit/s channel on timeslots 1-31"
+	  "\n  e.g. 1A 1-15,17-31 monitors one 1920kbit/s channel"
+	  "\n  e.g. 1A 1-4 1B 1-4 monitors two 256kbit/s channels"
 	  "\n<span> is the name of a span, e.g. '1A'"
 	  "\n<timeslot> is a timeslot number, from 1 to 31"
 	  "\n<filename> can be -, which means standard output.\n\n",
@@ -341,7 +349,7 @@ enable_electrical_l1(GTH_api *api,
 		     const int monitoring)
 {
   int result;
-  char pcm_name[20];
+  char span_name[20];
 
   int n_attributes = (monitoring)?3:2;
   GTH_attribute attributes[] = { {"status", "enabled"},
@@ -349,12 +357,12 @@ enable_electrical_l1(GTH_api *api,
 				 {"monitoring", "true"}
   };
 
-  assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
-  strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
-  strncat(pcm_name, span, sizeof pcm_name);
+  assert(sizeof(span_name) > (strlen(span) + strlen("pcm")));
+  strncpy_s(span_name, sizeof span_name, "pcm", sizeof span_name - 1);
+  strncat(span_name, span, sizeof span_name);
 
   // Use <set> here: <enable> isn't supported until gth2_system_37a.
-  result = gth_set(api, pcm_name, attributes, n_attributes);
+  result = gth_set(api, span_name, attributes, n_attributes);
 
   if (result != 0)
     die("Setting up L1 failed. (-v switch gives more information)");
@@ -380,39 +388,50 @@ enable_l1(GTH_api *api,
   architecture[3] = 0;
   if (strcmp(architecture, "gth") == 0) {
     for (i = 0; i < n_channels; i++) {
-      enable_electrical_l1(api, channels[i].pcm, monitoring);
+      enable_electrical_l1(api, channels[i].span, monitoring);
     }
   }
   else {
     for (i = 0; i < n_channels; i++) {
-      enable_optical_l1(api, channels[i].pcm, monitoring);
+      enable_optical_l1(api, channels[i].span, monitoring);
     }
   }
 }
 
+#define MAX_MTP2_ATTRS 2
+
 // Start up MTP-2 monitoring on the given span and timeslot
 static void
 monitor_mtp2(GTH_api *api,
-	     const char *span,
-	     int timeslot,
+	     const Channel_t *channel,
 	     int tag,
 	     int drop_fisus,
+	     int esnf,
 	     int listen_port,
 	     int listen_socket
 	     )
 {
   int result;
   char job_id[MAX_JOB_ID];
-  GTH_attribute attrs[1];
+  GTH_attribute attrs[MAX_MTP2_ATTRS];
   int n_attrs = 0;
 
   if (drop_fisus) {
-    attrs[0].key = "fisu";
-    attrs[0].value = "no";
-    n_attrs = 1;
+    attrs[n_attrs].key = "fisu";
+    attrs[n_attrs].value = "no";
+    n_attrs++;
   }
 
-  result = gth_new_mtp2_monitor_opt(api, tag, span, timeslot,
+  if (esnf) {
+    attrs[n_attrs].key = "esnf";
+    attrs[n_attrs].value = "yes";
+    n_attrs++;
+  }
+
+  result = gth_new_mtp2_monitor_opt(api, tag,
+				    channel->span,
+				    channel->timeslots,
+				    channel->n_timeslots,
 				    job_id, api->my_ip, listen_port,
 				    attrs, n_attrs);
   if (result != 0)
@@ -548,7 +567,7 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
 
     if_name.code = 2;    // if_name
     if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s:%d",
-			      c[x].pcm, c[x].timeslot);
+			      c[x].span, c[x].timeslots[0]);
     if (if_name.length < 0 || if_name.length >= MAX_IF_NAME)
       die("interface name is too long");
 
@@ -936,14 +955,105 @@ static void
 print_channels(Channel_t *channels, int n)
 {
   int x;
+  int y;
 
   for (x = 0; x < n; x++) {
-    fprintf(stderr, "monitoring %s:%d, interface_id=%d\n",
-	    channels->pcm, channels->timeslot, x);
+    fprintf(stderr, "monitoring %s:", channels->span);
+    for (y = 0; y < channels->n_timeslots-1; y++) {
+      fprintf(stderr, "%d,", channels->timeslots[y]);
+    }
+    fprintf(stderr, "%d ", channels->timeslots[y]);
+    fprintf(stderr, "interface_id=%d\n", x);
     channels++;
   }
 }
 
+// Examples of arguments "16", "1-3", "1-3,5-9,10", "1,2,3"
+//
+// We handle this by first breaking the string at every comma, then
+// expanding out minus-sign ranges.
+#define MAX_RANGE 6    // widest possible range: "11-12"
+static void
+argument_to_ts_array(const char* s, int timeslots[], int *n_timeslots)
+{
+  char ranges[MAX_TIMESLOTS][MAX_RANGE];  // Longest-possible
+  int range = 0;
+  char *pos;
+  int i;
+
+  *n_timeslots = 0;
+
+  while ( (pos = strchr(s, ',')) )
+    {
+      strncpy_s(ranges[range++], MAX_RANGE, s, pos-s);
+      s = pos + 1;
+      if (range > MAX_TIMESLOTS)
+	die("Too many timeslots specified. Abort.");
+    }
+  strncpy_s(ranges[range++], MAX_RANGE, s, strlen(s));
+
+  for (i = 0; i < range; i++)
+    {
+      int lo;
+      int hi;
+      int result;
+
+      result = sscanf(ranges[i], "%d-%d", &lo, &hi);
+
+      if (result == 0)
+	{
+	  fprintf(stderr, "Got %s", ranges[i]);
+	  die(" when expecting a timeslot. Abort.");
+	}
+
+      if (result == 1)
+	hi = lo;
+
+      if (lo > hi)
+	{
+	  fprintf(stderr, "timeslot range %s in unexpected format.", ranges[i]);
+	  die("Abort.");
+	}
+
+      if (lo < 1 || hi > 31)
+	die("Timeslot outside expected range 1..31. Abort.");
+
+      do
+	{
+	  timeslots[(*n_timeslots)++] = lo++;
+	}
+      while (lo <= hi);
+    }
+}
+
+static void
+check_for_overlapping_channels(Channel_t *channels, int n_channels)
+{
+  int i;
+  int j;
+  int k;
+  int l;
+
+  for (i = 0; i < n_channels; i++)
+    for (j = i+1; j < n_channels; j++)
+      {
+	if (channels[i].span == channels[j].span)
+	  {
+	    for (k = 0; k < channels[i].n_timeslots; k++)
+	      for (l = 0; l < channels[j].n_timeslots; l++)
+		if (channels[i].timeslots[k] == channels[j].timeslots[l])
+		  {
+		    fprintf(stderr, "Input %s:%d was specified twice. ",
+			    channels[i].span, channels[i].timeslots[k]);
+		    die("Abort.");
+		  }
+	  }
+      }
+}
+
+
+// See 'usage' for examples of what the channel arguments can look like.
+//
 // Return the number of arguments consumed
 static int
 arguments_to_channels(int argc,
@@ -951,54 +1061,55 @@ arguments_to_channels(int argc,
 		      Channel_t *channels,
 		      int *n_channels)
 {
-  char *pcms[MAX_PCMS];
-  int n_pcms = 0;
+  char *spans[MAX_SPANS];
+  int n_spans = 0;
+
+  int timeslots[MAX_TIMESLOTS];
+  int n_timeslots;
+
   int current_arg = 0;
-  int timeslot = 0;
+
   int i;
-  int j;
 
-  while (current_arg < argc - 1){
-    if (is_span_name(argv[current_arg])){
-      if (timeslot){
-	// We are starting a new pcm group
-	n_pcms = 0;
-	timeslot = 0;
-      }
-      pcms[n_pcms] = argv[current_arg];
-      n_pcms++;
-      if (n_pcms > MAX_PCMS)
-	die("Too many interfaces given");
-    }
-    else {
-      timeslot = atoi(argv[current_arg]);
-      if ( (timeslot < 1) || (timeslot > 31) ) {
-	fprintf(stderr, "Valid timeslots are 1--31, not %d. Abort.\n", timeslot);
-	exit(-1);
-      }
-      if (!n_pcms){
-	die("Timeslot given without previous pcm.");
-      }
-      for (i = 0; i < n_pcms; i++){
-	if (*n_channels >= MAX_MTP2_CHANNELS)
-	  die("Attempted to start too many signalling channels. Abort.");
+  if (!is_span_name(argv[current_arg]))
+    die("Must specify at least one E1/T1 interface, e.g. '1A'. Abort.");
 
-	for (j = 0; j < (*n_channels); j++) {
-	  if (!strcmp(channels[j].pcm, pcms[i])
-	      && channels[j].timeslot == timeslot) {
-	    fprintf(stderr, "span=%s timeslot=%d specified twice\n",
-		    pcms[i], timeslot);
-	    die("Same span and timeslot combination given twice. Abort.");
-	  }
+  while (current_arg < argc - 1)
+    {
+      if (is_span_name(argv[current_arg]))
+	{
+	  if (n_timeslots > 0) // We are starting a new span group
+	    {
+	      n_spans = 0;
+	      n_timeslots = 0;
+	    }
+	  spans[n_spans++] = argv[current_arg];
+	  if (n_spans > MAX_SPANS)
+	    die("Too many interfaces given");
 	}
+      else // We're now processing either timeslots or timeslot ranges
+	{
+	  if (n_spans == 0)
+	    die("Expected E1/T1 interface before further arguments. Abort.");
 
-	channels[*n_channels].pcm = pcms[i];
-	channels[*n_channels].timeslot = timeslot;
-	(*n_channels)++;
-      }
+	  argument_to_ts_array(argv[current_arg], timeslots, &n_timeslots);
+
+	  for (i = 0; i < n_spans; i++)
+	    {
+	      if (*n_channels >= MAX_MTP2_CHANNELS)
+		die("Attempted to start too many signalling channels. Abort.");
+
+	      channels[*n_channels].span = spans[i];
+	      channels[*n_channels].n_timeslots = n_timeslots;
+	      memcpy(channels[*n_channels].timeslots, timeslots,
+		     sizeof timeslots);
+	      (*n_channels)++;
+	    }
+	}
+      current_arg++;
     }
-    current_arg++;
-  }
+
+  check_for_overlapping_channels(channels, *n_channels);
 
   return current_arg;
 }
@@ -1041,6 +1152,7 @@ process_arguments(char **argv,
 		  int *n_sus_per_file,
 		  int *duration_per_file,
 		  int *drop_fisus,
+		  int *esnf,
 		  char **hostname,
 		  Channel_t channels[],
 		  int *n_channels,
@@ -1054,11 +1166,15 @@ process_arguments(char **argv,
     case 'c': *format = PCAP_CLASSIC; break;
 
     case 'f':
-      if (argc < 3 || strcmp("fisu=no", argv[2])) {
+      if (argc < 3) {
 	usage();
       }
-      *drop_fisus = 1;
-      argc--; // consume 'fisu=no'
+      if (!strcmp("fisu=no", argv[2])) {
+	*drop_fisus = 1;
+      } else if (!strcmp("esnf=yes", argv[2])) {
+	*esnf = 1;
+      }
+      argc--;
       argv++;
       break;
 
@@ -1115,6 +1231,7 @@ main(int argc, char **argv)
   int n_sus_per_file = 0;
   int duration_per_file = 0;
   int drop_fisus = 0;
+  int esnf = 0;
   int listen_port = 0;
   int listen_socket = -1;
   enum PCap_format format = PCAP_NG;
@@ -1129,7 +1246,7 @@ main(int argc, char **argv)
 
   process_arguments(argv, argc,
 		    &monitoring, &verbose, &n_sus_per_file, &duration_per_file,
-		    &drop_fisus, &hostname, channels, &n_channels,
+		    &drop_fisus, &esnf, &hostname, channels, &n_channels,
 		    &base_filename, &format);
   result = gth_connect(&api, hostname, verbose);
   if (result != 0) {
@@ -1141,8 +1258,8 @@ main(int argc, char **argv)
 
   listen_socket = gth_make_listen_socket(&listen_port);
   for (i = 0; i < n_channels; i++){
-    monitor_mtp2(&api, channels[i].pcm, channels[i].timeslot,
-		 i, drop_fisus, listen_port, listen_socket);
+    monitor_mtp2(&api, channels + i,
+		 i, drop_fisus, esnf, listen_port, listen_socket);
     if (i == 0) {
       data_socket = gth_wait_for_accept(listen_socket);
     }

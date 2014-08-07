@@ -19,7 +19,7 @@ die()
 invalid()
 {
     if ../save_to_pcap $IP bogus 2>/dev/null
-    then die "unexpecte success of a bogus command"; fi
+    then die "unexpected success of a bogus command"; fi
 }
 
 valid()
@@ -33,6 +33,18 @@ valid()
     kill $!
 
     ../save_to_pcap -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 1
+    kill $!
+
+    ../save_to_pcap -c $IP $pcm1 1-31 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 1
+    kill $!
+
+    ../save_to_pcap -c $IP $pcm1 1-15,17-31 $tempdir/capture.pcapng 2>/dev/null &
+    sleep 1
+    kill $!
+
+    ../save_to_pcap -c $IP $pcm1 1-4 $pcm2 1-4 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 

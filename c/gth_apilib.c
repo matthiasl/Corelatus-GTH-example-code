@@ -691,19 +691,41 @@ int gth_new_lapd_monitor(GTH_api *api,
 int gth_new_mtp2_monitor(GTH_api *api,
 			 const int tag,
 			 const char *span,
-			 const int ts,
+			 const int timeslots[],
+			 const int n_timeslots,
 			 char *job_id,
 			 const char *ip,
 			 const int port)
 {
-  return gth_new_mtp2_monitor_opt(api, tag, span, ts, job_id, ip, port, 0, 0);
+  return gth_new_mtp2_monitor_opt(api, tag, span, timeslots,
+				  n_timeslots, job_id, ip, port, 0, 0);
 }
 
+
+static void format_sources(const char *span,
+			   const int timeslots[],
+			   const int n_timeslots,
+			   char *sources)
+{
+  char *pos = sources;
+  int result;
+  int x;
+
+  for (x = 0; x < n_timeslots; x++)
+    {
+      result = snprintf(pos, MAX_COMMAND - (pos - sources),
+			"<pcm_source span='%s' timeslot='%d'/>",
+			span, timeslots[x]);
+      pos += result;
+      assert(result < (MAX_COMMAND - (pos - sources)));
+    }
+}
 
 int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const int tag,
 			     const char *span,
-			     const int ts,
+			     const int timeslots[],
+			     const int n_timeslots,
 			     char *job_id,
 			     const char *ip,
 			     const int port,
@@ -711,20 +733,22 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const int n_options)
 {
   char command[MAX_COMMAND];
+  char sources[MAX_COMMAND];
   char attributes[MAX_COMMAND];
   int result;
   const char* template;
 
-  assert(ts > 0 && ts < 32);
+  assert(n_timeslots < 32 && n_timeslots > 0);
 
   result = kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
 
   template = "<new><mtp2_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
-    "<pcm_source span='%s' timeslot='%d'/>"
-    "</mtp2_monitor></new>";
+    "%s</mtp2_monitor></new>";
+
+  format_sources(span, timeslots, n_timeslots, sources);
 
   result = snprintf(command, MAX_COMMAND, template,
-		    attributes, ip, port, tag, span, ts);
+		    attributes, ip, port, tag, sources);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
