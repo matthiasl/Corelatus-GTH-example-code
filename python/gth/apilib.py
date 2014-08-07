@@ -15,7 +15,7 @@ class API:
 	verbosity=1: print event counts
 	verbosity=2: print events
 	verbosity=3: print all commands, responses and events
-	"""	
+	"""
 	self.verbosity = verbosity
         self.socket = API_socket(gth_ip_or_hostname)
 
@@ -51,6 +51,23 @@ class API:
             se = ("should have returned a resource", command, reply)
             raise SemanticError(se)
         print reply.name
+
+    def new_fr_monitor(self, span, timeslots):
+        """Returns a (job_id, socket) tuple.  Monitor Frame Relay on a
+        GTH. Socket returned uses the format defined in the GTH API
+        manual, under new_fr_monitor."""
+
+        IP, _api_port = self.socket._socket.getsockname()
+        port, ls = tcp_listen()
+        self.send("<new><fr_monitor ip_addr='%s' ip_port='%s'>"\
+                      "%s"\
+                      "</fr_monitor></new>"\
+                      % (IP, port, sources(span, timeslots)) )
+        fr_id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+
+        return (fr_id, data)
 
     def new_mtp2_monitor(self, span, timeslot):
         """Returns a (job_id, socket) tuple.
@@ -209,6 +226,17 @@ class API:
             return (answer[1][1], events)
         else:
             raise SemanticError(answer)
+
+def sources(span, timeslots):
+    "Returns a string with an XML representation of the sources"
+
+    list = ""
+    for ts in timeslots:
+        list += "<pcm_source span='%s' timeslot='%d'/>" % span, ts
+
+    return list
+
+
 
 def tcp_listen():
     """Create a server socket, i.e. one which listens.
