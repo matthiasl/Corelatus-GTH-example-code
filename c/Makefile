@@ -25,12 +25,9 @@ win_targets=$(addsuffix .exe, $(target_basenames))
 common_c_files=gth_apilib.c gth_client_xml_parse.c
 example_c_files=$(addsuffix .c, $(target_basenames))
 
-# present on newer debian systems (2012)
-CC_WIN32_64bit=i686-w64-mingw32-gcc
-# present on older debian systems
-CC_WIN32_32bit=i586-mingw32msvc-gcc
-
-CC_WIN32:=$(shell if test -x `which $(CC_WIN32_64bit)` ; then echo $(CC_WIN32_64bit); else echo $(CC_WIN32_32bit); fi)
+# We only support cross-compiling to Windows on 64-bit debian systems,
+# which is pretty much every debian box since about 2012.
+CC_WIN32=i686-w64-mingw32-gcc
 LIBS_WIN32=-lws2_32
 LIBS=-lrt
 
