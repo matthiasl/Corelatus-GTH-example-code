@@ -107,7 +107,8 @@ mtp2(<<_BSN_BIB, _FSN_FIB, _LI, SIO, SIF_CRC/binary>>) ->
     mtp3(<<SIO>>, SIF).
 
 %% Q.704 14.2.1 and 14.2.2 defines the service codes
-mtp3(<<_Sub:4, Service_indicator:4>>, <<DPC:14, OPC:14, SLS:4, Rest/binary>>) ->
+mtp3(<<_Sub:4, Service_indicator:4>>, <<MTP3:32/little, Rest/binary>>) ->
+    <<SLS:4, OPC:14, DPC:14>> = <<MTP3:32>>,
     case Service_indicator of
 	0 -> % Management
 	    ignore;
@@ -127,7 +128,7 @@ mtp3(<<_Sub:4, Service_indicator:4>>, <<DPC:14, OPC:14, SLS:4, Rest/binary>>) ->
 %%
 %% We're only interested in the IAM packets, they tell us when someone's
 %% setting up a call.
-isup(_DPC, _OPC, _SLS, <<_:4, CIC:12, Type:8, Tail/binary>>) ->
+isup(_DPC, _OPC, _SLS, <<CIC:16/little, Type:8, Tail/binary>>) ->
     case Type of
 	16#01  -> isup_iam(CIC, Tail);
 	16#02  -> isup_ignore("subsequent address");
@@ -151,10 +152,10 @@ isup_iam(CIC, <<_Nature_of_connection,  %% 3.23
 	       Pointer_to_optional:8,
 	       Parameters/binary>>) ->
 
-    A = isup_number(Parameters),
+    B = isup_number(Parameters),
     Skip_bits = (Pointer_to_optional + 0) * 8,
     <<_:Skip_bits, Optional/binary>> = Parameters,
-    B = isup_number(Optional),
+    A = isup_number(Optional),
     io:fwrite("IAM: CIC=~p Calling (A) number=~s Called (B) number=~s\n",
 	      [CIC, A, B]).
 

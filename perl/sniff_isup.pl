@@ -74,7 +74,7 @@ sub decode_mtp3 {
 
 sub decode_isup {
     my ($sif) = @_;
-    my ($CIC, $type) = unpack("nC", $sif);
+    my ($CIC, $type) = unpack("vC", $sif);
     my $rest = substr($sif, 3);
     my $action = {
 	0x01 => \&isup_iam,
