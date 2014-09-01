@@ -109,7 +109,7 @@ static void usage()
 	  "Example: \n"
 	  "    ./install_release 172.16.1.10 gth2_system_33c.gth\n\n",
 	  git_head, build_hostname);
-  exit(-1);
+  die("");
 }
 
 
@@ -373,7 +373,7 @@ check_for_problems(const char *hostname,
 int main(int argc, char **argv)
 {
   const char* hostname;
-  const char* filename;
+  char* filename;
   char* target;
   char* other;
   int verbose = 0;

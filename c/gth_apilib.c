@@ -158,6 +158,15 @@ static int check_api_response(GTH_api *api, GTH_resp_type expected,
 void die(const char* message)
 {
   fprintf(stderr, "%s\n", message);
+
+  // UAC on Windows 7 (and possibly other variants) may run the
+  // program in a new window. This makes errors disappear if
+  // we exit immediately. So delay.
+  #ifdef WIN32
+  fprintf(stderr, "Press ^c (or wait 30 seconds)\n");
+  sleep_seconds(30);
+  #endif
+
   exit(-1);
 }
 
