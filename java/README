@@ -34,7 +34,7 @@ A starting point for building Java applications which talk to a GTH
 MTP-2 monitoring demo
 ---------------------
 
-   See mtp2_api.java and mtp2_receiver.java.
+   The best example to get started with is 'simple_mtp2.java'.
 
 
 Logging demo
