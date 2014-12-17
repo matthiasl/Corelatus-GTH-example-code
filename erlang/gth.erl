@@ -149,7 +149,7 @@
 	 %% pre-opened listen socket for players
 	 player_ls :: {integer(), port()},
 	 command_timeout = 5000 :: integer(),
-	 event_dict :: dict:dictionary(),
+	 event_dict :: dict:dict(ID::string(), event_handler() ),
 	 resource_event_target :: pid(),
 	 job_event_target :: pid(),
 	 my_ip :: string()}).             %% my IP address, according to the GTH
