@@ -310,7 +310,6 @@ check_for_problems(const char *hostname,
 		   const int verbose,
 		   const int failsafe,
 		   const char *filename,
-		   const char *target,
 		   const char *other)
 {
   GTH_api api;
@@ -419,8 +418,7 @@ int main(int argc, char **argv)
   show_releases(hostname, verbose);
 
   if (!force)
-    check_for_problems(hostname, verbose, failsafe, basename(filename),
-		       target, other);
+    check_for_problems(hostname, verbose, failsafe, basename(filename), other);
 
   gth_switch_to(hostname, other, 1);
 

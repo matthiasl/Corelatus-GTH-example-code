@@ -57,10 +57,10 @@ version.c:
 %: %.c $(headers)
 
 %: %.c $(common_c_files) version.c
-	$(CC) -Wall -g -o $@ $^ $(LIBS)
+	$(CC) -Wall -Wextra -g -o $@ $^ $(LIBS)
 
 %.exe: %.c $(headers)
 
 %.exe: %.c $(common_c_files) version.c
-	$(CC_WIN32) -Wall -o $@ $^ $(LIBS_WIN32)
+	$(CC_WIN32) -Wall -Wextra -o $@ $^ $(LIBS_WIN32)
 

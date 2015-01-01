@@ -227,8 +227,8 @@ usage() {
 #define fwrite write_to_handle_or_file
 static int
 write_to_handle_or_file(void *buffer,
-			int length,
-			int items,
+			size_t length,
+			size_t items,
 			HANDLE_OR_FILEPTR file)
 {
   int result;
@@ -258,10 +258,10 @@ stdout_handle_or_file()
 
 #endif
 
+#ifdef WIN32
 static HANDLE_OR_FILEPTR
 open_windows_pipe(const char *filename)
 {
-#ifdef WIN32
   HANDLE pipe;
   int result;
 
@@ -284,11 +284,16 @@ open_windows_pipe(const char *filename)
   }
 
   return pipe;
-#else
-  die("Cannot open a windows named pipe on a non-windows OS. Giving up.");
-  return 0;
-#endif
 }
+#else
+static HANDLE_OR_FILEPTR
+open_windows_pipe(const char *filename)
+{
+  die("Cannot open a windows named pipe on a non-windows OS. Giving up.");
+  die(filename);  // not reached
+  return 0;
+}
+#endif
 
 static void
 flush_file(HANDLE_OR_FILEPTR hf)
@@ -409,8 +414,7 @@ monitor_mtp2(GTH_api *api,
 	     int tag,
 	     int drop_fisus,
 	     int esnf,
-	     int listen_port,
-	     int listen_socket
+	     int listen_port
 	     )
 {
   int result;
@@ -458,7 +462,7 @@ read_exact(int fd, char* buf, size_t count)
   }
 }
 
-void inline
+inline void
 checked_fwrite(void *b, int n, HANDLE_OR_FILEPTR f)
 {
   int result = fwrite(b, n, 1, f);
@@ -511,7 +515,7 @@ read_hw_description(GTH_api *api, const char *hostname)
     die("Hardware description is too long");
 }
 
-static int inline
+inline static int
 round_up_32_bit(int x)
 {
   return (x + 3) & (~3);
@@ -570,7 +574,7 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
     if_name.code = 2;    // if_name
     if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s:%d",
 			      c[x].span, c[x].timeslots[0]);
-    if (if_name.length < 0 || if_name.length >= MAX_IF_NAME)
+    if (if_name.length >= MAX_IF_NAME)
       die("interface name is too long");
 
     block_total_length = sizeof(idb)
@@ -1124,7 +1128,7 @@ arguments_to_channels(int argc,
 // The old syntax, e.g. '-n 55' is still supported.
 //
 // It's possible to specify multiple, separate -n arguments.
-void static
+static void
 parse_rotation(char *arg, int *n_sus_per_file, int *duration_per_file)
 {
   int n;
@@ -1146,7 +1150,7 @@ parse_rotation(char *arg, int *n_sus_per_file, int *duration_per_file)
 }
 
 
-void static
+static void
 process_arguments(char **argv,
 		  int argc,
 		  int *monitoring,
@@ -1261,7 +1265,7 @@ main(int argc, char **argv)
   listen_socket = gth_make_listen_socket(&listen_port);
   for (i = 0; i < n_channels; i++){
     monitor_mtp2(&api, channels + i,
-		 i, drop_fisus, esnf, listen_port, listen_socket);
+		 i, drop_fisus, esnf, listen_port);
     if (i == 0) {
       data_socket = gth_wait_for_accept(listen_socket);
     }

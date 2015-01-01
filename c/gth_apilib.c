@@ -76,7 +76,7 @@ strncpy_s(char *dest,
 	  const char *src,
 	  size_t copy_count)
 {
-  int x;
+  size_t x;
 
   if (!dest) return EINVAL;
   if (dest_size == 0) return EINVAL;

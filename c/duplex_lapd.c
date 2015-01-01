@@ -148,7 +148,7 @@ static void send_dl_establish_req(int data_socket)
 static void send_dl_data_req(int data_socket)
 {
   GTH_lapd_tx_su su;
-  int result;
+  size_t result;
 
   su.length = htons(6 + 11);
   su.tag = 0;
