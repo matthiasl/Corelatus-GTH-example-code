@@ -221,15 +221,19 @@ static void extract_version(const char* s, struct Version *v)
   *v = VERSION_ZERO;
 
   s = strchr(s, '_');
-  if (s)
-    s++;
-    s = strchr(s, '_');
-  if (s)
-    {
-      s++;
-      sscanf(s, "%d%c", &(v->major), &(v->minor));
-      v->minor = to_lower(v->minor);
-    }
+
+  if (!s)
+    return;
+
+  s++;
+  s = strchr(s, '_');
+
+  if (!s)
+    return;
+
+  s++;
+  sscanf(s, "%d%c", &(v->major), &(v->minor));
+  v->minor = to_lower(v->minor);
 }
 
 enum Hardware arch_to_hw(const char* arch)

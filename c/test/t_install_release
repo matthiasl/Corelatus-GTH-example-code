@@ -19,7 +19,7 @@ die()
     kill -s TERM $TOP_PID
 }
 
-release_archive=/home/matthias/noncvs_corelatus/releases/
+release_archive=/home/matthias/corelatus_archive/releases/
 
 systems()
 {
