@@ -1052,44 +1052,16 @@ handle_call({new_tcp_player, Span, Ts, Options}, {Pid, _},
 
     {reply, Reply, State};
 
-handle_call({new_tone_detector, Span, Ts, Event_handler},
-	    _From,
-	    State = #state{event_dict = ED,
-			   job_event_target = JET}) ->
-
-    send_xml(State, xml:new("tone_detector", [], xml:pcm_source(Span, Ts))),
-    case receive_job_id(State) of
-	{ok, Id} ->
-	    New_ED = case Event_handler of
-			 default ->
-			     dict:store(Id, JET, ED);
-			 _ ->
-			     dict:store(Id, Event_handler, ED)
-		     end,
-	    {reply, {ok, Id}, State#state{event_dict = New_ED}};
-
-	ER = {error, _} ->
-	    {reply, ER, State}
-    end;
+handle_call({new_tone_detector, Span, Ts, Event_handler}, _From, State) ->
+    make_new_tone_detector(State, [], Span, Ts, Event_handler);
 
 handle_call({new_tone_detector, Span, Ts, Freq, Length, Event_handler},
 	    _From,
-	    State = #state{event_dict = ED,
-			   job_event_target = JET}) ->
-    send_xml(State, xml:new("tone_detector",
-			    [{"type", "custom"},
-			     {"frequency", Freq},
-			     {"length", Length}],
-			    xml:pcm_source(Span, Ts))),
-    {ok, Id} = receive_job_id(State),
-    New_ED = case Event_handler of
-		 default ->
-		     dict:store(Id, JET, ED);
-		 _ ->
-		     dict:store(Id, Event_handler, ED)
-		 end,
-    {reply, {ok, Id}, State#state{event_dict = New_ED}};
-
+	    State) ->
+    Options = [{"type", "custom"},
+	       {"frequency", Freq},
+	       {"length", Length}],
+    make_new_tone_detector(State, Options, Span, Ts, Event_handler);
 
 handle_call({new_recorder, Span, Ts, Options},
 	    {Pid, _tag}, State = #state{my_ip = Hostname}) ->
@@ -1495,6 +1467,24 @@ listen_active(Opts) ->
     {ok, L} = gen_tcp:listen(0, [binary, {reuseaddr, true}|Opts]),
     {ok, P} = inet:port(L),
     {P, L}.
+
+make_new_tone_detector(State, Options, Span, Ts, Event_handler) ->
+    #state{event_dict = ED, job_event_target = JET} = State,
+    Source = xml:pcm_source(Span, Ts),
+    send_xml(State, xml:new("tone_detector", Options, Source)),
+    case receive_job_id(State) of
+	{ok, Id} ->
+	    New_ED = case Event_handler of
+			 default ->
+			     dict:store(Id, JET, ED);
+			 _ ->
+			     dict:store(Id, Event_handler, ED)
+		     end,
+	    {reply, {ok, Id}, State#state{event_dict = New_ED}};
+
+	ER = {error, _} ->
+	    {reply, ER, State}
+    end.
 
 new_signalling_monitor(Pid, State, Span, Ts, Name, Options)
   when is_pid(Pid), is_integer(Ts); is_tuple(Ts) ->
