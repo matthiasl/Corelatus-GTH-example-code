@@ -120,8 +120,9 @@ xml_tags() ->
 
      state,
 
-     atm_aal0_layer, atm_aal0_monitor, atm_aal2_monitor,
-     atm_aal5_monitor, cas_r2_linesig_monitor, cas_r2_mfc_detector, controller,
+     atm_aal0_layer, atm_aal0_monitor, atm_aal2_monitor, atm_aal5_monitor,
+     cas_r2_linesig_monitor, cas_r2_mfc_detector, cas_r2_linesig_transmitter,
+     controller,
      fr_layer, fr_monitor, lapd_layer, lapd_monitor, level_detector,
      mtp2_monitor, player, raw_monitor, resource, ss5_linesig_monitor,
      ss5_registersig_monitor, tone_detector,

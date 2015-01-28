@@ -105,6 +105,7 @@
 	 new_atm_aal5_monitor/4, new_atm_aal5_monitor/5,
 	 new_cas_r2_mfc_detector/4, new_cas_r2_mfc_detector/5,
 	 new_cas_r2_linesig_monitor/3, new_cas_r2_linesig_monitor/4,
+	 new_cas_r2_linesig_transmitter/3,
 	 new_connection/5, new_connection/6,
 	 new_fr_monitor/3, new_fr_monitor/4,
 	 new_fr_layer/3,
@@ -338,6 +339,9 @@ new_cas_r2_linesig_monitor(Pid, Span, Timeslot) ->
 new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options)
   when is_pid(Pid), is_integer(Timeslot), is_list(Options) ->
     gen_server:call(Pid, {new_cas_r2_linesig_monitor, Span, Timeslot, Options}).
+
+new_cas_r2_linesig_transmitter(Pid, Span, Timeslot) ->
+    gen_server:call(Pid, {new_cas_r2_linesig_transmitter, Span, Timeslot}).
 
 -spec new_clip(pid(), string(), binary() | iolist()) -> id_or_error().
 new_clip(Pid, Name, Bin)
@@ -872,6 +876,14 @@ handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
 				   "cas_r2_linesig_monitor", Options),
     {reply, Reply, State};
 
+handle_call({new_cas_r2_linesig_transmitter, Span, Ts}, _From, State) ->
+    Frame = "11, 85,85,85,85, 85,85,85,85, 85,85,85,85, 85,85,85",
+    XML = xml:new("cas_r2_linesig_transmitter",
+		  [{"frame", Frame}], [xml:pcm_sink(Span, Ts)]),
+    send_xml(State, XML),
+    Reply = receive_job_id(State),
+    {reply, Reply, State};
+
 handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
     XML = xml:new_clip(Name),
     ok = gth_apilib:sendv(S, [{"text/xml", XML}, {"binary/audio", Bin}]),
@@ -1247,6 +1259,7 @@ handle_call({unmap, Name}, _From, State) ->
 
 handle_call({update, ID, KVs}, _From, State) ->
     Job_types = [
+		 {"cltx", "cas_r2_linesig_transmitter"},
 		 {"ldmo", "lapd_monitor"},
 		 {"m2mo", "mtp2_monitor"}
 		],
