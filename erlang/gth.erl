@@ -846,15 +846,7 @@ handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
 			     {"ip_port", Portno},
 			     {"scrambling", Scrambling}],
 			    [Sources, Sinks])),
-    Reply = case receive_job_id(State) of
-		{ok, Job} ->
-		    {ok, D} = gen_tcp:accept(L, 2000),
-		    ok = gen_tcp:controlling_process(D, Pid),
-		    {ok, Job, D};
-		X ->
-		    X
-	    end,
-    ok = gen_tcp:close(L),
+    Reply = complete_socket_based_job(State, L, Pid),
     {reply, Reply, State};
 
 handle_call({new_cas_r2_mfc_detector, Span, Ts, Direction, User_options},
@@ -908,17 +900,7 @@ handle_call({new_fr_layer, Span, Timeslots},
 			    [{"ip_addr", Hostname},
 			     {"ip_port", Portno}],
 			    [Sources, Sinks])),
-
-    Reply = case receive_job_id(State) of
-		{ok, Job} ->
-		    {ok, D} = gen_tcp:accept(L, 2000),
-		    ok = gen_tcp:controlling_process(D, Pid),
-		    {ok, Job, D};
-
-		{error, Reason} ->
-		    {error, Reason}
-	    end,
-    ok = gen_tcp:close(L),
+    Reply = complete_socket_based_job(State, L, Pid),
     {reply, Reply, State};
 
 
@@ -940,16 +922,8 @@ handle_call({new_lapd_layer, Span, Ts, Side, {SAPI, TEI}, Tag, Options},
 			       {"tag", Tag},
 			       {"tei",  TEI}|Options], Source_sink)),
 
-	    case receive_job_id(State) of
-		{ok, Job} ->
-		    {ok, D} = gen_tcp:accept(L, 2000),
-		    ok = gen_tcp:close(L),
-		    ok = gen_tcp:controlling_process(D, Pid),
-		    {reply, {ok, Job, D}, State};
-		{error, Reason} ->
-		    ok = gen_tcp:close(L),
-		    {reply, {error, Reason}, State}
-	    end;
+	    Reply = complete_socket_based_job(State, L, Pid),
+	    {reply, Reply, State};
 
 	D when is_port(D) ->
 	    {ok, Portno} = inet:port(D),
@@ -1041,6 +1015,8 @@ handle_call({new_tcp_player, Span, Ts, Options}, {Pid, _},
 			    [xml:tcp_source(Hostname, Portno),
 			     xml:pcm_sink(Span, Ts)])),
 
+    %% TCP player does not use complete_socket_based_job() because TCP
+    %% player reuses the listening socket.
     Reply = case receive_job_id(State) of
 		{error, Reason} ->
 		    {error, Reason};
@@ -1069,21 +1045,7 @@ handle_call({new_recorder, Span, Ts, Options},
 	false ->
 	    {Portno, L} = listen(),
 	    send_xml(State, xml:recorder(Span, Ts, Hostname, Portno, Options)),
-
-	    Reply = case receive_job_id(State) of
-			{error, Reason} ->
-			    {error, Reason};
-
-			{ok, Id} ->
-			    case gen_tcp:accept(L, 1000) of
-				{ok, Data} ->
-				    ok = gen_tcp:controlling_process(Data, Pid),
-				    {ok, Id, Data};
-				_X ->
-				    {error, accept_failed}
-			    end
-		    end,
-	    gen_tcp:close(L),
+	    Reply = complete_socket_based_job(State, L, Pid),
 	    {reply, Reply, State};
 
 	true ->
@@ -1453,6 +1415,19 @@ attributes_to_kv(A) ->
     [{K, V} || #resp_tuple{name=attribute,
 			   attributes=[{"name", K}, {"value",V}]} <- A].
 
+complete_socket_based_job(State, L, Pid) ->
+    Reply = case receive_job_id(State) of
+		{ok, Job} ->
+		    {ok, D} = gen_tcp:accept(L, 2000),
+		    ok = gen_tcp:controlling_process(D, Pid),
+		    {ok, Job, D};
+
+		X ->
+		    X
+	    end,
+    ok = gen_tcp:close(L),
+    Reply.
+
 path_to_string(List) ->
     Strings = lists:map(fun integer_to_list/1, List),
     string:join(Strings, "_").
@@ -1524,16 +1499,7 @@ new_signalling_monitor_checked_options(
 	    send_xml(State, xml:new(Name, [{"ip_addr", Hostname},
 					   {"ip_port", Portno}|Options],
 				    Sources)),
-	    case receive_job_id(State) of
-		{ok, Job} ->
-		    {ok, D} = gen_tcp:accept(L, 2000),
-		    ok = gen_tcp:close(L),
-		    ok = gen_tcp:controlling_process(D, Pid),
-		    {ok, Job, D};
-		{error, Reason} ->
-		    ok = gen_tcp:close(L),
-		    {error, Reason}
-	    end;
+	    complete_socket_based_job(State, L, Pid);
 
 	D when is_port(D) ->
 	    {ok, Portno} = inet:port(D),
