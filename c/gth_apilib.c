@@ -52,6 +52,8 @@ typedef int socklen_t;
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/select.h>
+#include <fcntl.h>
 #endif // WIN32
 
 #include "gth_win32_compat.h"
@@ -100,7 +102,26 @@ strncpy_s(char *dest,
 
   return 0;
 }
+
+
+void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+{
+  int flags = on_or_off?O_NONBLOCK:0;
+  int result = fcntl(s, F_SETFL, flags);
+  assert(result == 0);
+}
+#else
+void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+{
+  int result;
+  u_long mode = on_or_off;
+
+  result = ioctlsocket(s, FIONBIO, &mode);
+  assert(result == 0);
+}
 #endif
+
+
 
 
 //----------------------------------------------------------------------
@@ -345,6 +366,11 @@ int gth_make_listen_socket(int* port)
   result = listen(s, 1);
   assert(result == 0);
 
+  // Set listen sockets to nonblocking. Avoids a race condition: if
+  // the network dies after select() returns but before we call
+  // accept(), accept will unexpectedly block.
+  set_nonblocking(s, 1);
+
   result = getsockname(s, (struct sockaddr*)&addr, &addr_size);
   assert(result == 0);
   assert(addr_size == sizeof addr);
@@ -382,11 +408,27 @@ int gth_make_udp_socket(int* port)
 int gth_wait_for_accept(int listen_socket)
 {
   int data_socket = -1;
+  int result;
+  struct timeval timeout = {2, 0};  // 2 seconds
+  fd_set readfds;
+
+  FD_ZERO(&readfds);
+  FD_SET(listen_socket, &readfds);
+
+  result = select(listen_socket + 1, &readfds, 0, 0, &timeout);
+
+  if (result == 0)
+    die("unable to accept socket, timed out (is this host firewalled?)");
+
+  if (result < 0)
+    die("unabled to accept socket");
 
   data_socket = accept(listen_socket, 0, 0);
   if (data_socket < 0) {
     die("unable to accept socket (possibly blocked by a firewall)");
   }
+
+  set_nonblocking(data_socket, 0);
 
   return data_socket;
 }
