@@ -105,6 +105,7 @@
 	 new_atm_aal5_monitor/4, new_atm_aal5_monitor/5,
 	 new_cas_r2_mfc_detector/4, new_cas_r2_mfc_detector/5,
 	 new_cas_r2_linesig_monitor/3, new_cas_r2_linesig_monitor/4,
+	 new_cas_r2_linesig_merge/5,
 	 new_cas_r2_linesig_transmitter/3,
 	 new_connection/5, new_connection/6,
 	 new_fr_monitor/3, new_fr_monitor/4,
@@ -340,6 +341,18 @@ new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options)
   when is_pid(Pid), is_integer(Timeslot), is_list(Options) ->
     gen_server:call(Pid, {new_cas_r2_linesig_monitor, Span, Timeslot, Options}).
 
+%% cas_r2_linesig_merge is undocumented and unsupported. Checked 2015-03.
+-spec new_cas_r2_linesig_merge(pid(),
+                               string(),
+                               string(),
+                               string(),
+                               'E1'|'T1') ->
+                                      id_or_error().
+new_cas_r2_linesig_merge(Pid, U, DA, DB, L1) ->
+    gen_server:call(Pid, {new_cas_r2_linesig_merge, U, DA, DB, L1}).
+
+-spec new_cas_r2_linesig_transmitter(pid(), string(), integer()) ->
+                                            id_or_error().
 new_cas_r2_linesig_transmitter(Pid, Span, Timeslot) ->
     gen_server:call(Pid, {new_cas_r2_linesig_transmitter, Span, Timeslot}).
 
@@ -874,6 +887,15 @@ handle_call({new_cas_r2_mfc_detector, Span, Ts, Direction, User_options},
 handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
     Reply = new_signalling_monitor(Pid, State, Span, Ts,
 				   "cas_r2_linesig_monitor", Options),
+    {reply, Reply, State};
+
+handle_call({new_cas_r2_linesig_merge, U, DB, DC, L1}, _From, State) ->
+    XML = xml:new("cas_r2_linesig_merge",
+		  [{"upstream_A", U},
+                   {"downstream_B", DB}, {"downstream_C", DC},
+                   {"l1_mode", atom_to_list(L1)}], []),
+    send_xml(State, XML),
+    Reply = receive_job_id(State),
     {reply, Reply, State};
 
 handle_call({new_cas_r2_linesig_transmitter, Span, Ts}, _From, State) ->
