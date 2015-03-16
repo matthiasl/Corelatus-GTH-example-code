@@ -98,6 +98,7 @@
 	 get_ip/1, get_gth_ip/1, get_my_ip/1,
 	 install/3,
 	 map/3, map/5,
+         new_bare_api/1,
 	 new_clip/3,
 	 new_atm_aal0_layer/3, new_atm_aal0_layer/4,
 	 new_atm_aal0_monitor/3, new_atm_aal0_monitor/4,
@@ -320,6 +321,9 @@ map(Pid, pcm_source, Name)
 map(Pid, pcm_source, Name, HOP, LOP) ->
     Full_name = [Name, ":hop", path_to_string(HOP), ":lop",path_to_string(LOP)],
     map(Pid, pcm_source, Full_name).
+
+new_bare_api(Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, new_bare_api).
 
 new_cas_r2_mfc_detector(Pid, Span, Timeslot, Direction, Options)
   when is_pid(Pid),
@@ -872,6 +876,12 @@ handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
 		    X
 	    end,
     ok = gen_tcp:close(L),
+    {reply, Reply, State};
+
+handle_call(new_bare_api, _From, State) ->
+    XML = xml:new("bare_api", [], []),
+    send_xml(State, XML),
+    Reply = receive_job_id(State),
     {reply, Reply, State};
 
 handle_call({new_cas_r2_mfc_detector, Span, Ts, Direction, User_options},
