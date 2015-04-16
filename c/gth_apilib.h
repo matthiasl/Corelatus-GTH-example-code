@@ -246,6 +246,18 @@ int gth_new_lapd_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port);
 
+// Start a level detector.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_level_detector(GTH_api *api,
+                           const char *span,
+                           const int timeslot,
+                           const int threshold,
+                           char *job_id,
+                           GTH_tone_handler* handler); // callback
+
 // Start MTP-2 monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
@@ -382,6 +394,13 @@ const char *gth_my_ip_address(GTH_api *api);
 // Return: 0 on success
 //        -1 on timeout
 int gth_wait_for_reboot(const char *hostname);
+
+// Wait for an event on the API socket. Blocks until an event arrives
+// or the given timeout expires.
+//
+// Return: 0 if there's an event
+//        -1 on timeout
+int gth_wait_for_event(GTH_api *api, const int milliseconds);
 
 // Make a GTH run the specified software image. If necessary, this
 // reboots the GTH.
