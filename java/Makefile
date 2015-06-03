@@ -34,7 +34,7 @@ fail:
 	touch gth_upgrade.jar $(archive_filename)
 endif
 
-all: gth_upgrade.jar $(archive_filename)
+ship: gth_upgrade.jar $(archive_filename)
 
 $(archive_filename):
 	zip $@ Makefile corelatus/gth/*.java README
