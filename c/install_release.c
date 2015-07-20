@@ -37,7 +37,28 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
+
+// Microsoft VC13 only provides basename() in C++, not in C.
+#ifdef _MSC_VER
+#define MAX_FILENAME 80
+char *basename(const char *path)
+{
+  errno_t result;
+  static char filename[MAX_FILENAME];
+
+  result = _splitpath_s(path,
+                        0, 0, // drive
+                        0, 0, // directory
+                        filename, MAX_FILENAME,
+                        0, 0);// extension
+  if (result != 0)
+    filename[0] = 0;
+
+  return filename;
+}
+#else
 #include <libgen.h>
+#endif
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"

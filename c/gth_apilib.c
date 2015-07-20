@@ -52,6 +52,8 @@ typedef int socklen_t;
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
+#include <sys/select.h>
+#include <fcntl.h>
 #endif // WIN32
 
 #include "gth_win32_compat.h"
@@ -100,7 +102,26 @@ strncpy_s(char *dest,
 
   return 0;
 }
+
+
+void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+{
+  int flags = on_or_off?O_NONBLOCK:0;
+  int result = fcntl(s, F_SETFL, flags);
+  assert(result == 0);
+}
+#else
+void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+{
+  int result;
+  u_long mode = on_or_off;
+
+  result = ioctlsocket(s, FIONBIO, &mode);
+  assert(result == 0);
+}
 #endif
+
+
 
 
 //----------------------------------------------------------------------
@@ -236,8 +257,16 @@ void gth_event_handler(void *data, GTH_resp *resp)
       api->tone_handler(name, atoi(length));
       break;
     }
-    // no handler -> fall through to printing the tone event
 
+  case GTH_RESP_LEVEL:
+    if (api->tone_handler) {
+      const char *id = attribute_value(child, "detector");
+      const char *state = attribute_value(child, "state");
+      api->tone_handler(id, strcmp(state, "noisy") == 0);
+      break;
+    }
+
+    // no handler -> fall through to printing the tone event
   default:
     fprintf(stderr,
 	    "gth_event_handler got an event, handling with default handler\n");
@@ -345,6 +374,11 @@ int gth_make_listen_socket(int* port)
   result = listen(s, 1);
   assert(result == 0);
 
+  // Set listen sockets to nonblocking. Avoids a race condition: if
+  // the network dies after select() returns but before we call
+  // accept(), accept will unexpectedly block.
+  set_nonblocking(s, 1);
+
   result = getsockname(s, (struct sockaddr*)&addr, &addr_size);
   assert(result == 0);
   assert(addr_size == sizeof addr);
@@ -382,11 +416,27 @@ int gth_make_udp_socket(int* port)
 int gth_wait_for_accept(int listen_socket)
 {
   int data_socket = -1;
+  int result;
+  struct timeval timeout = {2, 0};  // 2 seconds
+  fd_set readfds;
+
+  FD_ZERO(&readfds);
+  FD_SET(listen_socket, &readfds);
+
+  result = select(listen_socket + 1, &readfds, 0, 0, &timeout);
+
+  if (result == 0)
+    die("unable to accept socket, timed out (is this host firewalled?)");
+
+  if (result < 0)
+    die("unabled to accept socket");
 
   data_socket = accept(listen_socket, 0, 0);
   if (data_socket < 0) {
     die("unable to accept socket (possibly blocked by a firewall)");
   }
+
+  set_nonblocking(data_socket, 0);
 
   return data_socket;
 }
@@ -692,6 +742,36 @@ int gth_new_lapd_monitor(GTH_api *api,
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+
+int gth_new_level_detector(GTH_api *api,
+                           const char *span,
+                           const int ts,
+                           const int threshold,
+                           char *job_id,
+                           GTH_tone_handler* handler)
+{
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(ts > 0 && ts < 32);
+
+  template = "<new><level_detector threshold='%d'>"
+    "<pcm_source span='%s' timeslot='%d'/>"
+    "</level_detector></new>";
+
+  result = snprintf(command, MAX_COMMAND, template, threshold, span, ts);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  if (result == 0) {
+    api->tone_handler = handler;
+  }
 
   return result;
 }
@@ -1629,6 +1709,24 @@ int gth_wait_for_reboot(const char *hostname) {
 
   return -1;
 }
+
+int gth_wait_for_event(GTH_api *api, const int milliseconds)
+{
+  struct timeval timeout = {milliseconds / 1000,
+                            (milliseconds % 1000) * 1000};
+  fd_set readfds;
+  int result;
+
+  FD_ZERO(&readfds);
+  FD_SET(api->fd, &readfds);
+
+  result = select(api->fd + 1, &readfds, 0, 0, &timeout);
+
+  if (result == 0) return -1; // timeout
+
+  return 0;
+}
+
 
 #define MAX_QUERY_LENGTH 1000
 
