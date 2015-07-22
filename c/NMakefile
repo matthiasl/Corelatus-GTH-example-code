@@ -19,7 +19,8 @@ header_files=gth_client_xml_parse.h gth_apilib.h
 common_c_files=gth_client_xml_parse.c gth_apilib.c version.c
 
 LIBS_WIN32=ws2_32.lib
-CFLAGS=/DWIN32 /nologo /DEBUG /Zi /MDd
+#CFLAGS=/DWIN32 /nologo /DEBUG /Zi /MDd
+CFLAGS=/DWIN32 /nologo /RELEASE /MD
 
 CC=cl
 RM=del
