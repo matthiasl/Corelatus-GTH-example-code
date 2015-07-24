@@ -888,16 +888,21 @@ const enum PCap_format format)
 	init_timer(duration_per_file);
 
 	int always_true = 1;
+	time_t rawtime;
+	struct tm * timeinfo;
 
 	while (always_true) {
 		char filename[MAX_FILENAME];
 
+		time(&rawtime);
+		timeinfo = localtime(&rawtime);
 		if (!write_to_stdout && !write_to_pipe)
 		{
 			if (!stop_after_interval)
 			{
-				snprintf(filename, MAX_FILENAME, "%s.%d",
-					base_name, file_number);
+				snprintf(filename, MAX_FILENAME, "%s_%05d_%04d%02d%02d%02d%02d%02d",
+					base_name, file_number, timeinfo->tm_year + 1900, timeinfo->tm_mon + 1,
+					timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 			}
 			else
 			{
