@@ -181,6 +181,10 @@ usage() {
 		"\n-n <duration:s>: rotate the output file after <s> seconds"
 		"\n-s Stop the process instead of rotating the files"
 		"\n-v: print API commands and responses (verbose)"
+		"\n-o: Output format"
+		"\n\tdefault: it uses in output file name base_name with counter number (default option)"
+		"\n\tutc=no: add local time after counter number (standard output like tshark)"
+		"\n\tutc=yes: add utc time after counter number (standard output like tshark)"
 		"\n"
 		"\n<GTH-IP> is the GTH's IP address or hostname"
 		"\n<channels> is a list of spans and timeslots:"
@@ -207,7 +211,8 @@ usage() {
 		"./save_to_pcap -m -n duration:60 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
 		"./save_to_pcap -c 172.16.1.10 1A 2A 16 - | tshark -V -i - \n"
 		"./save_to_pcap -c 172.16.1.10 1A 2A 16 - | wireshark -k -i - \n"
-		"./save_to_pcap -c 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
+		"./save_to_pcap -c 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n"
+		"./save_to_pcap -o utc=yes 172.16.1.10 1A 2A 16 isup_capture.pcapng\n");
 
 	fprintf(stderr,
 		"\nExamples (on SDH/SONET hardware, usually optical):\n"
@@ -870,6 +875,7 @@ const char *base_name,
 const int n_sus_per_file,
 const int duration_per_file,
 const int stop_after_interval,
+const int output_filename_format,
 Channel_t channels[],
 int n_channels,
 const enum PCap_format format)
@@ -894,21 +900,49 @@ const enum PCap_format format)
 	while (always_true) {
 		char filename[MAX_FILENAME];
 
-		time(&rawtime);
-		timeinfo = localtime(&rawtime);
 		if (!write_to_stdout && !write_to_pipe)
 		{
+			if (output_filename_format > 0)
+			{
+				time(&rawtime);
+				if (output_filename_format == 1)
+					timeinfo = localtime(&rawtime); // local time
+				else
+					timeinfo = gmtime(&rawtime); // utc time		
+			}
 			if (!stop_after_interval)
 			{
-				snprintf(filename, MAX_FILENAME, "%s_%05d_%04d%02d%02d%02d%02d%02d",
-					base_name, file_number, timeinfo->tm_year + 1900, timeinfo->tm_mon + 1,
-					timeinfo->tm_mday, timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+				if (output_filename_format > 0)
+				{
+					snprintf(filename, MAX_FILENAME, "%s_%05d_%04d%02d%02d%02d%02d%02d",
+						base_name, file_number, 
+						timeinfo->tm_year + 1900, 
+						timeinfo->tm_mon + 1,
+						timeinfo->tm_mday, 
+						timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+				}
+				else
+				{
+					snprintf(filename, MAX_FILENAME, "%s_%05d",
+						base_name, file_number);
+				}
 			}
 			else
 			{
-				snprintf(filename, MAX_FILENAME, "%s",
-					base_name);
-
+				if (output_filename_format > 0)
+				{
+					snprintf(filename, MAX_FILENAME, "%s_%04d%02d%02d%02d%02d%02d",
+						base_name, 
+						timeinfo->tm_year + 1900, 
+						timeinfo->tm_mon + 1,
+						timeinfo->tm_mday, 
+						timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
+				}
+				else
+				{
+					snprintf(filename, MAX_FILENAME, "%s",
+						base_name);
+				}
 			}
 			open_file_for_writing(&file, filename);
 			fprintf(stderr, "saving to file %s\n", filename);
@@ -1174,6 +1208,7 @@ int *verbose,
 int *n_sus_per_file,
 int *duration_per_file,
 int *stop_after_interval,
+int *output_filename_format,
 int *drop_fisus,
 int *esnf,
 char **hostname,
@@ -1214,6 +1249,23 @@ enum PCap_format *format)
 			break;
 
 		case 's': *stop_after_interval = 1; break;
+
+		case 'o': 
+			if (argc < 3) {
+				usage();
+			}
+			if (!strcmp("utc=yes", argv[2])) {
+				*output_filename_format = 2;
+			}
+			else if (!strcmp("utc=no", argv[2])) {
+				*output_filename_format = 1;
+			}
+			else if (!strcmp("default", argv[2])) {
+				*output_filename_format = 0;
+			}
+			argc--;
+			argv++;
+			break;
 
 		case 'v': *verbose = 1; break;
 
@@ -1257,6 +1309,7 @@ main(int argc, char **argv)
 	int n_sus_per_file = 0;
 	int duration_per_file = 0;
 	int stop_after_interval = 0;
+	int output_filename_format = 0;
 	int drop_fisus = 0;
 	int esnf = 0;
 	int listen_port = 0;
@@ -1272,7 +1325,7 @@ main(int argc, char **argv)
 	win32_specific_startup();
 
 	process_arguments(argv, argc,
-		&monitoring, &verbose, &n_sus_per_file, &duration_per_file, &stop_after_interval,
+		&monitoring, &verbose, &n_sus_per_file, &duration_per_file, &stop_after_interval, &output_filename_format,
 		&drop_fisus, &esnf, &hostname, channels, &n_channels,
 		&base_filename, &format);
 	result = gth_connect(&api, hostname, verbose);
@@ -1294,7 +1347,7 @@ main(int argc, char **argv)
 
 	fprintf(stderr, "capturing packets, press ^C to abort\n");
 	convert_to_pcap(&api, data_socket, base_filename,
-		n_sus_per_file, duration_per_file, stop_after_interval,
+		n_sus_per_file, duration_per_file, stop_after_interval, output_filename_format,
 		channels, n_channels, format);
 
 	return 0; // not reached
