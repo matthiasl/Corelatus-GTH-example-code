@@ -51,6 +51,7 @@
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#include <sys\timeb.h> 
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -787,6 +788,20 @@ set_timer(int seconds)
 }
 
 static void
+set_timer_milli(int milliSeconds)
+{
+	LARGE_INTEGER liDueTime;
+	int result;
+
+	liDueTime.QuadPart = milliSeconds;
+	// Timer is in 100ns units. Negative means relative timeout.
+	liDueTime.QuadPart *= -10000LL;
+
+	result = SetWaitableTimer(timer, &liDueTime, 0, NULL, NULL, 0);
+	if (!result) die("SetWaitableTimer failed");
+}
+
+static void
 init_timer(int seconds)
 {
 	timer = CreateWaitableTimer(NULL, TRUE, NULL);
@@ -895,7 +910,13 @@ const enum PCap_format format)
 
 	int always_true = 1;
 	time_t rawtime;
-	struct tm * timeinfo;
+	struct tm * timeinfo=NULL;
+	
+	struct timeb start,stop;
+	int diff=0;
+	int currentdiff=0;
+	int error=0;
+	int suggestion=duration_per_file;
 
 	while (always_true) {
 		char filename[MAX_FILENAME];
@@ -904,7 +925,10 @@ const enum PCap_format format)
 		{
 			if (output_filename_format > 0)
 			{
-				time(&rawtime);
+				//if(timeinfo==NULL)
+					time(&rawtime);
+					ftime(&start);
+					
 				if (output_filename_format == 1)
 					timeinfo = localtime(&rawtime); // local time
 				else
@@ -994,6 +1018,25 @@ const enum PCap_format format)
 			always_true = 0;
 		}
 		fclose(file);
+		
+		if (output_filename_format > 0)
+		{
+			ftime(&stop);
+
+			currentdiff = (int) (1000.0 * (stop.time - start.time)+ (stop.millitm - start.millitm));
+			fprintf(stderr, "Time difference in interval %d ms\n", currentdiff);
+
+			error = currentdiff - (duration_per_file * 1000);
+			fprintf(stderr, "Interval error %d ms\n", error);
+
+			diff += error;
+			fprintf(stderr, "Total error %d ms\n", diff);
+
+			suggestion=1000 * duration_per_file - diff;
+			//rawtime=flushtime;
+			fprintf(stderr, "Interval time set to %d ms\n", suggestion);
+			set_timer_milli(suggestion);
+		}
 	}
 }
 
