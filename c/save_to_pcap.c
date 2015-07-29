@@ -481,6 +481,12 @@ write_pcap_classic_header(HANDLE_OR_FILEPTR file)
 
 	// The pcap file is native-endian, i.e. wireshark uses the magic value
 	// to figure out if it was created on a little-endian or big-endian machine.
+	/*
+	TIMESTAMP PRECISION NOTICE:
+	using 0xa1b2c3d4, the application informs readers that the timestamp precision is set to MICROseconds.
+	using 0xa1b2c34d, the application informs readers that the timestamp precision is set to NANOseconds.
+	if the magic number is changed, the code should be checked for other "TIMESTAMP PRECISION NOTICE"s to ensure their sanity.
+	*/
 	header.magic = 0xa1b2c3d4;
 	header.major_version = 2;
 	header.minor_version = 4;
@@ -568,6 +574,10 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
 		PCap_NG_option if_name;
 		char idb_if_name[MAX_IF_NAME];
 		PCap_NG_option if_tsresol;
+		/*
+		TIMESTAMP PRECISION NOTICE:
+		Precision is set to MILLIseconds (10^-3 seconds)
+		*/
 		char tsresol[4] = { 3, 0, 0, 0 }; // 10^-3 resolution, three padding bytes
 
 		u32 block_total_length;
@@ -882,6 +892,45 @@ is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
 
 #define MAX_FILENAME 100
 
+
+static unsigned long long convert_timestamp_ms(
+	u32 ts_hi,
+	u32 ts_lo,
+	const enum PCap_format format)
+{
+	unsigned long long ts_sec;
+	unsigned long long ts_us;
+	unsigned long long ts_ms;
+
+
+	assert(sizeof ts_sec == 8);
+
+	ts_us = ts_hi;
+	ts_us <<= 32;
+	ts_us += ts_lo;
+	/*
+	if (format == PCAP_CLASSIC)
+	{
+		/*
+		TIMESTAMP PRECISION NOTICE:
+		convert microseconds into milliseconds
+		* /
+		//ts_ms = (ts_us / 1000);
+	}
+	else
+	{
+
+		ts_ms = ts_us;
+	}
+	*/
+
+	ts_ms = ts_us;
+
+	return ts_ms;
+}
+
+//3651096057
+
 // Loop forever, converting the incoming GTH data to libpcap format
 static void
 convert_to_pcap(GTH_api *api,
@@ -910,15 +959,27 @@ const enum PCap_format format)
 
 	int always_true = 1;
 	time_t rawtime;
-	struct tm * timeinfo=NULL;
-	
-	struct timeb start,stop;
-	int diff=0;
-	int currentdiff=0;
-	int error=0;
-	int suggestion=duration_per_file;
+	struct tm * timeinfo = NULL;
+
+	struct timeb start, stop;
+	int diff = 0;
+	u32 currentdiff;
+	int error = 0;
+	int suggestion = duration_per_file * 1000;
+
+	u32 begin_sec;
+	u32 begin_usec;
+	unsigned long long begin_ts;
+
+	u32 curr_sec = 0;
+	u32 curr_usec = 0;
+	unsigned long long curr_ts;
 
 	while (always_true) {
+		begin_sec = 0;
+		begin_usec = 0;
+		currentdiff = 0;
+
 		char filename[MAX_FILENAME];
 
 		if (!write_to_stdout && !write_to_pipe)
@@ -926,23 +987,23 @@ const enum PCap_format format)
 			if (output_filename_format > 0)
 			{
 				//if(timeinfo==NULL)
-					time(&rawtime);
-					ftime(&start);
-					
+				time(&rawtime);
+
 				if (output_filename_format == 1)
 					timeinfo = localtime(&rawtime); // local time
 				else
 					timeinfo = gmtime(&rawtime); // utc time		
 			}
+
 			if (!stop_after_interval)
 			{
 				if (output_filename_format > 0)
 				{
 					snprintf(filename, MAX_FILENAME, "%s_%05d_%04d%02d%02d%02d%02d%02d",
-						base_name, file_number, 
-						timeinfo->tm_year + 1900, 
+						base_name, file_number,
+						timeinfo->tm_year + 1900,
 						timeinfo->tm_mon + 1,
-						timeinfo->tm_mday, 
+						timeinfo->tm_mday,
 						timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 				}
 				else
@@ -956,10 +1017,10 @@ const enum PCap_format format)
 				if (output_filename_format > 0)
 				{
 					snprintf(filename, MAX_FILENAME, "%s_%04d%02d%02d%02d%02d%02d",
-						base_name, 
-						timeinfo->tm_year + 1900, 
+						base_name,
+						timeinfo->tm_year + 1900,
 						timeinfo->tm_mon + 1,
-						timeinfo->tm_mday, 
+						timeinfo->tm_mday,
 						timeinfo->tm_hour, timeinfo->tm_min, timeinfo->tm_sec);
 				}
 				else
@@ -987,6 +1048,8 @@ const enum PCap_format format)
 		file_number++;
 		su_count = 0;
 
+		ftime(&start);
+
 		int rotation_time_reached = 0;
 		do
 		{
@@ -997,45 +1060,89 @@ const enum PCap_format format)
 				assert(length <= sizeof signal_unit);
 				read_exact(data_socket, (void*)&signal_unit, length);
 
+				curr_sec = ntohs(signal_unit.timestamp_hi);
+				curr_usec = ntohl(signal_unit.timestamp_lo);
+
 				length -= (signal_unit.payload - (char*)&(signal_unit.tag));
 				write_packet(file,
-					ntohs(signal_unit.timestamp_hi),
-					ntohl(signal_unit.timestamp_lo),
+					curr_sec,
+					curr_usec,
 					ntohs(signal_unit.tag),
 					signal_unit.payload,
 					length,
 					format);
 				flush_file(file);
 				su_count++;
+
+				if (!write_to_pipe && !write_to_stdout)
+				{
+					if (!begin_sec && !begin_usec)
+					{
+						begin_sec = curr_sec;
+						begin_usec = curr_usec;
+						begin_ts = convert_timestamp_ms(begin_sec, begin_usec, format);
+					}
+					else if (duration_per_file)
+					{
+						curr_ts = convert_timestamp_ms(curr_sec, curr_usec, format);
+
+						currentdiff = (u32)curr_ts - begin_ts;
+
+						if (currentdiff >= (1000.0 * duration_per_file))
+						{
+							fprintf(stderr, "Time difference detected based on file contents: %d ms\n", currentdiff);
+							set_timer(duration_per_file);
+							break;
+
+						}
+						else
+						{
+							currentdiff = 0;
+						}
+					}
+				}
 			}
-		} while (!(rotation_time_reached = is_time_to_rotate(su_count, n_sus_per_file, duration_per_file))
+		} while (
+			!(rotation_time_reached = is_time_to_rotate(su_count, n_sus_per_file, duration_per_file))
 			|| write_to_pipe
-			|| write_to_stdout);
+			|| write_to_stdout
+			);
 
-		if (rotation_time_reached && stop_after_interval)
-		{
-			fprintf(stderr, "Stopped capturing when rotation time reached\n");
-			always_true = 0;
-		}
+		ftime(&stop);
 		fclose(file);
-		
-		if (output_filename_format > 0)
+
+		if (!write_to_pipe && !write_to_stdout)
 		{
-			ftime(&stop);
+			if (rotation_time_reached && stop_after_interval)
+			{
+				fprintf(stderr, "Stopped capturing when rotation time reached\n");
+				always_true = 0;
+			}
+			else if (duration_per_file)
+			{
+				if (!currentdiff)
+				{
+					currentdiff = (int)(1000.0 * (stop.time - start.time) + (stop.millitm - start.millitm));
+					fprintf(stderr, "Time difference detected based on file writing process: %d ms\n", currentdiff);
 
-			currentdiff = (int) (1000.0 * (stop.time - start.time)+ (stop.millitm - start.millitm));
-			fprintf(stderr, "Time difference in interval %d ms\n", currentdiff);
+					error = currentdiff - (duration_per_file * 1000);
 
-			error = currentdiff - (duration_per_file * 1000);
-			fprintf(stderr, "Interval error %d ms\n", error);
+					fprintf(stderr, "Interval error %d ms\n", error);
 
-			diff += error;
-			fprintf(stderr, "Total error %d ms\n", diff);
+					if (error > 0)
+					{
+						error = (int)(1.2 * error);
+					}
+					diff += error;
+					fprintf(stderr, "Total error %d ms\n", diff);
+					suggestion = 1000 * duration_per_file - diff;
+					//rawtime=flushtime;
+					fprintf(stderr, "Interval time set to %d ms\n", suggestion);
+					set_timer_milli(suggestion);
+				}
+			}
 
-			suggestion=1000 * duration_per_file - diff;
-			//rawtime=flushtime;
-			fprintf(stderr, "Interval time set to %d ms\n", suggestion);
-			set_timer_milli(suggestion);
+
 		}
 	}
 }
@@ -1293,7 +1400,7 @@ enum PCap_format *format)
 
 		case 's': *stop_after_interval = 1; break;
 
-		case 'o': 
+		case 'o':
 			if (argc < 3) {
 				usage();
 			}
