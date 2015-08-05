@@ -4,3 +4,6 @@ CVS
 *~
 .cvsignore
 *.zip
+*.suo
+*.obj
+*.sdf
