@@ -153,6 +153,16 @@ typedef struct {
 
 enum PCap_format { PCAP_CLASSIC, PCAP_NG };
 
+struct Capture_output {
+  int write_to_stdout;
+  int write_to_winpipe;
+  int capture_autostop;
+  int n_sus_per_file;
+  int duration_per_file;
+  enum PCap_format format;
+  char *base_filename;
+};
+
 // Link types, defined in PCap-NG spec appendix C
 #define LINK_TYPE_MTP2 140
 
@@ -179,6 +189,7 @@ usage() {
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
+          "\n-s: stop capturing (teriminate) instead of rotating files"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
@@ -328,6 +339,7 @@ open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
     fprintf(stderr, "unable to open %s for writing. Aborting.\n", filename);
     exit(-1);
   }
+  fprintf(stderr, "saving to file %s\n", filename);
 }
 
 //----------------------------------------------------------------------
@@ -856,77 +868,78 @@ read_and_restart_timer(int seconds)
 #endif
 
 static inline int
-is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
+keep_capturing(int su_count, struct Capture_output output)
 {
-  if (duration > 0 && read_and_restart_timer(duration) == 0)
+  if  (output.n_sus_per_file > 0)
     {
-      return 1;
+      return (su_count < output.n_sus_per_file);
     }
-  return (n_sus_per_file > 0 && (su_count >= n_sus_per_file));
+
+  if (output.duration_per_file > 0)
+    {
+      return (read_and_restart_timer(output.duration_per_file) != 0);
+    }
+
+  return 1;
 }
 
 #define MAX_FILENAME 100
 
 static HANDLE_OR_FILEPTR
-open_packet_file(const int write_to_stdout,
-          const int write_to_pipe,
-          const char *base_name,
-          int *file_number)
+open_packet_file(const struct Capture_output output, int *file_number)
 {
     char filename[MAX_FILENAME];
     HANDLE_OR_FILEPTR file;
 
-    if (!write_to_stdout && !write_to_pipe)
-      {
-	snprintf(filename, MAX_FILENAME, "%s.%d",
-		 base_name, *file_number);
-	open_file_for_writing(&file, filename);
-        file_number++;
-	fprintf(stderr, "saving to file %s\n", filename);
-      }
-    else if (write_to_stdout)
+    if (output.write_to_stdout)
       {
 	file = stdout_handle_or_file();
 	fprintf(stderr, "saving capture to stdout\n");
       }
-    else
+    else if (output.write_to_winpipe)
       {
 	fprintf(stderr, "saving capture to a windows named pipe\n");
-	file = open_windows_pipe(base_name);
+	file = open_windows_pipe(output.base_filename);
+      }
+    else
+      {
+        if (output.capture_autostop)
+          {
+            open_file_for_writing(&file, output.base_filename);
+          }
+        else
+          {
+            snprintf(filename, MAX_FILENAME, "%s.%d",
+                     output.base_filename, *file_number);
+            open_file_for_writing(&file, filename);
+          }
+
+        (*file_number)++;
       }
 
     return file;
 }
 
 
-// Loop forever, converting the incoming GTH data to libpcap format
+// Loop, converting the incoming GTH data to libpcap format
 static void
 convert_to_pcap(GTH_api *api,
 		int data_socket,
-		const char *base_name,
-		const int n_sus_per_file,
-		const int duration_per_file,
+		const struct Capture_output output,
 		Channel_t channels[],
-		int n_channels,
-		const enum PCap_format format)
+		int n_channels)
 {
   u16 length;
   GTH_mtp2 signal_unit;
   int su_count;
   int file_number = 1;
   HANDLE_OR_FILEPTR file;
-  int write_to_stdout = 0;
-  int write_to_pipe;
 
-  write_to_stdout = (strcmp(base_name, "-") == 0);
-  write_to_pipe = is_filename_a_pipe(base_name);
+  init_timer(output.duration_per_file);
 
-  init_timer(duration_per_file);
-
-  while (1) {
-    file = open_packet_file(write_to_stdout, write_to_pipe, base_name,
-                            &file_number);
-    write_pcap_global_header(file, format, channels, n_channels);
+  do {
+    file = open_packet_file(output, &file_number);
+    write_pcap_global_header(file, output.format, channels, n_channels);
 
     su_count = 0;
 
@@ -946,17 +959,15 @@ convert_to_pcap(GTH_api *api,
 			 ntohs(signal_unit.tag),
 			 signal_unit.payload,
 			 length,
-			 format);
+			 output.format);
 	    flush_file(file);
 	    su_count++;
 	  }
       }
-    while ( !is_time_to_rotate(su_count, n_sus_per_file, duration_per_file)
-	    || write_to_pipe
-	    || write_to_stdout );
-
+    while ( keep_capturing(su_count, output) );
     fclose(file);
   }
+  while ( !output.capture_autostop );
 }
 
 static int
@@ -1142,47 +1153,46 @@ arguments_to_channels(int argc,
 //
 // It's possible to specify multiple, separate -n arguments.
 static void
-parse_rotation(char *arg, int *n_sus_per_file, int *duration_per_file)
+parse_rotation(char *arg, struct Capture_output *output)
 {
   int n;
 
   if (sscanf(arg, "packets:%d", &n) == 1
       || sscanf(arg, "%d", &n) == 1)
     {
-      *n_sus_per_file = n;
+      output->n_sus_per_file = n;
       return;
     }
 
   if (sscanf(arg, "duration:%d", &n) == 1)
     {
-      *duration_per_file = n;
+      output->duration_per_file = n;
       return;
     }
 
   usage();
 }
 
-
 static void
 process_arguments(char **argv,
 		  int argc,
 		  int *monitoring,
 		  int *verbose,
-		  int *n_sus_per_file,
-		  int *duration_per_file,
+                  struct Capture_output *output,
 		  int *drop_fisus,
 		  int *esnf,
 		  char **hostname,
 		  Channel_t channels[],
-		  int *n_channels,
-		  char **base_filename,
-                  enum PCap_format *format)
+		  int *n_channels)
 {
   int current_arg;
 
+  memset(output, 0, sizeof(struct Capture_output));
+  output->format = PCAP_NG;
+
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
-    case 'c': *format = PCAP_CLASSIC; break;
+    case 'c': output->format = PCAP_CLASSIC; break;
 
     case 'f':
       if (argc < 3) {
@@ -1203,10 +1213,12 @@ process_arguments(char **argv,
       if (argc < 3) {
 	usage();
       }
-      parse_rotation(argv[2], n_sus_per_file, duration_per_file);
+      parse_rotation(argv[2], output);
       argc--;
       argv++;
       break;
+
+    case 's': output->capture_autostop = 1; break;
 
     case 'v': *verbose = 1; break;
 
@@ -1232,7 +1244,9 @@ process_arguments(char **argv,
 
   print_channels(channels, *n_channels);
 
-  *base_filename = argv[current_arg];
+  output->base_filename = argv[current_arg];
+  output->write_to_stdout = (strcmp(output->base_filename, "-") == 0);
+  output->write_to_winpipe = is_filename_a_pipe(output->base_filename);
 }
 
 // Entry point
@@ -1247,15 +1261,12 @@ main(int argc, char **argv)
   Channel_t channels[MAX_MTP2_CHANNELS];
   int i;
   int n_channels = 0;
-  int n_sus_per_file = 0;
-  int duration_per_file = 0;
   int drop_fisus = 0;
   int esnf = 0;
   int listen_port = 0;
   int listen_socket = -1;
-  enum PCap_format format = PCAP_NG;
+  struct Capture_output output;
   char *hostname;
-  char *base_filename;
 
   // Check a couple of assumptions about type size.
   assert(sizeof(u32) == 4);
@@ -1263,10 +1274,8 @@ main(int argc, char **argv)
 
   win32_specific_startup();
 
-  process_arguments(argv, argc,
-		    &monitoring, &verbose, &n_sus_per_file, &duration_per_file,
-		    &drop_fisus, &esnf, &hostname, channels, &n_channels,
-		    &base_filename, &format);
+  process_arguments(argv, argc, &monitoring, &verbose, &output,
+		    &drop_fisus, &esnf, &hostname, channels, &n_channels);
   result = gth_connect(&api, hostname, verbose);
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
@@ -1285,11 +1294,9 @@ main(int argc, char **argv)
   }
 
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(&api, data_socket, base_filename,
-		  n_sus_per_file, duration_per_file,
-		  channels, n_channels, format);
+  convert_to_pcap(&api, data_socket, output, channels, n_channels);
 
-  return 0; // not reached
+  return 0;
 }
 
 // eof
