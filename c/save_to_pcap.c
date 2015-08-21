@@ -16,6 +16,7 @@
 //  Doesn't log L1 or L2 errors and state changes
 //
 // Author: Matt Lang (matthias@corelatus.se)
+// Contributions from: Arash Dalir
 //
 // Copyright (c) 2009, Corelatus AB Stockholm
 //
@@ -151,7 +152,9 @@ typedef struct {
   char payload[MAX_SIGNAL_UNIT];
 } GTH_mtp2;
 
-enum PCap_format { PCAP_CLASSIC, PCAP_NG };
+enum PCap_format { PCAP_CLASSIC = 0, PCAP_NG };
+
+enum Filename_format { FF_DEFAULT = 0, FF_UTC, FF_LOCALTIME };
 
 struct Capture_output {
   int write_to_stdout;
@@ -160,6 +163,7 @@ struct Capture_output {
   int n_sus_per_file;
   int duration_per_file;
   enum PCap_format format;
+  enum Filename_format filename_format;
   char *base_filename;
 };
 
@@ -190,6 +194,8 @@ usage() {
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
           "\n-s: stop capturing (teriminate) instead of rotating files"
+          "\n-t utc=yes: append the UTC time to the filename"
+          "\n-t utc=no: append the local time to the filename"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
@@ -885,10 +891,44 @@ keep_capturing(int su_count, struct Capture_output output)
 
 #define MAX_FILENAME 100
 
+static void
+make_file_timestamp(const struct Capture_output *output, char *string)
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+
+  time(&rawtime);
+
+  switch (output->filename_format) {
+  case FF_DEFAULT:
+    *string = 0;
+    return;
+    break;
+
+  case FF_UTC:
+    timeinfo = gmtime(&rawtime);  // REVISIT: not threadsafe
+    break;
+
+  case FF_LOCALTIME:
+    timeinfo = localtime(&rawtime);  // REVISIT: not threadsafe
+    break;
+
+  }
+
+  snprintf(string, MAX_FILENAME, "_%04d%02d%02d%02d%02d%02d",
+           timeinfo->tm_year + 1900,
+           timeinfo->tm_mon + 1,
+           timeinfo->tm_mday,
+           timeinfo->tm_hour,
+           timeinfo->tm_min,
+           timeinfo->tm_sec);
+}
+
 static HANDLE_OR_FILEPTR
 open_packet_file(const struct Capture_output output, int *file_number)
 {
     char filename[MAX_FILENAME];
+    char timestamp[MAX_FILENAME];
     HANDLE_OR_FILEPTR file;
 
     if (output.write_to_stdout)
@@ -909,8 +949,11 @@ open_packet_file(const struct Capture_output output, int *file_number)
           }
         else
           {
-            snprintf(filename, MAX_FILENAME, "%s.%d",
-                     output.base_filename, *file_number);
+            make_file_timestamp(&output, timestamp);
+            snprintf(filename, MAX_FILENAME, "%s_%05d%s",
+                     output.base_filename,
+                     *file_number,
+                     timestamp);
             open_file_for_writing(&file, filename);
           }
 
@@ -1188,7 +1231,6 @@ process_arguments(char **argv,
   int current_arg;
 
   memset(output, 0, sizeof(struct Capture_output));
-  output->format = PCAP_NG;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -1219,6 +1261,23 @@ process_arguments(char **argv,
       break;
 
     case 's': output->capture_autostop = 1; break;
+
+    case 't':
+      if (argc < 3) {
+        usage();
+      }
+      if (!strcmp("utc=yes", argv[2])) {
+        output->filename_format = FF_UTC;
+      }
+      else if (!strcmp("utc=no", argv[2])) {
+        output->filename_format = FF_LOCALTIME;
+      }
+      else {
+        usage();
+      }
+      argc--;
+      argv++;
+      break;
 
     case 'v': *verbose = 1; break;
 
