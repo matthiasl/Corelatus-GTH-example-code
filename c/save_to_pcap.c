@@ -789,7 +789,7 @@ set_timer(int seconds)
 static void
 init_timer(int seconds)
 {
-  timer = CreateWaitableTimer(NULL, TRUE, "file_rotation_timer");
+  timer = CreateWaitableTimer(NULL, TRUE, NULL);
   if (timer == NULL) die("CreateWaitableTimer failed");
   set_timer(seconds);
 }
