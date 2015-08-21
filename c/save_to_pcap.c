@@ -867,6 +867,38 @@ is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
 
 #define MAX_FILENAME 100
 
+static HANDLE_OR_FILEPTR
+open_packet_file(const int write_to_stdout,
+          const int write_to_pipe,
+          const char *base_name,
+          int *file_number)
+{
+    char filename[MAX_FILENAME];
+    HANDLE_OR_FILEPTR file;
+
+    if (!write_to_stdout && !write_to_pipe)
+      {
+	snprintf(filename, MAX_FILENAME, "%s.%d",
+		 base_name, *file_number);
+	open_file_for_writing(&file, filename);
+        file_number++;
+	fprintf(stderr, "saving to file %s\n", filename);
+      }
+    else if (write_to_stdout)
+      {
+	file = stdout_handle_or_file();
+	fprintf(stderr, "saving capture to stdout\n");
+      }
+    else
+      {
+	fprintf(stderr, "saving capture to a windows named pipe\n");
+	file = open_windows_pipe(base_name);
+      }
+
+    return file;
+}
+
+
 // Loop forever, converting the incoming GTH data to libpcap format
 static void
 convert_to_pcap(GTH_api *api,
@@ -892,29 +924,10 @@ convert_to_pcap(GTH_api *api,
   init_timer(duration_per_file);
 
   while (1) {
-    char filename[MAX_FILENAME];
-
-    if (!write_to_stdout && !write_to_pipe)
-      {
-	snprintf(filename, MAX_FILENAME, "%s.%d",
-		 base_name, file_number);
-	open_file_for_writing(&file, filename);
-	fprintf(stderr, "saving to file %s\n", filename);
-      }
-    else if (write_to_stdout)
-      {
-	file = stdout_handle_or_file();
-	fprintf(stderr, "saving capture to stdout\n");
-      }
-    else
-      {
-	fprintf(stderr, "saving capture to a windows named pipe\n");
-	file = open_windows_pipe(base_name);
-      }
-
+    file = open_packet_file(write_to_stdout, write_to_pipe, base_name,
+                            &file_number);
     write_pcap_global_header(file, format, channels, n_channels);
 
-    file_number++;
     su_count = 0;
 
     do
