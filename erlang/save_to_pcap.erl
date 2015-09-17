@@ -95,7 +95,9 @@ frame_relay(GTH_IP, Span, Timeslots, Filename) ->
 		  Filename::string()) -> no_return().
 aal5(GTH_IP, Span, Timeslots, {VPI, VCI}, Filename) ->
     go(GTH_IP, Span, Filename, aal5,
-       fun(A) -> gth:new_atm_aal5_monitor(A, Span, Timeslots, {VPI, VCI}) end).
+       fun(A) ->
+               gth:new_atm_aal5_monitor(A, Span, Timeslots, {VPI, VCI}, [])
+       end).
 
 -spec go(GTH_IP::host(),
 	 Span::string(),
