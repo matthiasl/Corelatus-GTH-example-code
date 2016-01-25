@@ -167,6 +167,7 @@ reformat_packet(aal5, <<_Tag:16, Protocol:3, _:13, Timestamp:48, _GFC:4, VPI:8, 
   when Protocol == 5 ->
     PCAP_protocol = case Payload of
 			_ when VPI == 0, VCI == 5 -> 6;         % SAAL
+			_ when VPI == 32          -> 6;         % SAAL
 			<<16#aa, 16#aa, 16#03, _/binary>> -> 2  % LLC
 		    end,
 
@@ -240,10 +241,61 @@ guess_file_protocol(In) ->
 	5 -> aal5
     end.
 
+%% Given a file, try and find a place in it which has a sequence of
+%% correct 16-bit lengths. Move the file position to the start of that
+%% sequence.
+%%
+%% Useful when captures start in the middle of packets or have
+%% sections missing.
+%%
+try_to_resync(In) ->
+    {ok, Pos} = file:position(In, {cur, 0}),
+
+    case file:read(In, 2) of
+        {ok, <<N:16>>} when N < 10; N > 500 ->
+            {ok, _} = file:position(In, {bof, Pos + 1}),
+            try_to_resync(In);
+
+        {ok, <<N:16>>} ->
+            {ok, _} = file:read(In, N),
+            Three = can_read_three(In, 0),
+            {ok, _} = file:position(In, {bof, Pos}),
+
+            case Three of
+                true ->
+                    back_on_track;
+                false ->
+                    {ok, _} = file:position(In, {cur, 1}),
+                    try_to_resync(In)
+            end
+    end.
+
+%% save_to_pcap:from_file("/tmp/gapped", "/tmp/mml.1").
+
+%% Can we read three packet headers correctly?
+can_read_three(_In, 3) ->
+    true;
+can_read_three(In, N_successful) ->
+    case file:read(In, 2) of
+        {ok, <<N:16>>} when N < 10; N > 500 -> false;
+
+        {ok, <<N:16>>} ->
+            {ok, _} = file:read(In, N),
+            can_read_three(In, N_successful+1)
+    end.
+
+
 file_to_file(In, Out, Guess) ->
     case file:read(In, 2) of
+	{ok, <<N:16>>} when N < 10; N > 500 -> %% not on a packet boundary
+            try_to_resync(In),
+            {ok, Pos} = file:position(In, {cur, 0}),
+            io:fwrite("resynced, ~.16b\n", [Pos]),
+            file_to_file(In, Out, Guess);
+
 	{ok, <<Size:16>>} ->
 	    {ok, Packet} = file:read(In, Size),
+            {ok, Pos} = file:position(In, {cur, 0}),
 	    ok = file:write(Out, reformat_packet(Guess, Packet)),
 	    file_to_file(In, Out, Guess);
 

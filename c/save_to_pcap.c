@@ -128,9 +128,9 @@ typedef struct {
   u32 packet_len;
 } PACK_SUFFIX PCap_NG_epb;
 
-// GTH socket structure. An SS7 MTP-2 signal unit can't be more than
-// 279 octets long according to Q.703.
-#define MAX_SIGNAL_UNIT 300
+// Longest possible signal unit is AAL5; limited to 64k by the standard,
+// but GTH limits it to 4k (which is reasonable for signalling)
+#define MAX_SIGNAL_UNIT 4200
 
 // There are 31 useable timeslots in an E1
 #define MAX_TIMESLOTS 31
@@ -139,9 +139,11 @@ typedef struct {
 // RAN probe has 64
 #define MAX_SPANS 64
 
-// How many MTP-2 channels can we run at the same time? (Also limited by
-// hardware)
-#define MAX_MTP2_CHANNELS 72
+// How many channels can we run at the same time?
+//
+// The hardware also has a limit; if we go over that we'll get an error
+// back via the API.
+#define MAX_CHANNELS 96
 
 typedef struct {
   u16 tag;
@@ -154,13 +156,33 @@ typedef struct {
 enum PCap_format { PCAP_CLASSIC, PCAP_NG };
 
 // Link types, defined in PCap-NG spec appendix C
-#define LINK_TYPE_MTP2 140
+enum Protocol {
+  LINK_TYPE_MTP2 = 140,
+  LINK_TYPE_LAPD = 203
+};
 
 typedef struct {
   char *span;
   int timeslots[MAX_TIMESLOTS];
   int n_timeslots;
 } Channel_t;
+
+// Command-line options provided by the user
+struct Options {
+  int monitoring;
+  int verbose;
+  int n_sus_per_file;
+  int duration_per_file;
+  int drop_fisus;
+  int esnf;
+  char *hostname;
+  Channel_t channels[MAX_CHANNELS];
+  int n_channels;
+  char *base_filename;
+  enum PCap_format format;
+  enum Protocol protocol;
+};
+
 
 //----------------------------------------------------------------------
 void
@@ -172,13 +194,14 @@ usage() {
 	  "\n\nSave decoded MTP-2 signal units to a file in libpcap format, "
 	  "\nsuitable for examining with wireshark, tshark or other network"
 	  "\nanalyser software.\n"
-	  "\n<options>: [-c] [-f fisu=no] [-m] [-n <rotation>] [-v]"
+	  "\n<options>: [-c] [-f <option>] [-m] [-n <rotation>] [-p mtp2|lapd] [-v]"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
+          "\n-p mtp2|lapd: select the signalling protocol"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
@@ -199,6 +222,7 @@ usage() {
   fprintf(stderr,
 	  "Examples (on hardware with electrical E1/T1 ports):\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
+          "./save_to_pcap -p lapd 172.16.1.10 1A 2A 16 lapd_capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 3A 4A 1 2 3 4 isup_capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 1B 5 6 7 8 capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 1-31 mtp2_annex_a.pcapng\n"
@@ -412,8 +436,7 @@ static void
 monitor_mtp2(GTH_api *api,
 	     const Channel_t *channel,
 	     int tag,
-	     int drop_fisus,
-	     int esnf,
+	     const struct Options *options,
 	     int listen_port
 	     )
 {
@@ -422,13 +445,13 @@ monitor_mtp2(GTH_api *api,
   GTH_attribute attrs[MAX_MTP2_ATTRS];
   int n_attrs = 0;
 
-  if (drop_fisus) {
+  if (options->drop_fisus) {
     attrs[n_attrs].key = "fisu";
     attrs[n_attrs].value = "no";
     n_attrs++;
   }
 
-  if (esnf) {
+  if (options->esnf) {
     attrs[n_attrs].key = "esnf";
     attrs[n_attrs].value = "yes";
     n_attrs++;
@@ -442,6 +465,31 @@ monitor_mtp2(GTH_api *api,
 				    attrs, n_attrs);
   if (result != 0)
     die("Setting up MTP2 monitoring failed. (-v gives more information)");
+
+  return;
+}
+
+// Start up LAPD monitoring on the given span and timeslot
+static void
+monitor_lapd(GTH_api *api,
+	     const Channel_t *channel,
+	     int tag,
+	     const struct Options *options,
+	     int listen_port
+	     )
+{
+  int result;
+  char job_id[MAX_JOB_ID];
+
+  if (!options)
+    die("dummy check to silence warning");
+
+  result = gth_new_lapd_monitor(api, tag,
+                                channel->span,
+                                channel->timeslots[0],
+                                job_id, api->my_ip, listen_port);
+  if (result != 0)
+    die("Setting up LAPD monitoring failed. (-v gives more information)");
 
   return;
 }
@@ -462,7 +510,7 @@ read_exact(int fd, char* buf, size_t count)
   }
 }
 
-inline void
+POSSIBLY_EXTERN inline void
 checked_fwrite(void *b, int n, HANDLE_OR_FILEPTR f)
 {
   int result = fwrite(b, n, 1, f);
@@ -474,7 +522,7 @@ checked_fwrite(void *b, int n, HANDLE_OR_FILEPTR f)
 
 
 static void
-write_pcap_classic_header(HANDLE_OR_FILEPTR file)
+write_pcap_classic_header(HANDLE_OR_FILEPTR file, enum PCap_format format)
 {
   PCap_classic_global_header header;
 
@@ -486,7 +534,7 @@ write_pcap_classic_header(HANDLE_OR_FILEPTR file)
   header.GMT_to_localtime = 0;
   header.sigfigs = 0;
   header.snaplen = 65535;
-  header.network = LINK_TYPE_MTP2;
+  header.network = format;
 
   checked_fwrite((void*)&header, sizeof header, file);
 
@@ -557,7 +605,8 @@ write_pcap_ng_shb(HANDLE_OR_FILEPTR file)
 // Having both if_description and if_name causes Wireshark 1.10.3 to
 // display only if_description. So we only have if_name.
 static void
-write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
+write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
+                int link_type)
 {
   int x;
   PCap_NG_option end_of_options = {0, 0};
@@ -585,9 +634,9 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
 
     idb.type               = 1;
     idb.block_total_length = block_total_length;
-    idb.link_type          = LINK_TYPE_MTP2;
+    idb.link_type          = link_type;
     idb.reserved           = 0;
-    idb.snaplen            = 279;
+    idb.snaplen            = MAX_SIGNAL_UNIT;
 
     if_tsresol.code = 9; // tsresol
     if_tsresol.length = 1;
@@ -608,18 +657,19 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, Channel_t *c, int n)
 
 static void
 write_pcap_global_header(HANDLE_OR_FILEPTR file,
-			 enum PCap_format format,
-			 Channel_t *channels,
-			 int n_channels)
+			 enum PCap_format link_type,
+			 const Channel_t *channels,
+			 int n_channels,
+                         enum Protocol protocol)
 {
-  switch (format) {
+  switch (link_type) {
   case PCAP_CLASSIC:
-    write_pcap_classic_header(file);
+    write_pcap_classic_header(file, protocol);
     break;
 
   case PCAP_NG:
     write_pcap_ng_shb(file);
-    write_pcap_idbs(file, channels, n_channels);
+    write_pcap_idbs(file, channels, n_channels, protocol);
     break;
 
   default: die("internal error writing global pcap header");
@@ -869,14 +919,7 @@ is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
 
 // Loop forever, converting the incoming GTH data to libpcap format
 static void
-convert_to_pcap(GTH_api *api,
-		int data_socket,
-		const char *base_name,
-		const int n_sus_per_file,
-		const int duration_per_file,
-		Channel_t channels[],
-		int n_channels,
-		const enum PCap_format format)
+convert_to_pcap(GTH_api *api, int data_socket, const struct Options *options)
 {
   u16 length;
   GTH_mtp2 signal_unit;
@@ -885,11 +928,20 @@ convert_to_pcap(GTH_api *api,
   HANDLE_OR_FILEPTR file;
   int write_to_stdout = 0;
   int write_to_pipe;
+  int crc_length_adjust = 0;
 
-  write_to_stdout = (strcmp(base_name, "-") == 0);
-  write_to_pipe = is_filename_a_pipe(base_name);
+  // Accommodate Wireshark's peculiarities
+  //
+  // For MTP-2, it wants us to include the FCS (CRC)
+  // For LAPD, it doesn't want the FCS.
+  if (options->protocol == LINK_TYPE_LAPD) {
+    crc_length_adjust = 2;
+  }
 
-  init_timer(duration_per_file);
+  write_to_stdout = (strcmp(options->base_filename, "-") == 0);
+  write_to_pipe = is_filename_a_pipe(options->base_filename);
+
+  init_timer(options->duration_per_file);
 
   while (1) {
     char filename[MAX_FILENAME];
@@ -897,7 +949,7 @@ convert_to_pcap(GTH_api *api,
     if (!write_to_stdout && !write_to_pipe)
       {
 	snprintf(filename, MAX_FILENAME, "%s.%d",
-		 base_name, file_number);
+		 options->base_filename, file_number);
 	open_file_for_writing(&file, filename);
 	fprintf(stderr, "saving to file %s\n", filename);
       }
@@ -909,10 +961,12 @@ convert_to_pcap(GTH_api *api,
     else
       {
 	fprintf(stderr, "saving capture to a windows named pipe\n");
-	file = open_windows_pipe(base_name);
+	file = open_windows_pipe(options->base_filename);
       }
 
-    write_pcap_global_header(file, format, channels, n_channels);
+    write_pcap_global_header(file, options->format,
+                             options->channels, options->n_channels,
+                             options->protocol);
 
     file_number++;
     su_count = 0;
@@ -932,13 +986,14 @@ convert_to_pcap(GTH_api *api,
 			 ntohl(signal_unit.timestamp_lo),
 			 ntohs(signal_unit.tag),
 			 signal_unit.payload,
-			 length,
-			 format);
+			 length - crc_length_adjust,
+			 options->format);
 	    flush_file(file);
 	    su_count++;
 	  }
       }
-    while ( !is_time_to_rotate(su_count, n_sus_per_file, duration_per_file)
+    while ( !is_time_to_rotate(su_count, options->n_sus_per_file,
+                               options->duration_per_file)
 	    || write_to_pipe
 	    || write_to_stdout );
 
@@ -1102,7 +1157,7 @@ arguments_to_channels(int argc,
 
 	  for (i = 0; i < n_spans; i++)
 	    {
-	      if (*n_channels >= MAX_MTP2_CHANNELS)
+	      if (*n_channels >= MAX_CHANNELS)
 		die("Attempted to start too many signalling channels. Abort.");
 
 	      channels[*n_channels].span = spans[i];
@@ -1129,20 +1184,20 @@ arguments_to_channels(int argc,
 //
 // It's possible to specify multiple, separate -n arguments.
 static void
-parse_rotation(char *arg, int *n_sus_per_file, int *duration_per_file)
+parse_rotation(char *arg, struct Options *opts)
 {
   int n;
 
   if (sscanf(arg, "packets:%d", &n) == 1
       || sscanf(arg, "%d", &n) == 1)
     {
-      *n_sus_per_file = n;
+      opts->n_sus_per_file = n;
       return;
     }
 
   if (sscanf(arg, "duration:%d", &n) == 1)
     {
-      *duration_per_file = n;
+      opts->duration_per_file = n;
       return;
     }
 
@@ -1153,49 +1208,52 @@ parse_rotation(char *arg, int *n_sus_per_file, int *duration_per_file)
 static void
 process_arguments(char **argv,
 		  int argc,
-		  int *monitoring,
-		  int *verbose,
-		  int *n_sus_per_file,
-		  int *duration_per_file,
-		  int *drop_fisus,
-		  int *esnf,
-		  char **hostname,
-		  Channel_t channels[],
-		  int *n_channels,
-		  char **base_filename,
-                  enum PCap_format *format)
+                  struct Options *options)
 {
   int current_arg;
 
+  memset(options, 0, sizeof(struct Options));
+  options->format = PCAP_NG;
+  options->protocol = LINK_TYPE_MTP2;
+
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
-    case 'c': *format = PCAP_CLASSIC; break;
+    case 'c': options->format = PCAP_CLASSIC; break;
 
     case 'f':
       if (argc < 3) {
 	usage();
       }
       if (!strcmp("fisu=no", argv[2])) {
-	*drop_fisus = 1;
+	options->drop_fisus = 1;
       } else if (!strcmp("esnf=yes", argv[2])) {
-	*esnf = 1;
+	options->esnf = 1;
       }
       argc--;
       argv++;
       break;
 
-    case 'm': *monitoring = 1; break;
+    case 'm': options->monitoring = 1; break;
 
     case 'n':
       if (argc < 3) {
 	usage();
       }
-      parse_rotation(argv[2], n_sus_per_file, duration_per_file);
+      parse_rotation(argv[2], options);
       argc--;
       argv++;
       break;
 
-    case 'v': *verbose = 1; break;
+    case 'p':
+      if (argc < 3) usage();
+      if      (!strcmp("mtp2", argv[2])) options->protocol = LINK_TYPE_MTP2;
+      else if (!strcmp("lapd", argv[2])) options->protocol = LINK_TYPE_LAPD;
+      else usage();
+      argc--;
+      argv++;
+      break;
+
+    case 'v': options->verbose = 1; break;
 
     default: usage();
     }
@@ -1207,19 +1265,38 @@ process_arguments(char **argv,
     usage();
   }
 
-  *hostname = argv[1];
+  options->hostname = argv[1];
 
   argv += 2;
   argc -= 2;
 
-  current_arg = arguments_to_channels(argc, argv, channels, n_channels);
-  if (!n_channels){
+  current_arg = arguments_to_channels(argc, argv,
+                                      options->channels,
+                                      &(options->n_channels));
+  if (!options->n_channels){
     die("No timeslots given (or, perhaps, no output filename given).");
   }
 
-  print_channels(channels, *n_channels);
+  print_channels(options->channels, options->n_channels);
 
-  *base_filename = argv[current_arg];
+  options->base_filename = argv[current_arg];
+}
+
+typedef void(*Start_function)
+(GTH_api *, const Channel_t*, int, const struct Options *, int);
+
+static Start_function
+lookup_start_function(enum Protocol protocol)
+{
+  fprintf(stderr, "protocol=%d\n", protocol);
+  switch (protocol) {
+  case LINK_TYPE_MTP2: return &monitor_mtp2; break;
+  case LINK_TYPE_LAPD: return &monitor_lapd; break;
+  }
+
+  die("can't find start function for link type");
+
+  return 0;  // not reached
 }
 
 // Entry point
@@ -1230,19 +1307,11 @@ main(int argc, char **argv)
   int data_socket = -1;
   int result;
   int monitoring = 0;
-  int verbose = 0;
-  Channel_t channels[MAX_MTP2_CHANNELS];
   int i;
-  int n_channels = 0;
-  int n_sus_per_file = 0;
-  int duration_per_file = 0;
-  int drop_fisus = 0;
-  int esnf = 0;
   int listen_port = 0;
   int listen_socket = -1;
-  enum PCap_format format = PCAP_NG;
-  char *hostname;
-  char *base_filename;
+  struct Options options;
+  Start_function start_function = 0;
 
   // Check a couple of assumptions about type size.
   assert(sizeof(u32) == 4);
@@ -1250,31 +1319,27 @@ main(int argc, char **argv)
 
   win32_specific_startup();
 
-  process_arguments(argv, argc,
-		    &monitoring, &verbose, &n_sus_per_file, &duration_per_file,
-		    &drop_fisus, &esnf, &hostname, channels, &n_channels,
-		    &base_filename, &format);
-  result = gth_connect(&api, hostname, verbose);
+  process_arguments(argv, argc, &options);
+  result = gth_connect(&api, options.hostname, options.verbose);
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  read_hw_description(&api, hostname);
-  enable_l1(&api, channels, n_channels, monitoring);
+  read_hw_description(&api, options.hostname);
+  enable_l1(&api, options.channels, options.n_channels, monitoring);
 
   listen_socket = gth_make_listen_socket(&listen_port);
-  for (i = 0; i < n_channels; i++){
-    monitor_mtp2(&api, channels + i,
-		 i, drop_fisus, esnf, listen_port);
+  start_function = lookup_start_function(options.protocol);
+
+  for (i = 0; i < options.n_channels; i++) {
+    start_function(&api, options.channels + i, i, &options, listen_port);
     if (i == 0) {
       data_socket = gth_wait_for_accept(listen_socket);
     }
   }
 
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(&api, data_socket, base_filename,
-		  n_sus_per_file, duration_per_file,
-		  channels, n_channels, format);
+  convert_to_pcap(&api, data_socket, &options);
 
   return 0; // not reached
 }

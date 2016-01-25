@@ -28,6 +28,9 @@
 //    D. Linux (and other *nix, not sure) have a 'z' format modifier
 //       for printing size_t. Windows doesn't.
 //
+//    E. C99 and GNU-89 disagree about what 'extern inline' means.
+//       
+//
 //
 #ifndef GTH_WIN32_COMPAT_H
 #define GTH_WIN32_COMPAT_H
@@ -53,6 +56,17 @@
 
 // GCC's pack pragma is a suffix, which is a bit messy.
 #define PACK_SUFFIX __attribute__((__packed__))
+
+// C99 'extern inline' generates an externally linkable version.
+// GNU 89 'extern inline' (GCC 4 and earlier) is illegal.
+//
+// This macro takes care of the difference. We can replace the macro
+// with an 'extern' once GCC 5.x becomes ubiquitous, say 2018.
+#if __STDC_VERSION__ >= 199901L
+#define POSSIBLY_EXTERN extern
+#else
+#define POSSIBLY_EXTERN
+#endif
 
 #endif
 

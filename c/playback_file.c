@@ -65,7 +65,7 @@ static void usage()
 	  "\n<filename> is the file to read data from",
 	  git_head, build_hostname);
 
-  fprintf(stderr, "Typical use:\n");
+  fprintf(stderr, "\n\nTypical use:\n");
   fprintf(stderr, "./playback_file 172.16.1.10 1A 1 audio/mfc_fwd_4\n");
 
   exit(-1);
