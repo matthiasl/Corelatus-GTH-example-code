@@ -462,7 +462,7 @@ read_exact(int fd, char* buf, size_t count)
   }
 }
 
-inline void
+POSSIBLY_EXTERN inline void
 checked_fwrite(void *b, int n, HANDLE_OR_FILEPTR f)
 {
   int result = fwrite(b, n, 1, f);
