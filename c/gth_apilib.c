@@ -552,6 +552,26 @@ static int kv_to_attributes(char *buffer,
   return used;
 }
 
+static void format_sources(const char *span,
+			   const int timeslots[],
+			   const int n_timeslots,
+			   char *sources)
+{
+  char *pos = sources;
+  int result;
+  int x;
+
+  for (x = 0; x < n_timeslots; x++)
+    {
+      result = snprintf(pos, MAX_COMMAND - (pos - sources),
+			"<pcm_source span='%s' timeslot='%d'/>",
+			span, timeslots[x]);
+      pos += result;
+      assert(result < (MAX_COMMAND - (pos - sources)));
+    }
+}
+
+
 // Internal; used by both gth_enable and gth_set
 static int gth_enable_or_set(const char *command,
 			     GTH_api *api,
@@ -612,6 +632,65 @@ int gth_install(GTH_api *api,
   api_write_non_xml(api->fd, type, data, length);
 
   result = gth_wait_for_install_complete(api, is_firmware_install);
+
+  return result;
+}
+
+int gth_new_atm_aal5_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+			     const int vpi,
+			     const int vci,
+			     char *job_id,
+			     const char *ip,
+			     const int port)
+{
+  char command[MAX_COMMAND];
+  char sources[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(n_timeslots < 32 && n_timeslots > 0);
+
+  template = "<new><atm_aal5_monitor ip_addr='%s' ip_port='%d' tag='%d'"
+    "vpi='%d' vci='%d'>"
+    "%s</atm_aal5_monitor></new>";
+
+  format_sources(span, timeslots, n_timeslots, sources);
+
+  result = snprintf(command, MAX_COMMAND, template,
+		    ip, port, tag, vpi, vci, sources);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+int gth_new_sdh_atm_aal5_monitor(GTH_api *api,
+				 const int tag,
+				 const char *source,
+				 const int vpi,
+				 const int vci,
+				 char *job_id,
+				 const char *ip,
+				 const int port)
+{
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+   template = "<new><atm_aal5_monitor ip_addr='%s' ip_port='%d' tag='%d'"
+    "vpi='%d' vci='%d'>"
+    "<sdh_source name='%s'/></atm_aal5_monitor></new>";
+
+  result = snprintf(command, MAX_COMMAND, template,
+		    ip, port, tag, vpi, vci, source);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
 
   return result;
 }
@@ -790,25 +869,6 @@ int gth_new_mtp2_monitor(GTH_api *api,
 				  n_timeslots, job_id, ip, port, 0, 0);
 }
 
-
-static void format_sources(const char *span,
-			   const int timeslots[],
-			   const int n_timeslots,
-			   char *sources)
-{
-  char *pos = sources;
-  int result;
-  int x;
-
-  for (x = 0; x < n_timeslots; x++)
-    {
-      result = snprintf(pos, MAX_COMMAND - (pos - sources),
-			"<pcm_source span='%s' timeslot='%d'/>",
-			span, timeslots[x]);
-      pos += result;
-      assert(result < (MAX_COMMAND - (pos - sources)));
-    }
-}
 
 int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const int tag,

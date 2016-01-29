@@ -67,6 +67,7 @@
 // Types used for fixed-length packets. These typedefs are checked at runtime.
 typedef unsigned int u32;
 typedef unsigned short u16;
+typedef unsigned char u8;
 
 //--------------------------------------------------
 // PCap classic file format structures.
@@ -135,9 +136,11 @@ typedef struct {
 // There are 31 useable timeslots in an E1
 #define MAX_TIMESLOTS 31
 
-// GTH 2.x has 16 E1/T1 inputs
-// RAN probe has 64
-#define MAX_SPANS 64
+// E1/T1 Monitor 2.x has 16 E1/T1 inputs
+// E1/T1 Monitor 3.0 has 64
+// SDH Monitor 3.0 has 128 E1/T1 inputs
+// SDH Monitor 3.0 has 2 VC-4 (for ATM)
+#define MAX_SOURCES 128
 
 // How many channels can we run at the same time?
 //
@@ -145,24 +148,48 @@ typedef struct {
 // back via the API.
 #define MAX_CHANNELS 96
 
-typedef struct {
+struct GTH_mtp2_lapd {
+  char payload[MAX_SIGNAL_UNIT];
+};
+
+struct GTH_aal5 {
+  u32 gfc_vpi_vci;
+  u8 cpcs_uu;
+  u8 cpi;
+  u16 cpcs_length;
+  u32 crc;
+  char payload[MAX_SIGNAL_UNIT];
+};
+
+struct GTH_su {
   u16 tag;
   u16 flags;
   u16 timestamp_hi;
   u32 timestamp_lo;
-  char payload[MAX_SIGNAL_UNIT];
-} GTH_mtp2;
+
+  union {
+    struct GTH_mtp2_lapd ml;
+    struct GTH_aal5      a5;
+  };
+};
 
 enum PCap_format { PCAP_CLASSIC, PCAP_NG };
 
-// Link types, defined in PCap-NG spec appendix C
+// Link types, defined at http://www.tcpdump.org/linktypes.html
+enum Link_type {
+  LINK_TYPE_MTP2   = 140,
+  LINK_TYPE_LAPD   = 203,
+  LINK_TYPE_SUNATM = 123
+};
+
 enum Protocol {
-  LINK_TYPE_MTP2 = 140,
-  LINK_TYPE_LAPD = 203
+  MTP2,
+  LAPD,
+  AAL5
 };
 
 typedef struct {
-  char *span;
+  char *source;    // Either an E1 span or an SDH source
   int timeslots[MAX_TIMESLOTS];
   int n_timeslots;
 } Channel_t;
@@ -175,14 +202,18 @@ struct Options {
   int duration_per_file;
   int drop_fisus;
   int esnf;
+  int vpi;
+  int vci;
   char *hostname;
   Channel_t channels[MAX_CHANNELS];
   int n_channels;
   char *base_filename;
   enum PCap_format format;
   enum Protocol protocol;
+  enum Link_type link_type;
 };
 
+struct Options options;
 
 //----------------------------------------------------------------------
 void
@@ -191,22 +222,25 @@ usage() {
 	  "save_to_pcap git_head: %s build_hostname: %s\n\n"
 
 	  "save_to_pcap <options> <GTH-IP> <channels> [<channels>...] <filename>"
-	  "\n\nSave decoded MTP-2 signal units to a file in libpcap format, "
-	  "\nsuitable for examining with wireshark, tshark or other network"
-	  "\nanalyser software.\n"
-	  "\n<options>: [-c] [-f <option>] [-m] [-n <rotation>] [-p mtp2|lapd] [-v]"
+	  "\n\nSave decoded signal units to a file in libpcap format, suitable for"
+	  "\nexamining with wireshark, tshark or other network analyser software.\n"
+	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-m] [-n <rotation>]"
+	  "\n           [-p mtp2|lapd|aal5] [-v]\n"
+	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p AAL5)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
-          "\n-p mtp2|lapd: select the signalling protocol"
+          "\n-p mtp2|lapd|aal5: select the signalling protocol"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
-	  "\n<channels> is a list of spans and timeslots:"
+	  "\n<channels> for E1/T1 interfaces is a list of spans and timeslots:"
 	  "\n  <span> [<span>...] <timeslot> [<timeslot>...]"
+	  "\n<span> is the name of a span, e.g. '1A'"
+	  "\n<timeslot> is a timeslot number, from 1 to 31"
 	  "\n  e.g. 1A 2A 1 2 3 monitors timeslots 1, 2 and 3 on span 1A and 2A."
 	  "\n  e.g. 1A 1 2A 2 3A 3 4 monitors timeslot 1 on 1A, 2 on 2A and 3 and 4 on 3A."
 	  "\n<channels> can also be a range of timeslots (for Nx64kbit/s signalling):"
@@ -214,8 +248,10 @@ usage() {
 	  "\n  e.g. 1A 1-31 monitors one 1980kbit/s channel on timeslots 1-31"
 	  "\n  e.g. 1A 1-15,17-31 monitors one 1920kbit/s channel"
 	  "\n  e.g. 1A 1-4 1B 1-4 monitors two 256kbit/s channels"
-	  "\n<span> is the name of a span, e.g. '1A'"
-	  "\n<timeslot> is a timeslot number, from 1 to 31"
+	  "\n"
+	  "\n<channels> for SDH VC-4 or VC-3 is the name of a high-order-path:"
+	  "\n  e.g. sdh1:hop1_1 monitors the first VC-4 or VC-3 on sdh1"
+	  "\n"
 	  "\n<filename> can be -, which means standard output.\n\n",
 	  git_head, build_hostname);
 
@@ -235,8 +271,12 @@ usage() {
 	  "./save_to_pcap -c 172.16.1.10 1A 2A 16 \\\\.\\pipe\\isup_capture.1\n");
 
   fprintf(stderr,
-	  "\nExamples (on SDH/SONET hardware, usually optical):\n"
-	  "./save_to_pcap 172.16.1.10 pcm55 16 isup_capture.pcapng\n\n");
+	  "\nExample (E1 carried in a VC-12, usually optical):\n"
+	  "./save_to_pcap 172.16.1.10 pcm55 16 isup_capture.pcapng\n");
+
+    fprintf(stderr,
+	  "\nExample (ATM AAL5 in a VC-4 on SDH):\n"
+	  "./save_to_pcap -p aal5 -a 0:5 172.16.1.10 sdh1:hop1_1 aal5_capture.pcapng\n\n");
 
   exit(-1);
 }
@@ -356,18 +396,48 @@ open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
 
 //----------------------------------------------------------------------
 
+static int
+is_sdh_name(const char *arg)
+{
+  return (strstr(arg, "sdh") != 0);   // Optical hardware uses e.g. 'sdh1:hop1_1'
+}
+
+static int
+is_span_name(const char *arg)
+{
+  if (strstr(arg, "pcm")) return 1;  // Optical hardware uses e.g. 'pcm55'
+  if (strstr(arg, "A")) return 1;
+  if (strstr(arg, "B")) return 1;
+  if (strstr(arg, "C")) return 1;
+  if (strstr(arg, "D")) return 1;
+  return 0;
+}
+
 // Optical E1/T1: just enable; no special options required.
 static void
 enable_optical_l1(GTH_api *api,
-		  const char* span,
+		  const char* source,
 		  const int monitoring)
 {
   int result;
+  char source_name[20];
+  GTH_attribute attributes[] = { {"payload", "ATM"} };
+  int n_attributes = 0;
+
+  strncpy_s(source_name, 20, source, 19);
+
+  // If we're decoding ATM from a VC-4 or a VC-3, the resource will be called
+  // something like sdh1:hop1_1. We want to truncate at the colon. We also
+  // need to set the payload to 'ATM'.
+  if (is_sdh_name(source)) {
+    source_name[4] = 0;
+    n_attributes = 1;
+  }
 
   if (monitoring)
     fprintf(stderr, "Warning: ignoring -m switch on optical hardware.\n");
 
-  result = gth_enable(api, span, 0, 0);
+  result = gth_enable(api, source_name, attributes, n_attributes);
 
   if (result != 0)
     die("Setting up L1 failed. (-v switch gives more information)");
@@ -419,24 +489,23 @@ enable_l1(GTH_api *api,
   architecture[3] = 0;
   if (strcmp(architecture, "gth") == 0) {
     for (i = 0; i < n_channels; i++) {
-      enable_electrical_l1(api, channels[i].span, monitoring);
+      enable_electrical_l1(api, channels[i].source, monitoring);
     }
   }
   else {
     for (i = 0; i < n_channels; i++) {
-      enable_optical_l1(api, channels[i].span, monitoring);
+      enable_optical_l1(api, channels[i].source, monitoring);
     }
   }
 }
 
 #define MAX_MTP2_ATTRS 2
 
-// Start up MTP-2 monitoring on the given span and timeslot
+// Start up MTP-2 monitoring
 static void
 monitor_mtp2(GTH_api *api,
 	     const Channel_t *channel,
 	     int tag,
-	     const struct Options *options,
 	     int listen_port
 	     )
 {
@@ -445,20 +514,20 @@ monitor_mtp2(GTH_api *api,
   GTH_attribute attrs[MAX_MTP2_ATTRS];
   int n_attrs = 0;
 
-  if (options->drop_fisus) {
+  if (options.drop_fisus) {
     attrs[n_attrs].key = "fisu";
     attrs[n_attrs].value = "no";
     n_attrs++;
   }
 
-  if (options->esnf) {
+  if (options.esnf) {
     attrs[n_attrs].key = "esnf";
     attrs[n_attrs].value = "yes";
     n_attrs++;
   }
 
   result = gth_new_mtp2_monitor_opt(api, tag,
-				    channel->span,
+				    channel->source,
 				    channel->timeslots,
 				    channel->n_timeslots,
 				    job_id, api->my_ip, listen_port,
@@ -469,23 +538,19 @@ monitor_mtp2(GTH_api *api,
   return;
 }
 
-// Start up LAPD monitoring on the given span and timeslot
+// Start up LAPD monitoring
 static void
 monitor_lapd(GTH_api *api,
 	     const Channel_t *channel,
 	     int tag,
-	     const struct Options *options,
 	     int listen_port
 	     )
 {
   int result;
   char job_id[MAX_JOB_ID];
 
-  if (!options)
-    die("dummy check to silence warning");
-
   result = gth_new_lapd_monitor(api, tag,
-                                channel->span,
+                                channel->source,
                                 channel->timeslots[0],
                                 job_id, api->my_ip, listen_port);
   if (result != 0)
@@ -493,6 +558,41 @@ monitor_lapd(GTH_api *api,
 
   return;
 }
+
+// Start up MTP-2 monitoring
+static void
+monitor_aal5(GTH_api *api,
+	     const Channel_t *channel,
+	     int tag,
+	     int listen_port
+	     )
+{
+  int result;
+  char job_id[MAX_JOB_ID];
+
+  if (strstr(channel->source, "sdh")) {
+    result = gth_new_sdh_atm_aal5_monitor(api, tag,
+					  channel->source,
+					  options.vpi,
+					  options.vci,
+					  job_id, api->my_ip, listen_port);
+  }
+  else {
+    result = gth_new_atm_aal5_monitor(api, tag,
+				      channel->source,
+				      channel->timeslots,
+				      channel->n_timeslots,
+				      options.vpi,
+				      options.vci,
+				      job_id, api->my_ip, listen_port);
+  }
+
+  if (result != 0)
+    die("Setting up AAL5 monitoring failed. (-v gives more information)");
+
+  return;
+}
+
 
 // Read exactly the requested number of bytes from the given descriptor
 void
@@ -503,7 +603,7 @@ read_exact(int fd, char* buf, size_t count)
   while (count > 0) {
     this_time = recv(fd, buf, count, 0);
     if (this_time <= 0)
-      die("MTP-2 data socket from GTH unexpectedly closed\n");
+      die("Signal unit socket from GTH unexpectedly closed\n");
 
     count -= this_time;
     buf += this_time;
@@ -621,8 +721,13 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
     u32 block_total_length;
 
     if_name.code = 2;    // if_name
-    if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s:%d",
-			      c[x].span, c[x].timeslots[0]);
+    if (strstr(c[x].source, "sdh")) {
+      if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s", c[x].source);
+    }
+    else {
+      if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s:%d",
+			      c[x].source, c[x].timeslots[0]);
+    }
     if (if_name.length >= MAX_IF_NAME)
       die("interface name is too long");
 
@@ -657,19 +762,19 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
 
 static void
 write_pcap_global_header(HANDLE_OR_FILEPTR file,
-			 enum PCap_format link_type,
+			 enum PCap_format pcap_format,
 			 const Channel_t *channels,
 			 int n_channels,
-                         enum Protocol protocol)
+                         enum Link_type link_type)
 {
-  switch (link_type) {
+  switch (pcap_format) {
   case PCAP_CLASSIC:
-    write_pcap_classic_header(file, protocol);
+    write_pcap_classic_header(file, link_type);
     break;
 
   case PCAP_NG:
     write_pcap_ng_shb(file);
-    write_pcap_idbs(file, channels, n_channels, protocol);
+    write_pcap_idbs(file, channels, n_channels, link_type);
     break;
 
   default: die("internal error writing global pcap header");
@@ -915,33 +1020,74 @@ is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
   return (n_sus_per_file > 0 && (su_count >= n_sus_per_file));
 }
 
+static void
+write_mtp2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+{
+  length -= (signal_unit->ml.payload - (char*)&(signal_unit->tag));
+
+  write_packet(file,
+	       ntohs(signal_unit->timestamp_hi),
+	       ntohl(signal_unit->timestamp_lo),
+	       ntohs(signal_unit->tag),
+	       signal_unit->ml.payload,
+	       length,
+	       options.format);
+  flush_file(file);
+}
+
+// For wireshark, LAPD is almost the same as MTP-2. The only difference
+// is that we must discard the two-octet FCS (CRC).
+static void
+write_lapd(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+{
+  write_mtp2(file, signal_unit, length - 2);
+}
+
+static void
+write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+{
+  u8 payload[MAX_SIGNAL_UNIT];
+
+  length -= (  (char*)&(signal_unit->a5.payload)
+	     - (char*)&(signal_unit->tag));
+
+  // We copy the whole packet to insert the SUNATM header bytes.
+  // This is cleaner but slightly slower than just trashing half the CRC
+  memcpy(payload + 4, signal_unit->a5.payload, length);
+  payload[0] = 6; // Traffic is SAAL/Q.2931
+  payload[1] = options.vpi;
+  payload[2] = options.vci >> 8;
+  payload[3] = options.vci & 0xff;
+
+  write_packet(file,
+	       ntohs(signal_unit->timestamp_hi),
+	       ntohl(signal_unit->timestamp_lo),
+	       ntohs(signal_unit->tag),
+	       payload,
+	       length + 4,
+	       options.format);
+  flush_file(file);
+}
+
+
 #define MAX_FILENAME 100
 
 // Loop forever, converting the incoming GTH data to libpcap format
 static void
-convert_to_pcap(GTH_api *api, int data_socket, const struct Options *options)
+convert_to_pcap(GTH_api *api, int data_socket)
 {
   u16 length;
-  GTH_mtp2 signal_unit;
+  struct GTH_su signal_unit;
   int su_count;
   int file_number = 1;
   HANDLE_OR_FILEPTR file;
   int write_to_stdout = 0;
   int write_to_pipe;
-  int crc_length_adjust = 0;
 
-  // Accommodate Wireshark's peculiarities
-  //
-  // For MTP-2, it wants us to include the FCS (CRC)
-  // For LAPD, it doesn't want the FCS.
-  if (options->protocol == LINK_TYPE_LAPD) {
-    crc_length_adjust = 2;
-  }
+  write_to_stdout = (strcmp(options.base_filename, "-") == 0);
+  write_to_pipe = is_filename_a_pipe(options.base_filename);
 
-  write_to_stdout = (strcmp(options->base_filename, "-") == 0);
-  write_to_pipe = is_filename_a_pipe(options->base_filename);
-
-  init_timer(options->duration_per_file);
+  init_timer(options.duration_per_file);
 
   while (1) {
     char filename[MAX_FILENAME];
@@ -949,7 +1095,7 @@ convert_to_pcap(GTH_api *api, int data_socket, const struct Options *options)
     if (!write_to_stdout && !write_to_pipe)
       {
 	snprintf(filename, MAX_FILENAME, "%s.%d",
-		 options->base_filename, file_number);
+		 options.base_filename, file_number);
 	open_file_for_writing(&file, filename);
 	fprintf(stderr, "saving to file %s\n", filename);
       }
@@ -961,12 +1107,12 @@ convert_to_pcap(GTH_api *api, int data_socket, const struct Options *options)
     else
       {
 	fprintf(stderr, "saving capture to a windows named pipe\n");
-	file = open_windows_pipe(options->base_filename);
+	file = open_windows_pipe(options.base_filename);
       }
 
-    write_pcap_global_header(file, options->format,
-                             options->channels, options->n_channels,
-                             options->protocol);
+    write_pcap_global_header(file, options.format,
+                             options.channels, options.n_channels,
+                             options.link_type);
 
     file_number++;
     su_count = 0;
@@ -980,36 +1126,21 @@ convert_to_pcap(GTH_api *api, int data_socket, const struct Options *options)
 	    assert(length <= sizeof signal_unit);
 	    read_exact(data_socket, (void*)&signal_unit, length);
 
-	    length -= (signal_unit.payload - (char*)&(signal_unit.tag));
-	    write_packet(file,
-			 ntohs(signal_unit.timestamp_hi),
-			 ntohl(signal_unit.timestamp_lo),
-			 ntohs(signal_unit.tag),
-			 signal_unit.payload,
-			 length - crc_length_adjust,
-			 options->format);
-	    flush_file(file);
+	    switch (options.protocol) {
+	    case AAL5: write_aal5(file, &signal_unit, length); break;
+	    case MTP2: write_mtp2(file, &signal_unit, length); break;
+	    case LAPD: write_lapd(file, &signal_unit, length); break;
+	    }
 	    su_count++;
 	  }
       }
-    while ( !is_time_to_rotate(su_count, options->n_sus_per_file,
-                               options->duration_per_file)
+    while ( !is_time_to_rotate(su_count, options.n_sus_per_file,
+                               options.duration_per_file)
 	    || write_to_pipe
 	    || write_to_stdout );
 
     fclose(file);
   }
-}
-
-static int
-is_span_name(char *arg)
-{
-  if (strstr(arg, "pcm")) return 1;  // Optical hardware uses e.g. 'pcm55'
-  if (strstr(arg, "A")) return 1;
-  if (strstr(arg, "B")) return 1;
-  if (strstr(arg, "C")) return 1;
-  if (strstr(arg, "D")) return 1;
-  return 0;
 }
 
 static void
@@ -1019,7 +1150,7 @@ print_channels(Channel_t *channels, int n)
   int y;
 
   for (x = 0; x < n; x++) {
-    fprintf(stderr, "monitoring %s:", channels->span);
+    fprintf(stderr, "monitoring %s:", channels->source);
     for (y = 0; y < channels->n_timeslots-1; y++) {
       fprintf(stderr, "%d,", channels->timeslots[y]);
     }
@@ -1098,14 +1229,14 @@ check_for_overlapping_channels(Channel_t *channels, int n_channels)
   for (i = 0; i < n_channels; i++)
     for (j = i+1; j < n_channels; j++)
       {
-	if (channels[i].span == channels[j].span)
+	if (channels[i].source == channels[j].source)
 	  {
 	    for (k = 0; k < channels[i].n_timeslots; k++)
 	      for (l = 0; l < channels[j].n_timeslots; l++)
 		if (channels[i].timeslots[k] == channels[j].timeslots[l])
 		  {
 		    fprintf(stderr, "Input %s:%d was specified twice. ",
-			    channels[i].span, channels[i].timeslots[k]);
+			    channels[i].source, channels[i].timeslots[k]);
 		    die("Abort.");
 		  }
 	  }
@@ -1122,8 +1253,8 @@ arguments_to_channels(int argc,
 		      Channel_t *channels,
 		      int *n_channels)
 {
-  char *spans[MAX_SPANS];
-  int n_spans = 0;
+  char *sources[MAX_SOURCES];      // either an E1/T1 span or an SDH VC-4/VC-3
+  int n_sources = 0;
 
   int timeslots[MAX_TIMESLOTS];
   int n_timeslots;
@@ -1132,35 +1263,43 @@ arguments_to_channels(int argc,
 
   int i;
 
+  if (is_sdh_name(argv[current_arg]))
+    {
+      channels[*n_channels].source = argv[current_arg];
+      (*n_channels)++;
+      return 1;
+    }
+
   if (!is_span_name(argv[current_arg]))
-    die("Must specify at least one E1/T1 interface, e.g. '1A'. Abort.");
+    die("Must specify at least one E1/T1 or SDH interface, e.g. '1A'. Abort.");
 
   while (current_arg < argc - 1)
     {
+
       if (is_span_name(argv[current_arg]))
 	{
-	  if (n_timeslots > 0) // We are starting a new span group
+	  if (n_timeslots > 0) 	  // starting a new span group.
 	    {
-	      n_spans = 0;
+	      n_sources = 0;
 	      n_timeslots = 0;
 	    }
-	  spans[n_spans++] = argv[current_arg];
-	  if (n_spans > MAX_SPANS)
+	  sources[n_sources++] = argv[current_arg];
+	  if (n_sources > MAX_SOURCES)
 	    die("Too many interfaces given");
 	}
       else // We're now processing either timeslots or timeslot ranges
 	{
-	  if (n_spans == 0)
-	    die("Expected E1/T1 interface before further arguments. Abort.");
+	  if (n_sources == 0)
+	    die("Expected E1/T1 or SDH interface. Abort.");
 
 	  argument_to_ts_array(argv[current_arg], timeslots, &n_timeslots);
 
-	  for (i = 0; i < n_spans; i++)
+	  for (i = 0; i < n_sources; i++)
 	    {
 	      if (*n_channels >= MAX_CHANNELS)
 		die("Attempted to start too many signalling channels. Abort.");
 
-	      channels[*n_channels].span = spans[i];
+	      channels[*n_channels].source = sources[i];
 	      channels[*n_channels].n_timeslots = n_timeslots;
 	      memcpy(channels[*n_channels].timeslots, timeslots,
 		     sizeof timeslots);
@@ -1208,52 +1347,76 @@ parse_rotation(char *arg, struct Options *opts)
 static void
 process_arguments(char **argv,
 		  int argc,
-                  struct Options *options)
+                  struct Options *opts)
 {
   int current_arg;
+  int result;
 
-  memset(options, 0, sizeof(struct Options));
-  options->format = PCAP_NG;
-  options->protocol = LINK_TYPE_MTP2;
+  memset(opts, 0, sizeof(struct Options));
+  opts->format = PCAP_NG;
+  opts->protocol = MTP2;
+  opts->link_type = LINK_TYPE_MTP2;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
-    case 'c': options->format = PCAP_CLASSIC; break;
+    case 'a':
+      if (argc < 3) {
+	usage();
+      }
+      result = sscanf(argv[2], "%d:%d", &(opts->vpi), &(opts->vci));
+      if (result != 2) {
+	usage();
+      }
+      argc--;
+      argv++;
+      break;
+
+    case 'c': opts->format = PCAP_CLASSIC; break;
 
     case 'f':
       if (argc < 3) {
 	usage();
       }
       if (!strcmp("fisu=no", argv[2])) {
-	options->drop_fisus = 1;
+	opts->drop_fisus = 1;
       } else if (!strcmp("esnf=yes", argv[2])) {
-	options->esnf = 1;
+	opts->esnf = 1;
       }
       argc--;
       argv++;
       break;
 
-    case 'm': options->monitoring = 1; break;
+    case 'm': opts->monitoring = 1; break;
 
     case 'n':
       if (argc < 3) {
 	usage();
       }
-      parse_rotation(argv[2], options);
+      parse_rotation(argv[2], opts);
       argc--;
       argv++;
       break;
 
     case 'p':
       if (argc < 3) usage();
-      if      (!strcmp("mtp2", argv[2])) options->protocol = LINK_TYPE_MTP2;
-      else if (!strcmp("lapd", argv[2])) options->protocol = LINK_TYPE_LAPD;
+      if      (!strcmp("mtp2", argv[2])) {
+	opts->protocol = MTP2;
+	opts->link_type = LINK_TYPE_MTP2;
+      }
+      else if (!strcmp("lapd", argv[2])) {
+	opts->protocol = LAPD;
+	opts->link_type = LINK_TYPE_LAPD;
+      }
+      else if (!strcmp("aal5", argv[2])) {
+	opts->protocol = AAL5;
+	opts->link_type = LINK_TYPE_SUNATM;
+      }
       else usage();
       argc--;
       argv++;
       break;
 
-    case 'v': options->verbose = 1; break;
+    case 'v': opts->verbose = 1; break;
 
     default: usage();
     }
@@ -1265,33 +1428,33 @@ process_arguments(char **argv,
     usage();
   }
 
-  options->hostname = argv[1];
+  opts->hostname = argv[1];
 
   argv += 2;
   argc -= 2;
 
   current_arg = arguments_to_channels(argc, argv,
-                                      options->channels,
-                                      &(options->n_channels));
-  if (!options->n_channels){
+                                      opts->channels,
+                                      &(opts->n_channels));
+  if (!opts->n_channels){
     die("No timeslots given (or, perhaps, no output filename given).");
   }
 
-  print_channels(options->channels, options->n_channels);
+  print_channels(opts->channels, opts->n_channels);
 
-  options->base_filename = argv[current_arg];
+  opts->base_filename = argv[current_arg];
 }
 
 typedef void(*Start_function)
-(GTH_api *, const Channel_t*, int, const struct Options *, int);
+(GTH_api *, const Channel_t*, int, int);
 
 static Start_function
 lookup_start_function(enum Protocol protocol)
 {
-  fprintf(stderr, "protocol=%d\n", protocol);
   switch (protocol) {
-  case LINK_TYPE_MTP2: return &monitor_mtp2; break;
-  case LINK_TYPE_LAPD: return &monitor_lapd; break;
+  case MTP2: return &monitor_mtp2; break;
+  case LAPD: return &monitor_lapd; break;
+  case AAL5: return &monitor_aal5; break;
   }
 
   die("can't find start function for link type");
@@ -1310,12 +1473,12 @@ main(int argc, char **argv)
   int i;
   int listen_port = 0;
   int listen_socket = -1;
-  struct Options options;
   Start_function start_function = 0;
 
   // Check a couple of assumptions about type size.
   assert(sizeof(u32) == 4);
   assert(sizeof(u16) == 2);
+  assert(sizeof(u8) == 1);
 
   win32_specific_startup();
 
@@ -1332,14 +1495,14 @@ main(int argc, char **argv)
   start_function = lookup_start_function(options.protocol);
 
   for (i = 0; i < options.n_channels; i++) {
-    start_function(&api, options.channels + i, i, &options, listen_port);
+    start_function(&api, options.channels + i, i, listen_port);
     if (i == 0) {
       data_socket = gth_wait_for_accept(listen_socket);
     }
   }
 
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(&api, data_socket, &options);
+  convert_to_pcap(&api, data_socket);
 
   return 0; // not reached
 }
