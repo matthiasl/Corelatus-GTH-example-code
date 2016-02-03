@@ -17,7 +17,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2009, Corelatus AB Stockholm
+// Copyright (c) 2009--2016, Corelatus AB Stockholm
 //
 // All rights reserved.
 //
@@ -129,6 +129,22 @@ typedef struct {
   u32 packet_len;
 } PACK_SUFFIX PCap_NG_epb;
 
+// The NG40 header is part of reasonably modern (2016) Wireshark versions. It
+// lets us put AAL2 in a wireshark file.
+//
+// http://www.tcpdump.org/linktypes/LINKTYPE_NG40.html
+struct NG40_aal2_header {
+  u32 type;
+  u32 length;
+  u32 protocol;
+  u32 id;
+  u32 flags;
+  u8 direction;
+  u16 vpi;
+  u16 vci;
+  u16 cid;
+};
+
 // Longest possible signal unit is AAL5; limited to 64k by the standard,
 // but GTH limits it to 4k (which is reasonable for signalling)
 #define MAX_SIGNAL_UNIT 4200
@@ -152,6 +168,13 @@ struct GTH_mtp2_lapd {
   char payload[MAX_SIGNAL_UNIT];
 };
 
+struct GTH_aal2 {
+  u32 gfc_vpi_vci;
+  // The first 3 bytes of the payload are the
+  // CID, LI, UUI and a HEC.
+  char payload[MAX_SIGNAL_UNIT];
+};
+
 struct GTH_aal5 {
   u32 gfc_vpi_vci;
   u8 cpcs_uu;
@@ -169,6 +192,7 @@ struct GTH_su {
 
   union {
     struct GTH_mtp2_lapd ml;
+    struct GTH_aal2      a2;
     struct GTH_aal5      a5;
   };
 };
@@ -176,15 +200,19 @@ struct GTH_su {
 enum PCap_format { PCAP_CLASSIC, PCAP_NG };
 
 // Link types, defined at http://www.tcpdump.org/linktypes.html
+//
+// See also: http://www.tcpdump.org/linktypes/LINKTYPE_NG40.html
 enum Link_type {
   LINK_TYPE_MTP2   = 140,
   LINK_TYPE_LAPD   = 203,
-  LINK_TYPE_SUNATM = 123
+  LINK_TYPE_SUNATM = 123,
+  LINK_TYPE_NG40   = 244
 };
 
 enum Protocol {
   MTP2,
   LAPD,
+  AAL2,
   AAL5
 };
 
@@ -225,7 +253,7 @@ usage() {
 	  "\n\nSave decoded signal units to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
 	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-m] [-n <rotation>]"
-	  "\n           [-p mtp2|lapd|aal5] [-v]\n"
+	  "\n           [-p mtp2|lapd|aal2|aal5] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p AAL5)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
@@ -233,7 +261,7 @@ usage() {
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
-          "\n-p mtp2|lapd|aal5: select the signalling protocol"
+          "\n-p mtp2|lapd|aal2|aal5: select the signalling protocol"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
@@ -277,6 +305,10 @@ usage() {
     fprintf(stderr,
 	  "\nExample (ATM AAL5 in a VC-4 on SDH):\n"
 	  "./save_to_pcap -p aal5 -a 0:5 172.16.1.10 sdh1:hop1_1 aal5_capture.pcapng\n\n");
+
+    fprintf(stderr,
+            "\nExample (ATM AAL2 on an E1):\n"
+            "./save_to_pcap -p aal2 -a 0:7 172.16.1.10 1A 1-15,17-31 aal2_capture.pcapng\n\n");
 
   exit(-1);
 }
@@ -559,7 +591,42 @@ monitor_lapd(GTH_api *api,
   return;
 }
 
-// Start up MTP-2 monitoring
+// Start up AAL2 monitoring
+static void
+monitor_aal2(GTH_api *api,
+	     const Channel_t *channel,
+	     int tag,
+	     int listen_port
+	     )
+{
+  int result;
+  char job_id[MAX_JOB_ID];
+
+  if (strstr(channel->source, "sdh")) {
+    result = gth_new_sdh_atm_aal2_monitor(api, tag,
+					  channel->source,
+					  options.vpi,
+					  options.vci,
+					  job_id, api->my_ip, listen_port);
+  }
+  else {
+    result = gth_new_atm_aal2_monitor(api, tag,
+				      channel->source,
+				      channel->timeslots,
+				      channel->n_timeslots,
+				      options.vpi,
+				      options.vci,
+				      job_id, api->my_ip, listen_port);
+  }
+
+  if (result != 0)
+    die("Setting up AAL2 monitoring failed. (-v gives more information)");
+
+  return;
+}
+
+
+// Start up AAL5 monitoring
 static void
 monitor_aal5(GTH_api *api,
 	     const Channel_t *channel,
@@ -1044,6 +1111,43 @@ write_lapd(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 }
 
 static void
+write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+{
+  u8 payload[MAX_SIGNAL_UNIT];
+  struct NG40_aal2_header ng40;
+  u32 vpi = (signal_unit->a2.gfc_vpi_vci >> 20) & 0xff;
+  u32 vci = (signal_unit->a2.gfc_vpi_vci >> 4) & 0xffff;
+
+  length -= (  (char*)&(signal_unit->a2.payload)
+	     - (char*)&(signal_unit->tag));
+
+  ng40.type = 2;      // AAL2
+  ng40.length = sizeof(ng40) + length - 3;
+  ng40.protocol = 1;  // 1=ALCAP 2=NBAP
+  ng40.id = 0;
+  ng40.flags = 0;     // 0x1: message is ciphered
+  ng40.direction = 0;
+  ng40.vpi = vpi;
+  ng40.vci = vci;
+  ng40.cid = signal_unit->a2.payload[0];
+
+  memcpy(payload, &ng40, sizeof(ng40));
+
+  memcpy(payload + sizeof(struct NG40_aal2_header),
+         signal_unit->a2.payload + 3, length);
+
+  write_packet(file,
+	       ntohs(signal_unit->timestamp_hi),
+	       ntohl(signal_unit->timestamp_lo),
+	       ntohs(signal_unit->tag),
+	       payload,
+	       length + sizeof(struct NG40_aal2_header) - 3,
+	       options.format);
+  flush_file(file);
+}
+
+
+static void
 write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 {
   u8 payload[MAX_SIGNAL_UNIT];
@@ -1127,6 +1231,7 @@ convert_to_pcap(GTH_api *api, int data_socket)
 	    read_exact(data_socket, (void*)&signal_unit, length);
 
 	    switch (options.protocol) {
+            case AAL2: write_aal2(file, &signal_unit, length); break;
 	    case AAL5: write_aal5(file, &signal_unit, length); break;
 	    case MTP2: write_mtp2(file, &signal_unit, length); break;
 	    case LAPD: write_lapd(file, &signal_unit, length); break;
@@ -1407,6 +1512,10 @@ process_arguments(char **argv,
 	opts->protocol = LAPD;
 	opts->link_type = LINK_TYPE_LAPD;
       }
+      else if (!strcmp("aal2", argv[2])) {
+	opts->protocol = AAL2;
+	opts->link_type = LINK_TYPE_NG40;
+      }
       else if (!strcmp("aal5", argv[2])) {
 	opts->protocol = AAL5;
 	opts->link_type = LINK_TYPE_SUNATM;
@@ -1452,9 +1561,10 @@ static Start_function
 lookup_start_function(enum Protocol protocol)
 {
   switch (protocol) {
-  case MTP2: return &monitor_mtp2; break;
-  case LAPD: return &monitor_lapd; break;
+  case AAL2: return &monitor_aal2; break;
   case AAL5: return &monitor_aal5; break;
+  case LAPD: return &monitor_lapd; break;
+  case MTP2: return &monitor_mtp2; break;
   }
 
   die("can't find start function for link type");
