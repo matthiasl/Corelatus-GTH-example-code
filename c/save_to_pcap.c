@@ -168,6 +168,11 @@ struct GTH_mtp2_lapd {
   char payload[MAX_SIGNAL_UNIT];
 };
 
+struct GTH_aal0 {
+  u32 gfc_vpi_vci;
+  char payload[MAX_SIGNAL_UNIT];
+};
+
 struct GTH_aal2 {
   u32 gfc_vpi_vci;
   // The first 3 bytes of the payload are the
@@ -212,6 +217,7 @@ enum Link_type {
 enum Protocol {
   MTP2,
   LAPD,
+  AAL0,
   AAL2,
   AAL5
 };
@@ -253,7 +259,7 @@ usage() {
 	  "\n\nSave decoded signal units to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
 	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-m] [-n <rotation>]"
-	  "\n           [-p mtp2|lapd|aal2|aal5] [-v]\n"
+	  "\n           [-p mtp2|lapd|aal0|aal2|aal5] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p AAL5)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
@@ -261,7 +267,7 @@ usage() {
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
-          "\n-p mtp2|lapd|aal2|aal5: select the signalling protocol"
+          "\n-p mtp2|lapd|aal0|aal2|aal5: select the signalling protocol"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
@@ -304,11 +310,15 @@ usage() {
 
     fprintf(stderr,
 	  "\nExample (ATM AAL5 in a VC-4 on SDH):\n"
-	  "./save_to_pcap -p aal5 -a 0:5 172.16.1.10 sdh1:hop1_1 aal5_capture.pcapng\n\n");
+	  "./save_to_pcap -p aal5 -a 0:5 172.16.1.10 sdh1:hop1_1 aal5_capture.pcapng\n");
 
     fprintf(stderr,
             "\nExample (ATM AAL2 on an E1):\n"
-            "./save_to_pcap -p aal2 -a 0:7 172.16.1.10 1A 1-15,17-31 aal2_capture.pcapng\n\n");
+            "./save_to_pcap -p aal2 -a 0:7 172.16.1.10 1A 1-15,17-31 aal2_capture.pcapng\n");
+
+    fprintf(stderr,
+            "\nExample (ATM AAL0 on an E1):\n"
+            "./save_to_pcap -p aal0 172.16.1.10 1A 1-15,17-31 aal0_capture.pcapng\n\n");
 
   exit(-1);
 }
@@ -590,6 +600,34 @@ monitor_lapd(GTH_api *api,
 
   return;
 }
+
+// Start up AAL2 monitoring
+static void
+monitor_aal0(GTH_api *api,
+	     const Channel_t *channel,
+	     int tag,
+	     int listen_port
+	     )
+{
+  int result;
+  char job_id[MAX_JOB_ID];
+
+  if (strstr(channel->source, "sdh")) {
+    die("AAL0 monitoring is not currently supported in a VC-4 or VC-3");
+  }
+
+  result = gth_new_atm_aal0_monitor(api, tag,
+                                    channel->source,
+                                    channel->timeslots,
+                                    channel->n_timeslots,
+                                    job_id, api->my_ip, listen_port);
+
+  if (result != 0)
+    die("Setting up AAL0 monitoring failed. (-v gives more information)");
+
+  return;
+}
+
 
 // Start up AAL2 monitoring
 static void
@@ -1110,6 +1148,13 @@ write_lapd(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
   write_mtp2(file, signal_unit, length - 2);
 }
 
+// Wireshark doesn't have anything for AAL0. So just dump the raw data.
+static void
+write_aal0(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+{
+  write_mtp2(file, signal_unit, length);
+}
+
 static void
 write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 {
@@ -1231,6 +1276,7 @@ convert_to_pcap(GTH_api *api, int data_socket)
 	    read_exact(data_socket, (void*)&signal_unit, length);
 
 	    switch (options.protocol) {
+            case AAL0: write_aal0(file, &signal_unit, length); break;
             case AAL2: write_aal2(file, &signal_unit, length); break;
 	    case AAL5: write_aal5(file, &signal_unit, length); break;
 	    case MTP2: write_mtp2(file, &signal_unit, length); break;
@@ -1512,6 +1558,10 @@ process_arguments(char **argv,
 	opts->protocol = LAPD;
 	opts->link_type = LINK_TYPE_LAPD;
       }
+      else if (!strcmp("aal0", argv[2])) {
+	opts->protocol = AAL0;
+	opts->link_type = 0;
+      }
       else if (!strcmp("aal2", argv[2])) {
 	opts->protocol = AAL2;
 	opts->link_type = LINK_TYPE_NG40;
@@ -1561,6 +1611,7 @@ static Start_function
 lookup_start_function(enum Protocol protocol)
 {
   switch (protocol) {
+  case AAL0: return &monitor_aal0; break;
   case AAL2: return &monitor_aal2; break;
   case AAL5: return &monitor_aal5; break;
   case LAPD: return &monitor_lapd; break;

@@ -659,6 +659,36 @@ int gth_install(GTH_api *api,
   return result;
 }
 
+int gth_new_atm_aal0_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+                             char *job_id,
+			     const char *ip,
+			     const int port)
+{
+  char command[MAX_COMMAND];
+  char sources[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(n_timeslots < 32 && n_timeslots > 0);
+
+  template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+    "%s</atm_aal0_monitor></new>";
+
+  format_sources(span, timeslots, n_timeslots, sources);
+
+  result = snprintf(command, MAX_COMMAND, template, ip, port, tag, sources);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+
 int gth_new_atm_aal2_monitor(GTH_api *api,
 			     const int tag,
 			     const char *span,
