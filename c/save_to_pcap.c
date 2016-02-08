@@ -247,7 +247,9 @@ struct Options {
   enum Link_type link_type;
 };
 
-struct Options options;
+static struct Options options;
+
+static GTH_event_handler *default_event_handler;
 
 //----------------------------------------------------------------------
 void
@@ -1623,14 +1625,51 @@ lookup_start_function(enum Protocol protocol)
   return 0;  // not reached
 }
 
+void event_handler(void *data, GTH_resp *resp)
+{
+  GTH_resp *child;
+  GTH_api *api = data;
+
+  assert(api);
+  assert(resp);
+  assert(resp->type == GTH_RESP_EVENT);
+  assert(resp->n_children == 1);
+
+  child = resp->children + 0;
+
+  switch (child->type) {
+
+  case GTH_RESP_SDH_MESSAGE: {
+    // suppress SDH messages; use the -v switch to see them
+    break;
+  }
+
+  default:
+    default_event_handler(data, resp);
+    break;
+  }
+}
+
+static void
+connect_to_gth(GTH_api *api, struct Options *opts)
+{
+  int result;
+
+  result = gth_connect(api, opts->hostname, opts->verbose);
+  if (result != 0) {
+    die("Unable to connect to the GTH. Giving up.");
+  }
+
+  default_event_handler = api->event_handler;
+  api->event_handler = &event_handler;
+}
+
 // Entry point
 int
 main(int argc, char **argv)
 {
   GTH_api api;
   int data_socket = -1;
-  int result;
-  int monitoring = 0;
   int i;
   int listen_port = 0;
   int listen_socket = -1;
@@ -1644,13 +1683,9 @@ main(int argc, char **argv)
   win32_specific_startup();
 
   process_arguments(argv, argc, &options);
-  result = gth_connect(&api, options.hostname, options.verbose);
-  if (result != 0) {
-    die("Unable to connect to the GTH. Giving up.");
-  }
-
+  connect_to_gth(&api, &options);
   read_hw_description(&api, options.hostname);
-  enable_l1(&api, options.channels, options.n_channels, monitoring);
+  enable_l1(&api, options.channels, options.n_channels, options.monitoring);
 
   listen_socket = gth_make_listen_socket(&listen_port);
   start_function = lookup_start_function(options.protocol);
