@@ -435,12 +435,12 @@ new_level_detector(Pid, Span, Ts, Threshold, Options, EH)
 -spec new_atm_aal0_monitor(pid(), string(), [1..31], monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
-new_atm_aal0_monitor(Pid, Span = "pcm" ++ _, Timeslots) ->
-    new_atm_aal0_monitor(Pid, Span, Timeslots, []);
-
 new_atm_aal0_monitor(Pid, Source = "sdh" ++ _, Options)
   when is_pid(Pid), is_list(Options) ->
-    gen_server:call(Pid, {new_atm_aal0_monitor, Source, Options}).
+    gen_server:call(Pid, {new_atm_aal0_monitor, Source, Options});
+
+new_atm_aal0_monitor(Pid, Span, Timeslots) ->
+    new_atm_aal0_monitor(Pid, Span, Timeslots, []).
 
 new_atm_aal0_monitor(Pid, Span, Timeslots = [_|_], Options)
   when is_pid(Pid), is_list(Options) ->
@@ -451,12 +451,12 @@ new_atm_aal0_monitor(Pid, Span, Timeslots = [_|_], Options)
 			   monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
-new_atm_aal2_monitor(Pid, Span = "pcm" ++ _, Timeslots, {VPI, VCI}) ->
-    new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, []);
-
 new_atm_aal2_monitor(Pid, Source = "sdh" ++ _, {VPI, VCI}, Options)
   when is_pid(Pid), is_integer(VPI), is_integer(VCI), is_list(Options) ->
-    gen_server:call(Pid, {new_atm_aal2_monitor, Source, {VPI, VCI}, Options}).
+    gen_server:call(Pid, {new_atm_aal2_monitor, Source, {VPI, VCI}, Options});
+
+new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}) ->
+    new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, []).
 
 new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
   when is_pid(Pid), is_list(Timeslots), is_integer(VPI), is_integer(VCI) ->
@@ -469,14 +469,12 @@ new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 			   monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
-
-new_atm_aal5_monitor(Pid, Span = "pcm" ++ _, Timeslots, {VPI, VCI}) ->
-    new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, []);
-
-
 new_atm_aal5_monitor(Pid, Source = "sdh" ++ _, {VPI, VCI}, Options)
   when is_pid(Pid), is_integer(VPI), is_integer(VCI), is_list(Options) ->
-    gen_server:call(Pid, {new_atm_aal5_monitor, Source, {VPI, VCI}, Options}).
+    gen_server:call(Pid, {new_atm_aal5_monitor, Source, {VPI, VCI}, Options});
+
+new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}) ->
+    new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, []).
 
 new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
   when is_pid(Pid),
