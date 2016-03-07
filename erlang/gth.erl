@@ -107,7 +107,7 @@
 	 new_cas_r2_mfc_detector/4, new_cas_r2_mfc_detector/5,
 	 new_cas_r2_linesig_monitor/3, new_cas_r2_linesig_monitor/4,
 	 new_cas_r2_linesig_merge/5,
-	 new_cas_r2_linesig_transmitter/3,
+	 new_cas_r2_linesig_transmitter/4,
 	 new_connection/5, new_connection/6,
 	 new_fr_monitor/3, new_fr_monitor/4,
 	 new_fr_layer/3,
@@ -355,10 +355,10 @@ new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options)
 new_cas_r2_linesig_merge(Pid, U, DA, DB, L1) ->
     gen_server:call(Pid, {new_cas_r2_linesig_merge, U, DA, DB, L1}).
 
--spec new_cas_r2_linesig_transmitter(pid(), string(), integer()) ->
+-spec new_cas_r2_linesig_transmitter(pid(), string(), integer(), 'E1'|'T1') ->
                                             id_or_error().
-new_cas_r2_linesig_transmitter(Pid, Span, Timeslot) ->
-    gen_server:call(Pid, {new_cas_r2_linesig_transmitter, Span, Timeslot}).
+new_cas_r2_linesig_transmitter(Pid, Span, Ts, Mode) ->
+    gen_server:call(Pid, {new_cas_r2_linesig_transmitter, Span, Ts, Mode}).
 
 -spec new_clip(pid(), string(), binary() | iolist()) -> id_or_error().
 new_clip(Pid, Name, Bin)
@@ -930,10 +930,14 @@ handle_call({new_cas_r2_linesig_merge, U, DB, DC, L1}, _From, State) ->
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_cas_r2_linesig_transmitter, Span, Ts}, _From, State) ->
-    Frame = "11, 85,85,85,85, 85,85,85,85, 85,85,85,85, 85,85,85",
+handle_call({new_cas_r2_linesig_transmitter, Span, Ts, Mode}, _From, State) ->
+    Frame = case Mode of
+                'E1' -> "11, 85,85,85,85, 85,85,85,85, 85,85,85,85, 85,85,85";
+                _ -> "15" % normally 'T1'; but used as a catch-all
+            end,
     XML = xml:new("cas_r2_linesig_transmitter",
-		  [{"frame", Frame}], [xml:pcm_sink(Span, Ts)]),
+		  [{"l1_mode", atom_to_list(Mode)}, {"frame", Frame}],
+                  [xml:pcm_sink(Span, Ts)]),
     send_xml(State, XML),
     Reply = receive_job_id(State),
     {reply, Reply, State};
