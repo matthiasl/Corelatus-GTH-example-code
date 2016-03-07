@@ -153,6 +153,29 @@ static void api_write_non_xml(int s,
 				  const char* data,
 				  int len);
 
+static int new_atm_aal_monitor(GTH_api *api,
+                               const int tag,
+                               const char *span,
+                               const int timeslots[],
+                               const int n_timeslots,
+                               const int vpi,
+                               const int vci,
+                               char *job_id,
+                               const char *ip,
+                               const int port,
+                               const int aal);
+
+
+static int new_sdh_atm_aal_monitor(GTH_api *api,
+                                   const int tag,
+                                   const char *source,
+                                   const int vpi,
+                                   const int vci,
+                                   char *job_id,
+                                   const char *ip,
+                                   const int port,
+                                   const int aal);
+
 // Read the next GTH response from the given API connection.
 //
 // The response is written to the caller-provided response buffer,
@@ -552,6 +575,26 @@ static int kv_to_attributes(char *buffer,
   return used;
 }
 
+static void format_sources(const char *span,
+			   const int timeslots[],
+			   const int n_timeslots,
+			   char *sources)
+{
+  char *pos = sources;
+  int result;
+  int x;
+
+  for (x = 0; x < n_timeslots; x++)
+    {
+      result = snprintf(pos, MAX_COMMAND - (pos - sources),
+			"<pcm_source span='%s' timeslot='%d'/>",
+			span, timeslots[x]);
+      pos += result;
+      assert(result < (MAX_COMMAND - (pos - sources)));
+    }
+}
+
+
 // Internal; used by both gth_enable and gth_set
 static int gth_enable_or_set(const char *command,
 			     GTH_api *api,
@@ -614,6 +657,92 @@ int gth_install(GTH_api *api,
   result = gth_wait_for_install_complete(api, is_firmware_install);
 
   return result;
+}
+
+int gth_new_atm_aal0_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+                             char *job_id,
+			     const char *ip,
+			     const int port)
+{
+  char command[MAX_COMMAND];
+  char sources[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(n_timeslots < 32 && n_timeslots > 0);
+
+  template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+    "%s</atm_aal0_monitor></new>";
+
+  format_sources(span, timeslots, n_timeslots, sources);
+
+  result = snprintf(command, MAX_COMMAND, template, ip, port, tag, sources);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+
+int gth_new_atm_aal2_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+			     const int vpi,
+			     const int vci,
+			     char *job_id,
+			     const char *ip,
+			     const int port)
+{
+  return new_atm_aal_monitor(api, tag, span, timeslots, n_timeslots,
+                             vpi, vci, job_id, ip, port, 2);
+}
+
+int gth_new_sdh_atm_aal2_monitor(GTH_api *api,
+				 const int tag,
+				 const char *source,
+				 const int vpi,
+				 const int vci,
+				 char *job_id,
+				 const char *ip,
+				 const int port)
+{
+  return new_sdh_atm_aal_monitor(api, tag, source,
+                                 vpi, vci, job_id, ip, port, 2);
+}
+
+int gth_new_atm_aal5_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+			     const int vpi,
+			     const int vci,
+			     char *job_id,
+			     const char *ip,
+			     const int port)
+{
+  return new_atm_aal_monitor(api, tag, span, timeslots, n_timeslots,
+                             vpi, vci, job_id, ip, port, 5);
+}
+
+int gth_new_sdh_atm_aal5_monitor(GTH_api *api,
+				 const int tag,
+				 const char *source,
+				 const int vpi,
+				 const int vci,
+				 char *job_id,
+				 const char *ip,
+				 const int port)
+{
+  return new_sdh_atm_aal_monitor(api, tag, source,
+                                 vpi, vci, job_id, ip, port, 5);
 }
 
 int gth_new_cas_r2_mfc_detector(GTH_api *api,
@@ -790,25 +919,6 @@ int gth_new_mtp2_monitor(GTH_api *api,
 				  n_timeslots, job_id, ip, port, 0, 0);
 }
 
-
-static void format_sources(const char *span,
-			   const int timeslots[],
-			   const int n_timeslots,
-			   char *sources)
-{
-  char *pos = sources;
-  int result;
-  int x;
-
-  for (x = 0; x < n_timeslots; x++)
-    {
-      result = snprintf(pos, MAX_COMMAND - (pos - sources),
-			"<pcm_source span='%s' timeslot='%d'/>",
-			span, timeslots[x]);
-      pos += result;
-      assert(result < (MAX_COMMAND - (pos - sources)));
-    }
-}
 
 int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const int tag,
@@ -1831,6 +1941,68 @@ int gth_unmap(GTH_api *api,
 {
   return single_arg_ok_response(api, "<unmap name='%s'/>", resource);
 }
+
+static int new_atm_aal_monitor(GTH_api *api,
+                               const int tag,
+                               const char *span,
+                               const int timeslots[],
+                               const int n_timeslots,
+                               const int vpi,
+                               const int vci,
+                               char *job_id,
+                               const char *ip,
+                               const int port,
+                               const int aal)
+{
+  char command[MAX_COMMAND];
+  char sources[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(n_timeslots < 32 && n_timeslots > 0);
+
+  template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
+    "vpi='%d' vci='%d'>"
+    "%s</atm_aal%d_monitor></new>";
+
+  format_sources(span, timeslots, n_timeslots, sources);
+
+  result = snprintf(command, MAX_COMMAND, template,
+		    aal, ip, port, tag, vpi, vci, sources, aal);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+static int new_sdh_atm_aal_monitor(GTH_api *api,
+                                   const int tag,
+                                   const char *source,
+                                   const int vpi,
+                                   const int vci,
+                                   char *job_id,
+                                   const char *ip,
+                                   const int port,
+                                   const int aal)
+{
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
+    "vpi='%d' vci='%d'>"
+    "<sdh_source name='%s'/></atm_aal%d_monitor></new>";
+
+  result = snprintf(command, MAX_COMMAND, template,
+		    aal, ip, port, tag, vpi, vci, source, aal);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
 
 
 // Win32 requires an initialisation call to its socket library at program

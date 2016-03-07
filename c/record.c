@@ -59,9 +59,10 @@ static void usage()
   fprintf(stderr,
 	  "record git_head: %s build_hostname: %s\n\n"
 
-	  "record [-v] [-T] <GTH-IP> <span> <timeslot> <filename>\n\n"
+	  "record [-vlT] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Save bit-exact data from a timeslot to a file\n\n"
 	  "-v: print the API commands and responses (verbose)\n"
+          "-l: do not set up L1; assume it's already set up\n"
 	  "-T: use T1 (and mulaw) instead of the default E1 L1 setup\n"
 	  "<GTH-IP> is the GTH's IP address or hostname\n"
 	  "<span> is the E1/T1 interface, e.g. '1A'\n"
@@ -239,10 +240,12 @@ int main(int argc, char** argv)
   char pcm_name[20];
   int t1_mulaw_mode = 0;
   int verbose = 0;
+  int setup_l1 = 1;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'v': verbose = 1; break;
+    case 'l': setup_l1 = 0; break;
     case 'T': t1_mulaw_mode = 1; break;
 
     default: usage();
@@ -266,7 +269,9 @@ int main(int argc, char** argv)
   strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
   strncat(pcm_name, argv[2], sizeof pcm_name);
 
-  setup_layer_1(&api, pcm_name, t1_mulaw_mode);
+  if (setup_l1) {
+    setup_layer_1(&api, pcm_name, t1_mulaw_mode);
+  }
 
   record_a_file(&api, argv[2], atoi(argv[3]), argv[4], t1_mulaw_mode);
 

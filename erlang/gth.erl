@@ -435,11 +435,15 @@ new_level_detector(Pid, Span, Ts, Threshold, Options, EH)
 -spec new_atm_aal0_monitor(pid(), string(), [1..31], monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
+new_atm_aal0_monitor(Pid, Source = "sdh" ++ _, Options)
+  when is_pid(Pid), is_list(Options) ->
+    gen_server:call(Pid, {new_atm_aal0_monitor, Source, Options});
+
 new_atm_aal0_monitor(Pid, Span, Timeslots) ->
     new_atm_aal0_monitor(Pid, Span, Timeslots, []).
 
-new_atm_aal0_monitor(Pid, Span, Timeslots, Options)
-  when is_pid(Pid), is_list(Timeslots), is_list(Options) ->
+new_atm_aal0_monitor(Pid, Span, Timeslots = [_|_], Options)
+  when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_atm_aal0_monitor, Span, Timeslots, Options}).
 
 -spec new_atm_aal2_monitor(pid(), string(), [1..31],
@@ -447,8 +451,12 @@ new_atm_aal0_monitor(Pid, Span, Timeslots, Options)
 			   monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
-new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}) ->
-    new_atm_aal2_monitor(Host, Span, Timeslots, {VPI, VCI}, []).
+new_atm_aal2_monitor(Pid, Source = "sdh" ++ _, {VPI, VCI}, Options)
+  when is_pid(Pid), is_integer(VPI), is_integer(VCI), is_list(Options) ->
+    gen_server:call(Pid, {new_atm_aal2_monitor, Source, {VPI, VCI}, Options});
+
+new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}) ->
+    new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, []).
 
 new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
   when is_pid(Pid), is_list(Timeslots), is_integer(VPI), is_integer(VCI) ->
@@ -461,6 +469,9 @@ new_atm_aal2_monitor(Pid, Span, Timeslots, {VPI, VCI}, Options)
 			   monitoring_options()) ->
 				  {ok, string(), Signalling_socket::port()}
 				      | {error, any()}.
+new_atm_aal5_monitor(Pid, Source = "sdh" ++ _, {VPI, VCI}, Options)
+  when is_pid(Pid), is_integer(VPI), is_integer(VCI), is_list(Options) ->
+    gen_server:call(Pid, {new_atm_aal5_monitor, Source, {VPI, VCI}, Options});
 
 new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}) ->
     new_atm_aal5_monitor(Pid, Span, Timeslots, {VPI, VCI}, []).
@@ -840,6 +851,11 @@ handle_call({new_atm_aal0_monitor, Span, Timeslots, Options},
 				   "atm_aal0_monitor", Options),
     {reply, Reply, State};
 
+handle_call({new_atm_aal0_monitor, Source, Options}, {Pid, _tag}, State) ->
+    Reply = new_sdh_signalling_monitor(Pid, State, Source,
+                                       "atm_aal0_monitor", Options),
+    {reply, Reply, State};
+
 handle_call({new_atm_aal2_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 	    {Pid, _tag}, State) ->
     Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
@@ -847,11 +863,25 @@ handle_call({new_atm_aal2_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 				   "atm_aal2_monitor", Options),
     {reply, Reply, State};
 
+handle_call({new_atm_aal2_monitor, Source, {VPI, VCI}, User_options},
+	    {Pid, _tag}, State) ->
+    Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
+    Reply = new_sdh_signalling_monitor(Pid, State, Source,
+                                       "atm_aal2_monitor", Options),
+    {reply, Reply, State};
+
 handle_call({new_atm_aal5_monitor, Span, Timeslots, {VPI, VCI}, User_options},
 	    {Pid, _tag}, State) ->
     Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
     Reply = new_signalling_monitor(Pid, State, Span, Timeslots,
 				   "atm_aal5_monitor", Options),
+    {reply, Reply, State};
+
+handle_call({new_atm_aal5_monitor, Source, {VPI, VCI}, User_options},
+	    {Pid, _tag}, State) ->
+    Options = [{"vpi", VPI}, {"vci", VCI}|User_options],
+    Reply = new_sdh_signalling_monitor(Pid, State, Source,
+                                       "atm_aal5_monitor", Options),
     {reply, Reply, State};
 
 handle_call({new_atm_aal0_layer, Span, Timeslots, User_options},
@@ -1510,6 +1540,18 @@ make_new_tone_detector(State, Options, Span, Ts, Event_handler) ->
 	    {reply, ER, State}
     end.
 
+new_sdh_signalling_monitor(Pid, State, Source, Name, Options)
+  when is_pid(Pid) ->
+    Disallowed_options = ["ip_addr", "ip_port"],
+    case [ X || X <- Disallowed_options, proplists:is_defined(X, Options) ] of
+	[] ->
+            XML_source = xml:tag("sdh_source", [{"name", Source}]),
+	    new_signalling_monitor_checked_options(
+              Pid, State, [XML_source], Name, Options);
+	_ ->
+	    {error, badarg}
+    end.
+
 new_signalling_monitor(Pid, State, Span, Ts, Name, Options)
   when is_pid(Pid), is_integer(Ts); is_tuple(Ts) ->
     new_signalling_monitor(Pid, State, Span, [Ts], Name, Options);
@@ -1518,8 +1560,19 @@ new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
     Disallowed_options = ["ip_addr", "ip_port"],
     case [ X || X <- Disallowed_options, proplists:is_defined(X, Options) ] of
 	[] ->
-	    new_signalling_monitor_checked_options(Pid, State, Span,
-						   Timeslots, Name, Options);
+            Sources = case Timeslots of
+                          [{subrate, Timeslot, First_bit, Bandwidth}] ->
+                              xml:tag("pcm_source",
+                                      [{"span", Span},
+                                       {"timeslot", Timeslot},
+                                       {"bandwidth", Bandwidth},
+                                       {"first_bit", First_bit}]);
+                          _ ->
+                              [xml:pcm_source(Span, Ts) || Ts <- Timeslots ]
+                      end,
+
+	    new_signalling_monitor_checked_options(
+              Pid, State, Sources, Name, Options);
 	_ ->
 	    {error, badarg}
     end.
@@ -1527,21 +1580,9 @@ new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
 new_signalling_monitor_checked_options(
   Pid,
   State = #state{my_ip = Hostname},
-  Span,
-  Timeslots,
+  Sources,
   Name,
   Options) ->
-    Sources = case Timeslots of
-		  [{subrate, Timeslot, First_bit, Bandwidth}] ->
-		      xml:tag("pcm_source",
-			      [{"span", Span},
-			       {"timeslot", Timeslot},
-			       {"bandwidth", Bandwidth},
-			       {"first_bit", First_bit}]);
-		  _ ->
-		      [xml:pcm_source(Span, Ts) || Ts <- Timeslots ]
-	      end,
-
     case proplists:get_value(reuse_socket, Options) of
 	undefined ->
 	    {Portno, L} = listen([{packet, 2}]),

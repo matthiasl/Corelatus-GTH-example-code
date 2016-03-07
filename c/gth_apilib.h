@@ -169,6 +169,85 @@ int gth_map(GTH_api *api,
 	    char *name,
 	    int max_name);
 
+// Start ATM AAL0 monitoring.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_atm_aal0_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+			     char *job_id,
+			     const char *ip,
+			     const int port);
+
+// Start ATM AAL2 monitoring.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_atm_aal2_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+			     const int vpi,
+			     const int vci,
+			     char *job_id,
+			     const char *ip,
+			     const int port);
+
+// ATM AAL5 from an SDH VC-4 or VC-3
+int gth_new_sdh_atm_aal2_monitor(GTH_api *api,
+				 const int tag,
+				 const char *source,
+				 const int vpi,
+				 const int vci,
+				 char *job_id,
+				 const char *ip,
+				 const int port);
+
+// Start ATM AAL5 monitoring.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_atm_aal5_monitor(GTH_api *api,
+			     const int tag,
+			     const char *span,
+			     const int timeslots[],
+			     const int n_timeslots,
+			     const int vpi,
+			     const int vci,
+			     char *job_id,
+			     const char *ip,
+			     const int port);
+
+// ATM AAL5 from an SDH VC-4 or VC-3
+int gth_new_sdh_atm_aal5_monitor(GTH_api *api,
+				 const int tag,
+				 const char *source,
+				 const int vpi,
+				 const int vci,
+				 char *job_id,
+				 const char *ip,
+				 const int port);
+
+
 // Start CAS MFC monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
