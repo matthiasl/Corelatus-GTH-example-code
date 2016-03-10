@@ -106,7 +106,7 @@
 	 new_atm_aal5_monitor/4, new_atm_aal5_monitor/5,
 	 new_cas_r2_mfc_detector/4, new_cas_r2_mfc_detector/5,
 	 new_cas_r2_linesig_monitor/3, new_cas_r2_linesig_monitor/4,
-	 new_cas_r2_linesig_merge/5,
+	 new_cas_r2_linesig_merge/6,
 	 new_cas_r2_linesig_transmitter/4,
 	 new_connection/5, new_connection/6,
 	 new_fr_monitor/3, new_fr_monitor/4,
@@ -350,10 +350,11 @@ new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options)
                                string(),
                                string(),
                                string(),
-                               'E1'|'T1') ->
+                               'E1'|'T1',
+                               'wye' | 'delta') ->
                                       id_or_error().
-new_cas_r2_linesig_merge(Pid, U, DA, DB, L1) ->
-    gen_server:call(Pid, {new_cas_r2_linesig_merge, U, DA, DB, L1}).
+new_cas_r2_linesig_merge(Pid, U, DA, DB, L1, Topo) ->
+    gen_server:call(Pid, {new_cas_r2_linesig_merge, U, DA, DB, L1, Topo}).
 
 -spec new_cas_r2_linesig_transmitter(pid(), string(), integer(), 'E1'|'T1') ->
                                             id_or_error().
@@ -921,11 +922,12 @@ handle_call({new_cas_r2_linesig_monitor, Span, Ts, Options}, {Pid, _}, State) ->
 				   "cas_r2_linesig_monitor", Options),
     {reply, Reply, State};
 
-handle_call({new_cas_r2_linesig_merge, U, DB, DC, L1}, _From, State) ->
+handle_call({new_cas_r2_linesig_merge, U, DB, DC, L1, Topo}, _From, State) ->
     XML = xml:new("cas_r2_linesig_merge",
 		  [{"upstream_A", U},
                    {"downstream_B", DB}, {"downstream_C", DC},
-                   {"l1_mode", atom_to_list(L1)}], []),
+                   {"l1_mode", atom_to_list(L1)},
+                   {"topology", atom_to_list(Topo)}], []),
     send_xml(State, XML),
     Reply = receive_job_id(State),
     {reply, Reply, State};
