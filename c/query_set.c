@@ -84,6 +84,7 @@ static void query_resource(GTH_api *api, const char *name, const char *key)
   int x;
 
   result = gth_query_resource(api, name, &attrs, &n_attributes);
+
   if (result != 0)
     {
       fprintf(stderr, "unable to query %s\n", name);
@@ -192,4 +193,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-

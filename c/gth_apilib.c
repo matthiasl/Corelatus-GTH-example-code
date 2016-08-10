@@ -1676,6 +1676,30 @@ static int query_single_resource(GTH_api *api,
 	(*attributes)[x].value = value;
       }
     }
+  else if (resp->type == GTH_RESP_STATE
+           && !strcmp(name, "schedule")
+           && resp->children[0].type == GTH_RESP_JOB)
+    {
+      *n_attributes = resp->n_children;
+      *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
+
+      for (x = 0; x < resp->n_children; x++) {
+        GTH_resp *job;
+        char *id;
+        char *owner;
+
+        job = resp->children + x;
+        if (job->type != GTH_RESP_JOB)
+          die("invalid response from GTH");
+
+        id = attribute_value_and_clear(job, "id");
+	owner = attribute_value_and_clear(job, "owner");
+
+	(*attributes)[x].key   = id;
+	(*attributes)[x].value = owner;
+
+      }
+    }
   else
     {
       retval = -1;
