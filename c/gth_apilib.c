@@ -1531,6 +1531,66 @@ int gth_query_resource_attribute(GTH_api *api,
   return retval;
 }
 
+int gth_query_job(GTH_api *api,
+                  const char *id,
+                  char *owner,
+                  GTH_attribute **attributes,
+                  int *n_attributes)
+{
+  char buffer[MAX_COMMAND];
+  GTH_resp *resp;
+  GTH_resp *job;
+  char *owner_copy;
+  int x;
+  int retval = 0;
+
+  assert(api);
+  assert(id);
+  assert(attributes);
+  assert(n_attributes);
+
+  snprintf(buffer, MAX_COMMAND, "<query><job id='%s'/></query>", id);
+  api_write(api, buffer);
+  resp = gth_next_non_event(api);
+
+  if (resp == 0) return -9;
+
+  if (resp->type == GTH_RESP_STATE
+      && resp->n_children == 1)
+    {
+      job = resp->children;
+
+      owner_copy = attribute_value(job, "owner");
+      strncpy_s(owner, MAX_JOB_ID, owner_copy, MAX_JOB_ID - 1);
+
+      *n_attributes = job->n_children;
+      *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
+
+      for (x = 0; x < job->n_children; x++) {
+	GTH_resp *attribute;
+	char *name;
+	char *value;
+
+	attribute = job->children+x;
+	if (attribute->type != GTH_RESP_ATTRIBUTE)
+	  die("invalid response from GTH");
+
+	name  = attribute_value_and_clear(attribute, "name");
+	value = attribute_value_and_clear(attribute, "value");
+
+	(*attributes)[x].key   = name;
+	(*attributes)[x].value = value;
+      }
+    }
+  else
+    {
+      retval = -1;
+    }
+
+  gth_free_resp(resp);
+  return retval;
+}
+
 static int is_text_following_resource_query(const char *name)
 {
   assert(name);

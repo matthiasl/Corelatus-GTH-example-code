@@ -10,6 +10,7 @@ target_basenames=\
 	enable \
 	install_release \
 	install_start_script \
+	job_query \
 	map \
 	monitor_dtmf \
 	playback_file\
@@ -63,4 +64,3 @@ version.c:
 
 %.exe: %.c $(common_c_files) version.c
 	$(CC_WIN32) -Wall -Wextra -o $@ $^ $(LIBS_WIN32)
-

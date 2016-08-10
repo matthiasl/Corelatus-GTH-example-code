@@ -504,9 +504,11 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "l2_alarm"))        return  GTH_RESP_L2_ALARM;
   if (!strcmp(name, "l2_socket_alert")) return  GTH_RESP_L2_SOCKET_ALERT;
   if (!strcmp(name, "lapd_message"))    return  GTH_RESP_LAPD_MESSAGE;
+  if (!strcmp(name, "lapd_monitor"))    return  GTH_RESP_LAPD_MONITOR;
   if (!strcmp(name, "level"))           return  GTH_RESP_LEVEL;
   if (!strcmp(name, "message_ended"))   return  GTH_RESP_MESSAGE_ENDED;
   if (!strcmp(name, "mtp2_message"))    return  GTH_RESP_MTP2_MESSAGE;
+  if (!strcmp(name, "mtp2_monitor"))    return  GTH_RESP_MTP2_MONITOR;
   if (!strcmp(name, "ok"))              return  GTH_RESP_OK;
   if (!strcmp(name, "resource"))        return  GTH_RESP_RESOURCE;
   if (!strcmp(name, "sdh_message"))     return  GTH_RESP_SDH_MESSAGE;

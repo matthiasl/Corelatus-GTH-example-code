@@ -424,6 +424,22 @@ int gth_set_single(GTH_api *api,
 // Reset. The only valid resource is "cpu".
 int gth_reset(GTH_api *api, const char *resource);
 
+// Query a job
+//
+// 'owner' must point to an array of at least MAX_JOB bytes
+//
+// This function creates an array of **attributes on the heap; the caller
+// is responsible for calling gth_free_attributes() to free them.
+//
+// *n_attributes is set to the number of attributes returned
+//
+// Return: 0 on success.
+int gth_query_job(GTH_api *api,
+                  const char *id,
+                  char *owner,
+                  GTH_attribute **attributes,
+                  int *n_attributes);
+
 // Query one attribute on a resource. Returns the value in result, using up
 // to max_size characters, including the terminating 0.
 //

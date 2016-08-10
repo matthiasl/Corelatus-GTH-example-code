@@ -4,6 +4,7 @@ connect_timeslots
 duplex_lapd
 disable
 enable
+job_query
 query_set
 install_release
 install_start_script
