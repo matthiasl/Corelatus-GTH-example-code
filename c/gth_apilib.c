@@ -43,6 +43,7 @@
 #include <errno.h>
 #include <string.h>
 #include <assert.h>
+#include <time.h>
 
 #ifdef WIN32
 #include <winsock2.h>
@@ -237,6 +238,20 @@ void *checked_malloc(size_t size)
   return result;
 }
 
+void print_timestamp()
+{
+  char timestring[50];  // manpage promises max 26 bytes
+  char *nl;
+  time_t timestamp;
+
+  timestamp = time(0);
+  asctime_r(gmtime(&timestamp), timestring);
+  nl = strrchr(timestring, '\n');
+  if (nl) *nl = ' ';
+
+  fputs(timestring, stderr);
+}
+
 
 void gth_event_handler(void *data, GTH_resp *resp)
 {
@@ -263,12 +278,13 @@ void gth_event_handler(void *data, GTH_resp *resp)
     break;
   }
 
-  case GTH_RESP_L1_MESSAGE: {
-    gth_print_tree(resp);
-    break;
-  }
-
+  case GTH_RESP_ATM_MESSAGE:      // fall through
+  case GTH_RESP_F_RELAY_MESSAGE:  // fall through
+  case GTH_RESP_L1_MESSAGE:       // fall through
+  case GTH_RESP_LAPD_MESSAGE:     // fall through
+  case GTH_RESP_MTP2_MESSAGE:     // fall through
   case GTH_RESP_SYNC_MESSAGE: {
+    print_timestamp();
     gth_print_tree(resp);
     break;
   }
@@ -291,6 +307,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
 
     // no handler -> fall through to printing the tone event
   default:
+    print_timestamp();
     fprintf(stderr,
 	    "gth_event_handler got an event, handling with default handler\n");
     gth_print_tree(resp);
