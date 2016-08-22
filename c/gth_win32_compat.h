@@ -46,6 +46,7 @@
 
 // Microsoft VS 2013 does not support C99 'inline'
 #define inline
+#define POSSIBLY_EXTERN
 
 #define HANDLE_OR_FILEPTR HANDLE
 #define PACK_SUFFIX

@@ -31,7 +31,7 @@ How to build this code
 
   * If you're using Microsoft Windows and Visual Studio, there's a
     ready VC Solution. This works out of the box for us (most recently
-    tested on VS Express 2013).
+    tested on VS Express 2015).
 
   It's also possible to cross-compile from a Linux build system to a
   win32 target. That's not documented, though.
@@ -175,6 +175,42 @@ Query and set attributes on GTH resources
 
    The GTH API manual, http://www.corelatus.com/gth/api/ has a
    section explaining what all the attributes are for.
+
+Query and set attributes on GTH jobs
+------------------------------------
+
+   Many of the jobs on the GTH have counters and indicators.
+   These can be queried. Here's an example:
+
+      >./job_query 172.16.2.8 m2mo1
+      span=1A
+      timeslot=1
+      n_fisu=34670
+      fisu_o=173350
+      n_lssu=0
+      lssu_o=0
+      n_msu=571
+      msu_o=38273
+      n_esu=0
+      esu_o=0
+      n_rsu=0
+      rsu_o=0
+      fib_inv=0
+      bib_inv=0
+      current state=in service
+      current load=4
+      average load=3
+      maximum load=9
+      n_no signal units=0
+      n_out of service=0
+      n_in service=0
+      n_proc outage=0
+      n_congestion=0
+      t_no signal units=22792
+      t_out of service=0
+      t_in service=23668
+      t_proc outage=0
+      t_congestion=0
 
 Start duplex LAPD on a timeslot
 -------------------------------

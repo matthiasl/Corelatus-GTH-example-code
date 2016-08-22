@@ -50,6 +50,7 @@
 typedef int socklen_t;
 #else
 #include <unistd.h>
+#include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -104,6 +105,16 @@ strncpy_s(char *dest,
   return 0;
 }
 
+// asctime_s is provided by Microsoft, in such a way that the easiest way
+// to make it work on both *nix and Microsoft is to use Microsoft's
+// naming scheme.
+int asctime_s(char *dest, size_t dest_size, const struct tm *time)
+{
+  char *result;
+  result = asctime_r(time, dest);
+  assert(dest_size >= 26);  // 'asctime' manpage requires this
+  return (result == 0 /* asctime_r returns a pointer, or NULL */);
+}
 
 void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
 {
@@ -243,9 +254,11 @@ void print_timestamp()
   char timestring[50];  // manpage promises max 26 bytes
   char *nl;
   time_t timestamp;
+  int result;
 
   timestamp = time(0);
-  asctime_r(gmtime(&timestamp), timestring);
+  result = asctime_s(timestring, sizeof timestring, gmtime(&timestamp));
+  if (result != 0) die("asctime failed");
   nl = strrchr(timestring, '\n');
   if (nl) *nl = ' ';
 
