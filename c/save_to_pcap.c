@@ -16,6 +16,7 @@
 //  Doesn't log L1 or L2 errors and state changes
 //
 // Author: Matt Lang (matthias@corelatus.se)
+// Contributions from: Arash Dalir
 //
 // Copyright (c) 2009--2016, Corelatus AB Stockholm
 //
@@ -202,7 +203,9 @@ struct GTH_su {
   };
 };
 
-enum PCap_format { PCAP_CLASSIC, PCAP_NG };
+enum PCap_format { PCAP_CLASSIC = 0, PCAP_NG };
+
+enum Filename_format { FF_DEFAULT = 0, FF_UTC, FF_LOCALTIME };
 
 // Link types, defined at http://www.tcpdump.org/linktypes.html
 //
@@ -241,10 +244,16 @@ struct Options {
   char *hostname;
   Channel_t channels[MAX_CHANNELS];
   int n_channels;
-  char *base_filename;
   enum PCap_format format;
   enum Protocol protocol;
   enum Link_type link_type;
+
+  int write_to_stdout;
+  int write_to_winpipe;
+  int capture_autostop;
+  enum Filename_format filename_format;
+  char *base_filename;
+
 };
 
 static struct Options options;
@@ -262,7 +271,7 @@ usage() {
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
 	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-m] [-n <rotation>]"
 	  "\n           [-p mtp2|lapd|aal0|aal2|aal5] [-v]\n"
-	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p AAL5)"
+	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p aal5)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
@@ -270,6 +279,9 @@ usage() {
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
           "\n-p mtp2|lapd|aal0|aal2|aal5: select the signalling protocol"
+          "\n-s: stop capturing (teriminate) instead of rotating files"
+          "\n-t utc=yes: append the UTC time to the filename"
+          "\n-t utc=no: append the local time to the filename"
 	  "\n-v: print API commands and responses (verbose)"
 	  "\n"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
@@ -436,6 +448,7 @@ open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
     fprintf(stderr, "unable to open %s for writing. Aborting.\n", filename);
     exit(-1);
   }
+  fprintf(stderr, "saving to file %s\n", filename);
 }
 
 //----------------------------------------------------------------------
@@ -869,19 +882,17 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
 
 static void
 write_pcap_global_header(HANDLE_OR_FILEPTR file,
-			 enum PCap_format pcap_format,
-			 const Channel_t *channels,
-			 int n_channels,
-                         enum Link_type link_type)
+			 const struct Options *options)
 {
-  switch (pcap_format) {
+  switch (options->format) {
   case PCAP_CLASSIC:
-    write_pcap_classic_header(file, link_type);
+    write_pcap_classic_header(file, options->link_type);
     break;
 
   case PCAP_NG:
     write_pcap_ng_shb(file);
-    write_pcap_idbs(file, channels, n_channels, link_type);
+    write_pcap_idbs(file,
+                    options->channels, options->n_channels, options->link_type);
     break;
 
   default: die("internal error writing global pcap header");
@@ -1051,7 +1062,7 @@ set_timer(int seconds)
 static void
 init_timer(int seconds)
 {
-  timer = CreateWaitableTimer(NULL, TRUE, "file_rotation_timer");
+  timer = CreateWaitableTimer(NULL, TRUE, NULL);
   if (timer == NULL) die("CreateWaitableTimer failed");
   set_timer(seconds);
 }
@@ -1118,13 +1129,19 @@ read_and_restart_timer(int seconds)
 #endif
 
 static inline int
-is_time_to_rotate(int su_count, int n_sus_per_file, int duration)
+keep_capturing(int su_count, struct Options opts)
 {
-  if (duration > 0 && read_and_restart_timer(duration) == 0)
+  if  (opts.n_sus_per_file > 0)
     {
-      return 1;
+      return (su_count < opts.n_sus_per_file);
     }
-  return (n_sus_per_file > 0 && (su_count >= n_sus_per_file));
+
+  if (opts.duration_per_file > 0)
+    {
+      return (read_and_restart_timer(opts.duration_per_file) != 0);
+    }
+
+  return 1;
 }
 
 static void
@@ -1223,49 +1240,96 @@ write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 
 #define MAX_FILENAME 100
 
-// Loop forever, converting the incoming GTH data to libpcap format
 static void
-convert_to_pcap(GTH_api *api, int data_socket)
+make_file_timestamp(const struct Options *opts, char *string)
+{
+  time_t rawtime;
+  struct tm * timeinfo;
+
+  time(&rawtime);
+
+  switch (opts->filename_format) {
+  case FF_DEFAULT:
+    *string = 0;
+    return;
+    break;
+
+  case FF_UTC:
+    timeinfo = gmtime(&rawtime);  // REVISIT: not threadsafe
+    break;
+
+  case FF_LOCALTIME:
+    timeinfo = localtime(&rawtime);  // REVISIT: not threadsafe
+    break;
+
+  }
+
+  snprintf(string, MAX_FILENAME, "_%04d%02d%02d%02d%02d%02d",
+           timeinfo->tm_year + 1900,
+           timeinfo->tm_mon + 1,
+           timeinfo->tm_mday,
+           timeinfo->tm_hour,
+           timeinfo->tm_min,
+           timeinfo->tm_sec);
+}
+
+static HANDLE_OR_FILEPTR
+open_packet_file(const struct Options *opts, int *file_number)
+{
+    char filename[MAX_FILENAME];
+    char timestamp[MAX_FILENAME];
+    HANDLE_OR_FILEPTR file;
+
+    if (opts->write_to_stdout)
+      {
+	file = stdout_handle_or_file();
+	fprintf(stderr, "saving capture to stdout\n");
+      }
+    else if (opts->write_to_winpipe)
+      {
+	fprintf(stderr, "saving capture to a windows named pipe\n");
+	file = open_windows_pipe(opts->base_filename);
+      }
+    else
+      {
+        if (opts->capture_autostop)
+          {
+            open_file_for_writing(&file, opts->base_filename);
+          }
+        else
+          {
+            make_file_timestamp(opts, timestamp);
+            snprintf(filename, MAX_FILENAME, "%s_%05d%s",
+                     opts->base_filename,
+                     *file_number,
+                     timestamp);
+            open_file_for_writing(&file, filename);
+          }
+
+        (*file_number)++;
+      }
+
+    return file;
+}
+
+
+// Loop, converting the incoming GTH data to libpcap format
+static void
+convert_to_pcap(GTH_api *api,
+		int data_socket,
+                const struct Options options)
 {
   u16 length;
   struct GTH_su signal_unit;
   int su_count;
   int file_number = 1;
   HANDLE_OR_FILEPTR file;
-  int write_to_stdout = 0;
-  int write_to_pipe;
-
-  write_to_stdout = (strcmp(options.base_filename, "-") == 0);
-  write_to_pipe = is_filename_a_pipe(options.base_filename);
 
   init_timer(options.duration_per_file);
 
-  while (1) {
-    char filename[MAX_FILENAME];
-
-    if (!write_to_stdout && !write_to_pipe)
-      {
-	snprintf(filename, MAX_FILENAME, "%s.%d",
-		 options.base_filename, file_number);
-	open_file_for_writing(&file, filename);
-	fprintf(stderr, "saving to file %s\n", filename);
-      }
-    else if (write_to_stdout)
-      {
-	file = stdout_handle_or_file();
-	fprintf(stderr, "saving capture to stdout\n");
-      }
-    else
-      {
-	fprintf(stderr, "saving capture to a windows named pipe\n");
-	file = open_windows_pipe(options.base_filename);
-      }
-
-    write_pcap_global_header(file, options.format,
-                             options.channels, options.n_channels,
-                             options.link_type);
-
-    file_number++;
+  do {
+    file = open_packet_file(&options, &file_number);
+    write_pcap_global_header(file, &options);
     su_count = 0;
 
     do
@@ -1287,13 +1351,10 @@ convert_to_pcap(GTH_api *api, int data_socket)
 	    su_count++;
 	  }
       }
-    while ( !is_time_to_rotate(su_count, options.n_sus_per_file,
-                               options.duration_per_file)
-	    || write_to_pipe
-	    || write_to_stdout );
-
+    while ( keep_capturing(su_count, options) );
     fclose(file);
   }
+  while ( !options.capture_autostop );
 }
 
 static void
@@ -1496,7 +1557,6 @@ parse_rotation(char *arg, struct Options *opts)
   usage();
 }
 
-
 static void
 process_arguments(char **argv,
 		  int argc,
@@ -1546,6 +1606,26 @@ process_arguments(char **argv,
 	usage();
       }
       parse_rotation(argv[2], opts);
+      argc--;
+      argv++;
+      break;
+
+    case 's': opts->capture_autostop = 1; break;
+
+    case 't':
+      if (argc < 3) {
+        usage();
+      }
+      if (!strcmp("utc=yes", argv[2])) {
+        opts->filename_format = FF_UTC;
+      }
+      else if (!strcmp("utc=no", argv[2])) {
+        opts->filename_format = FF_LOCALTIME;
+      }
+      else {
+        usage();
+      }
+
       argc--;
       argv++;
       break;
@@ -1604,6 +1684,8 @@ process_arguments(char **argv,
   print_channels(opts->channels, opts->n_channels);
 
   opts->base_filename = argv[current_arg];
+  opts->write_to_stdout = (strcmp(opts->base_filename, "-") == 0);
+  opts->write_to_winpipe = is_filename_a_pipe(opts->base_filename);
 }
 
 typedef void(*Start_function)
@@ -1698,9 +1780,9 @@ main(int argc, char **argv)
   }
 
   fprintf(stderr, "capturing packets, press ^C to abort\n");
-  convert_to_pcap(&api, data_socket);
+  convert_to_pcap(&api, data_socket, options);
 
-  return 0; // not reached
+  return 0;
 }
 
 // eof
