@@ -1,7 +1,7 @@
 //----------------------------------------------------------------------
 // Install a software image on a GTH module.
 //
-// Software images are available from http://www.corelatus.com/gth/releases/
+// Software images are available from https://www.corelatus.com/gth/releases/
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //

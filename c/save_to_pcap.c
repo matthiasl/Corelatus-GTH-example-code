@@ -7,7 +7,7 @@
 //
 //  PCap-NG doc: http://www.winpcap.org/ntar/draft/PCAP-DumpFileFormat.html
 // classic PCap: http://wiki.wireshark.org/Development/LibpcapFileFormat
-//      GTH API: http://www.corelatus.com/gth/api/
+//      GTH API: https://www.corelatus.com/gth/api/
 //
 // Limitations:
 //

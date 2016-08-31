@@ -60,7 +60,7 @@ SS7 sniffer which saves to PCAP (wireshark) format files
 
   There's a WWW page which discusses this at
 
-     http://www.corelatus.com/gth/api/save_to_pcap/index.html
+     https://www.corelatus.com/gth/api/save_to_pcap/index.html
 
   On Unix-like systems, output can be piped directly to wireshark or
   tshark for live capture, like this:
@@ -173,7 +173,7 @@ Query and set attributes on GTH resources
 
       >./query_set 172.16.1.10 pcm1A status enabled
 
-   The GTH API manual, http://www.corelatus.com/gth/api/ has a
+   The GTH API manual, https://www.corelatus.com/gth/api/ has a
    section explaining what all the attributes are for.
 
 Query and set attributes on GTH jobs
