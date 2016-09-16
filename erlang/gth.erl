@@ -3,9 +3,11 @@
 %%% Author  : matthias <matthias@corelatus.se>
 %%% Description : An Erlang wrapper for the XML API on a Corelatus GTH.
 %%%
-%%%               A corelatus GTH is a T1/E1 device which can do pretty
-%%%               much anything with a T1/E1 line: detect tones, switch
-%%%               timeslots, decode signalling, play recorded messages, etc.
+%%%               Corelatus GTH is a family of devices for connecting
+%%%               to telecom interfaces (T1, E1, SDH and SONET) and do
+%%%               pretty much anything with the data on the line:
+%%%               decode signalling, detect tones, switch timeslots,
+%%%               generate signalling, play recorded messages, etc.
 %%%
 %%%               This interface lets you interface to a GTH without
 %%%               having to deal with the API socket and its XML
