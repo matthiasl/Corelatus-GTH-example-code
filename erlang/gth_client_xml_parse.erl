@@ -44,8 +44,8 @@
 
 %%----------------------------------------------------------------------
 %% Normal entry point.
-%% S: string()
-%% Return: {ok, #resp_tuple} | {error, Reason}
+
+-spec string(string()) -> {'ok', #resp_tuple{}} | {'error', any()}.
 string(S) ->
     case catch (do_string(S)) of
 	{ok, Cmd} ->
@@ -60,7 +60,7 @@ string(S) ->
 	    {error, X}
     end.
 
-%% Returns {ok, #resp_tuple} | {error, Reason}
+-spec do_string(string()) -> {'ok', #resp_tuple{}} | {'error', any()}.
 do_string(S) ->
     {[Tree], []} = gth_xml_scan:scan_and_parse(S),
     checked(Tree).
