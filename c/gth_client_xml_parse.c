@@ -72,7 +72,7 @@ copy_to_new_add_null(const char *src, int len)
 {
   char *result;
 
-  result = checked_malloc(len + 1);
+  result = (char*)checked_malloc(len + 1);
   memcpy(result, src, len);
   result[len] = 0;
 
@@ -84,7 +84,7 @@ copy_to_new_add_null(const char *src, int len)
 // Return: the number of characters that were in the string.
 static int scan_string(const char* string, GTH_token *token, const char end)
 {
-  char* endptr;
+  const char* endptr;
   int len;
 
   endptr = strchr(string, end);
@@ -124,7 +124,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   size_t len;
   int max_token = 5;
   int tokens_used = 0;
-  GTH_token *start = checked_malloc(max_token * sizeof(GTH_token));
+  GTH_token *start = (GTH_token*)checked_malloc(max_token * sizeof(GTH_token));
   GTH_token *current = start;
 
   //----
@@ -132,7 +132,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   tokens_used = (current - start);
   if ( tokens_used == max_token) {
     max_token = max_token * 2;
-    start = checked_realloc(start, max_token * sizeof(GTH_token));
+	start = (GTH_token*)checked_realloc(start, max_token * sizeof(GTH_token));
     current = start + tokens_used;
   }
 
@@ -164,7 +164,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
   tokens_used = (current - start);
   if ( tokens_used == max_token) {
     max_token = max_token * 2;
-    start = checked_realloc(start, max_token * sizeof(GTH_token));
+	start = (GTH_token*)checked_realloc(start, max_token * sizeof(GTH_token));
     current = start + tokens_used;
   }
 
@@ -300,7 +300,7 @@ static GTH_resp *resp_add_child(GTH_resp *resp, GTH_resp_type type)
   if (resp->n_children >= resp->allocated_children)
     {
       resp->allocated_children = resp->allocated_children * 2 + 3;
-      resp->children = checked_realloc(resp->children,
+      resp->children =(GTH_resp_struct*) checked_realloc(resp->children,
 				       resp->allocated_children
 				       * sizeof(GTH_resp));
     }
@@ -319,7 +319,7 @@ static void resp_add_attribute(GTH_resp *resp, char *key, char *value)
   if (resp->allocated_attributes <= resp->n_attributes)
     {
       resp->allocated_attributes = 2*resp->allocated_attributes + 2;
-      resp->attributes = checked_realloc(resp->attributes,
+      resp->attributes =(GTH_attribute*) checked_realloc(resp->attributes,
 					 resp->allocated_attributes *
 					 sizeof(GTH_attribute));
     }
@@ -334,7 +334,7 @@ static void resp_add_attribute(GTH_resp *resp, char *key, char *value)
 static GTH_token *parse(GTH_token *token, GTH_resp *resp);
 static GTH_token *attributes(GTH_token *token, GTH_resp *resp);
 static GTH_token *parse_inside_tag(GTH_token *token, char **text);
-static enum Token_type name_to_token_type(const char* name);
+static GTH_resp_type name_to_token_type(const char* name);
 
 void gth_free_resp(GTH_resp *resp);
 static int can_lookahead(const GTH_token *token, int n);
@@ -348,7 +348,7 @@ GTH_resp *gth_parse(const char *string)
 {
   GTH_token *tokens;
   GTH_token *end;
-  GTH_resp *resp = checked_malloc(sizeof(GTH_resp));
+  GTH_resp *resp = (GTH_resp*)checked_malloc(sizeof(GTH_resp));
   GTH_resp *old;
 
   new_resp(resp, GTH_RESP_ERROR);
@@ -381,7 +381,7 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
   GTH_token *name;
   GTH_token *slash;
   GTH_token *close;
-  char *tag_name;
+  const char *tag_name;
   GTH_resp *tree = 0;
 
   if (!can_lookahead(token, 2)) {
@@ -484,7 +484,7 @@ static GTH_token *attributes(GTH_token *token, GTH_resp *resp) {
 }
 
 
-static enum Token_type name_to_token_type(const char* name)
+static GTH_resp_type name_to_token_type(const char* name)
 {
   if (!strcmp(name, "alarm"))           return  GTH_RESP_ALARM;
   if (!strcmp(name, "alert"))           return  GTH_RESP_ALERT;
@@ -519,7 +519,7 @@ static enum Token_type name_to_token_type(const char* name)
   fprintf(stderr, "don't know what this is: %s\n", name);
 
   assert(!"unknown tag");
-  return 0; // never reached
+  return (GTH_resp_type)0; // never reached
 }
 
 // Are there at least N tokens left to look at.
