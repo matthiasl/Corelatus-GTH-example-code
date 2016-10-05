@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace SaveToPcap
+namespace Corelatus.GTH.Utilities
 {
     public static class EndianReader
     {

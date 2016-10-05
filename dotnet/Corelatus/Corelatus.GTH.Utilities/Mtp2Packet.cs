@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace SaveToPcap
+namespace Corelatus.GTH.Utilities
 {
     public class Mtp2Packet : EventArgs
     {
@@ -10,9 +10,6 @@ namespace SaveToPcap
 
         private readonly Lazy<ushort> _tag;
         private readonly Lazy<ushort> _flags;
-
-        private readonly uint _secs;
-        private readonly uint _uSecs;
 
         public ushort Tag
         {

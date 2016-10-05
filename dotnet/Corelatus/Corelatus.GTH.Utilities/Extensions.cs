@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
-using Corelatus.GTH;
 
-namespace SaveToPcap
+namespace Corelatus.GTH.Utilities
 {
     public static class Extensions
     {
