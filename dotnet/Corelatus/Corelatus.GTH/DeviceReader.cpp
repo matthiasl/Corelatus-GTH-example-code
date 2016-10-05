@@ -34,6 +34,6 @@ void DeviceReader::ReadExact(array<Byte> ^buffer, int offset, int length){
 			throw gcnew CorelatusException("failed to read from device.");
 
 		length -= this_time;
-		offset += this_time;
+		ptr_buff+=this_time;
 	}
 }

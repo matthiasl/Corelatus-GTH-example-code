@@ -1,12 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Corelatus;
 using Corelatus.GTH;
 
 namespace SaveToPcap
 {
-    internal class Mtp2Receiver
+    internal class Mtp2Receiver:IDisposable
     {
         public event EventHandler<Mtp2Packet> PacketReceived;
 
@@ -14,7 +15,9 @@ namespace SaveToPcap
         private Device _device;
         private Listener _listener;
         private DataConnection _dataConn;
-    
+        private bool _started;
+        private readonly ManualResetEventSlim _waitHandle = new ManualResetEventSlim();
+
         private readonly List<string> _jobIds = new List<string>();
 
         public IEnumerable<string> GetJobIds()
@@ -35,12 +38,13 @@ namespace SaveToPcap
             MonitorMtp2();
             EstablishData();
 
+            _started = true;
             Task.Factory.StartNew(Fetch, TaskCreationOptions.LongRunning);
         }
 
         private void OnPacketReceived(Mtp2Packet packet)
         {
-            if (PacketReceived != null)
+            if (_started && PacketReceived != null)
                 PacketReceived(this, packet);
         }
 
@@ -49,21 +53,43 @@ namespace SaveToPcap
             var reader = _dataConn.GetReader();
             var lenBuffer = new byte[2];
 
-            while (true)
+            while (_started)
             {
-                if (_device.WaitForPacket(_dataConn))
-                {
-                    reader.ReadExact(lenBuffer,0,lenBuffer.Length);
-                    var len = EndianReader.ReadUInt16Big(lenBuffer,0);
-                    var header = new byte[10];
-                    reader.ReadExact(header,0,header.Length);
-                    var payload = new byte[len - header.Length];
-                    reader.ReadExact(payload,0,payload.Length);
+                ushort len=0;
 
-                    var mtp2 = new Mtp2Packet(header, payload);
-                    OnPacketReceived(mtp2);
+                try
+                {
+                    if (_device.WaitForPacket(_dataConn))
+                    {
+                        reader.ReadExact(lenBuffer, 0, lenBuffer.Length);
+                        len = EndianReader.ReadUInt16Big(lenBuffer, 0);
+                        var header = new byte[10];
+                        reader.ReadExact(header, 0, header.Length);
+                        var payload = new byte[len - header.Length];
+                        reader.ReadExact(payload, 0, payload.Length);
+
+                        var mtp2 = new Mtp2Packet(header, payload);
+                        OnPacketReceived(mtp2);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("len: {0}",len);
+                    Console.WriteLine(e);
                 }
             }
+
+            _waitHandle.Set();
+        }
+
+        private void CleanResources()
+        {
+            foreach (var j in _jobIds)
+                _device.Delete(j);
+
+            _dataConn.Dispose();
+            _listener.Dispose();
+            _device.Dispose();
         }
 
         private void EstablishData()
@@ -114,6 +140,14 @@ namespace SaveToPcap
         {
             if (!_device.EnableL1(_config.Channels, _config.Monitoring))
                 throw new CorelatusException(string.Format("failed to enable L1 for device '{0}'.", _config.Address));
+        }
+
+        public void Dispose()
+        {
+            PacketReceived = null;
+            _started = false;
+            _waitHandle.Wait(10000);
+            CleanResources();
         }
     }
 }

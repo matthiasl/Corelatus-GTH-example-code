@@ -10,8 +10,9 @@ namespace SaveToPcap
 
         private readonly Lazy<ushort> _tag;
         private readonly Lazy<ushort> _flags;
-        private readonly Lazy<ushort> _tsHigh;
-        private readonly Lazy<uint> _tsLow;
+
+        private readonly uint _secs;
+        private readonly uint _uSecs;
 
         public ushort Tag
         {
@@ -23,21 +24,14 @@ namespace SaveToPcap
             get { return _flags.Value; }
         }
 
-        public ushort TimestampHigh
-        {
-            get { return _tsHigh.Value; }
-        }
-
-        public uint TimestampLow
-        {
-            get { return _tsLow.Value; }
-        }
-
         public byte[] Payload
         {
             get { return _payload; }
         }
 
+        public uint Seconds { get; private set; }
+        public uint Microseconds { get; private set; }
+ 
         public Mtp2Packet(byte[] header, byte[] payload)
         {
             _header = header;
@@ -45,8 +39,17 @@ namespace SaveToPcap
 
             _tag = new Lazy<ushort>(() => EndianReader.ReadUInt16Big(_header, 0));
             _flags = new Lazy<ushort>(() => EndianReader.ReadUInt16Big(_header, 2));
-            _tsHigh = new Lazy<ushort>(() => EndianReader.ReadUInt16Big(_header, 4));
-            _tsLow = new Lazy<uint>(() => EndianReader.ReadUInt32Big(_header, 6));
+
+
+            var tsHigh = EndianReader.ReadUInt16Big(_header, 4);
+            var tsLow  =EndianReader.ReadUInt32Big(_header, 6);
+
+            ulong ts = tsHigh;
+            ts <<= 32;
+            ts += tsLow;
+
+            Seconds = (uint)(ts / 1000);
+            Microseconds = (uint)((ts % 1000) * 1000);
         }
 
         public Mtp2Packet(byte[] data)
