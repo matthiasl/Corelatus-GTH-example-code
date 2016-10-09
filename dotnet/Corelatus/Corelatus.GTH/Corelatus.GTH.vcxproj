@@ -155,7 +155,7 @@
     <ClInclude Include="Stdafx.h" />
     <ClInclude Include="ToneArgs.h" />
     <ClInclude Include="ToneHandler.h" />
-    <ClInclude Include="Utilities.h" />
+    <ClInclude Include="NativeUtilities.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\..\c\gth_apilib.c" />
@@ -177,7 +177,7 @@
     </ClCompile>
     <ClCompile Include="ToneArgs.cpp" />
     <ClCompile Include="ToneHandler.cpp" />
-    <ClCompile Include="Utilities.cpp" />
+    <ClCompile Include="NativeUtilities.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="ReadMe.txt" />

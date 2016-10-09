@@ -8,7 +8,7 @@ using namespace System::Runtime::CompilerServices;
 namespace Corelatus{
 	namespace GTH{
 		[ExtensionAttribute]
-		public ref class Utilities abstract sealed
+		public ref class NativeUtilities abstract sealed
 		{
 		public:
 			[ExtensionAttribute]
