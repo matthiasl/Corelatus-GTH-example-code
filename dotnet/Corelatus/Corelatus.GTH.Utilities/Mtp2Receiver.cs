@@ -2,15 +2,14 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Corelatus;
-using Corelatus.GTH;
 
-namespace SaveToPcap
+namespace Corelatus.GTH.Utilities
 {
-    internal class Mtp2Receiver:IDisposable
+    public class Mtp2Receiver:IDisposable
     {
         public event EventHandler<Mtp2Packet> PacketReceived;
-
+        public event EventHandler<Mtp2FailedArgs> Failed;
+ 
         private readonly Config _config;
         private Device _device;
         private Listener _listener;
@@ -48,6 +47,12 @@ namespace SaveToPcap
                 PacketReceived(this, packet);
         }
 
+        private void OnFailed(Exception exception)
+        {
+            if (Failed != null)
+                Failed(this, new Mtp2FailedArgs(exception));
+        }
+
         private void Fetch()
         {
             var reader = _dataConn.GetReader();
@@ -55,14 +60,12 @@ namespace SaveToPcap
 
             while (_started)
             {
-                ushort len=0;
-
                 try
                 {
                     if (_device.WaitForPacket(_dataConn))
                     {
                         reader.ReadExact(lenBuffer, 0, lenBuffer.Length);
-                        len = EndianReader.ReadUInt16Big(lenBuffer, 0);
+                        var len=EndianReader.ReadUInt16Big(lenBuffer, 0);
                         var header = new byte[10];
                         reader.ReadExact(header, 0, header.Length);
                         var payload = new byte[len - header.Length];
@@ -74,8 +77,7 @@ namespace SaveToPcap
                 }
                 catch (Exception e)
                 {
-                    Console.WriteLine("len: {0}",len);
-                    Console.WriteLine(e);
+                    OnFailed(e);
                 }
             }
 

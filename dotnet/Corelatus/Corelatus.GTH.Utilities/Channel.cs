@@ -1,4 +1,4 @@
-﻿namespace SaveToPcap
+﻿namespace Corelatus.GTH.Utilities
 {
     public class Channel
     {

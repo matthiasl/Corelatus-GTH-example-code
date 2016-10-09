@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 
-namespace SaveToPcap
+namespace Corelatus.GTH.Utilities
 {
     public class Config
     {

@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.InteropServices;
 using CLAP;
+using Corelatus.GTH.Utilities;
 using PcapngUtils.Common;
 using PcapngUtils.Pcap;
 
@@ -39,6 +41,7 @@ namespace SaveToPcap
                 Channels = channels
             });
 
+            receiver.Failed += (s, e) => Console.WriteLine(e);
             receiver.PacketReceived+=PacketReceived;
             using (receiver)
             {

@@ -1,6 +1,4 @@
-﻿using Corelatus.GTH;
-
-namespace SaveToPcap
+﻿namespace Corelatus.GTH.Utilities
 {
     public class Mtp2Config
     {

@@ -4,16 +4,15 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{10900870-540B-45DD-8420-D33C78AE03A5}</ProjectGuid>
-    <OutputType>Exe</OutputType>
+    <ProjectGuid>{C50ECF56-6C6A-4CE7-AE01-D59936D4E7F3}</ProjectGuid>
+    <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>SaveToPcap</RootNamespace>
-    <AssemblyName>SaveToPcap</AssemblyName>
+    <RootNamespace>Corelatus.GTH.Utilities</RootNamespace>
+    <AssemblyName>Corelatus.GTH.Utilities</AssemblyName>
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>x64</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -21,28 +20,18 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>x64</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
+    <PlatformTarget>x64</PlatformTarget>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="CLAP, Version=4.6.0.0, Culture=neutral, processorArchitecture=MSIL">
-      <HintPath>..\packages\CLAP.4.6\lib\net35\CLAP.dll</HintPath>
-      <Private>True</Private>
-    </Reference>
-    <Reference Include="PcapngUtils">
-      <HintPath>..\..\..\..\Gears\Gears\Gemik.Gears\3rdParty\PcapngUtils\PcapngUtils.dll</HintPath>
-    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -52,18 +41,20 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Cmd.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="Channel.cs" />
+    <Compile Include="Config.cs" />
+    <Compile Include="EndianReader.cs" />
+    <Compile Include="Extensions.cs" />
+    <Compile Include="Mtp2Config.cs" />
+    <Compile Include="Mtp2FailedArgs.cs" />
+    <Compile Include="Mtp2Packet.cs" />
+    <Compile Include="Mtp2Receiver.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="App.config" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Corelatus.GTH.Utilities\Corelatus.GTH.Utilities.csproj">
-      <Project>{c50ecf56-6c6a-4ce7-ae01-d59936d4e7f3}</Project>
-      <Name>Corelatus.GTH.Utilities</Name>
+    <ProjectReference Include="..\Corelatus.GTH\Corelatus.GTH.vcxproj">
+      <Project>{6836d52d-2f3e-4568-bb02-9f2d8296cf89}</Project>
+      <Name>Corelatus.GTH</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
