@@ -51,14 +51,14 @@ Building the code from source
 
   - GNU make or equivalent
 
-  - A java compiler and VM. We use Sun's JDK 6.
+  - A java compiler and VM. We use Oracle's Java 8 (last checked 2016-10-31)
 
   - The XERCES parser and support libraries. Included in JDK 1.4 and later.
-    On Debian, it's libxerces-java and libxalan-java
+    On Debian, it's libxerces2-java.
 
   - A classpath with xerces in it, e.g.:
 
-     export CLASSPATH=xalan.jar:xerces.jar:gth_upgrade.jar
+     export CLASSPATH=/usr/share/java/xercesImpl.jar:gth_upgrade.jar
 
   Once that's sorted out, build the system with 'make'.
 
