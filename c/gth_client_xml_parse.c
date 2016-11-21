@@ -510,6 +510,7 @@ static enum Token_type name_to_token_type(const char* name)
   if (!strcmp(name, "mtp2_message"))    return  GTH_RESP_MTP2_MESSAGE;
   if (!strcmp(name, "mtp2_monitor"))    return  GTH_RESP_MTP2_MONITOR;
   if (!strcmp(name, "ok"))              return  GTH_RESP_OK;
+  if (!strcmp(name, "pcm_source"))      return  GTH_RESP_PCM_SOURCE;
   if (!strcmp(name, "resource"))        return  GTH_RESP_RESOURCE;
   if (!strcmp(name, "sdh_message"))     return  GTH_RESP_SDH_MESSAGE;
   if (!strcmp(name, "sfp_message"))     return  GTH_RESP_SFP_MESSAGE;

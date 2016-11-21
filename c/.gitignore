@@ -12,6 +12,7 @@ map
 monitor_cas
 monitor_dtmf
 playback_file
+raw_xml
 record
 save_to_pcap
 unmap

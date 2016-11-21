@@ -15,6 +15,7 @@ target_basenames=\
 	monitor_dtmf \
 	playback_file\
 	query_set\
+	raw_xml\
 	record\
 	save_to_pcap\
 	unmap

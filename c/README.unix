@@ -269,6 +269,16 @@ Map an E1/T1 carried on SDH/SONET
    this example 'pcm27'. That name can then be used in an 'enable'
    command to start L1 processing on 'pcm27'.
 
+Send raw XML commands
+---------------------
+
+  For debugging, you can send any XML command as per the API manual
+  (www.corelatus.se/gth/gth_api.pdf)
+
+  Example:
+
+  ./raw_xml 172.16.1.10 "<query verbose='true'><job id='ldmo137'/></query>"
+
 GTH API for C programs
 ----------------------
 
