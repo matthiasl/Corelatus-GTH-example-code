@@ -55,11 +55,50 @@ Query and Set Attributes on GTH Resources
           'temperature' => '35.0'
         };
 
-  and here's how to enable an E1:
+Query Jobs
+----------
 
-     >./query_set.pl 172.16.2.7 pcm1A status enabled mode E1
+  GTH jobs have counters and a complete set of parameters used when
+  starting the job. The 'query_set.pl' command can show a list of all
+  jobs:
 
-  (This replaces the enable_l1.pl script)
+	>./query_set.pl 172.16.1.10 schedule
+	$VAR1 = {
+          'apic15' => 'apic15',
+          'strr1' => 'apic15',
+          'apic44' => 'apic44',
+          'ldmo0' => 'apic15'
+        };
+
+  The first four letters of the job ID tell us what type of job
+  it is. For instance an 'strr' is a <recorder>. To see exactly
+  what the recorder is doing, query it:
+
+	>./job_query.pl gth30 strr1
+	$VAR1 = {
+	  'recorder' => {
+		'strr1' => {
+		   'pcm_source' => [
+			   {
+			     'bandwidth' => '64',
+			     'timeslot' => '1',
+			     'span' => '1A',
+			     'first_bit' => '0'
+			   }
+			 ],
+		   'owner' => 'apic15',
+		   'tcp_sink' => [
+			 {
+			   'ip_port' => '34835',
+			   'ip_addr' => '172.16.2.4'
+			 }
+		       ]
+		 }
+	      }
+	};
+
+   This information is mainly intended for further treatment by a program.
+
 
 Sniff ISUP
 ----------
@@ -79,9 +118,10 @@ Sniff ISUP
 Enable L1
 ---------
 
-   Enable Layer 1 on SDH/SONET and E1/T1 hardware. Typical use:
+   Enable Layer 1 on SDH/SONET and E1/T1 hardware. Typical uses:
 
      >./enable.pl 172.16.11.9 sdh1
+     >./enable.pl 172.16.1.10 pcm1A monitoring true
 
 Map and unmap E1/T1 links carried on SDH/SONET
 ----------------------------------------------

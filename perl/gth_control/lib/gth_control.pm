@@ -177,6 +177,17 @@ sub query_resource {
     }
 }
 
+sub query_job_verbose {
+    my ($self, $id) = @_;
+
+    $self->send("<query verbose='true'><job id='$id'/></query>");
+    my $answer = $self->next_non_event();
+
+    defined $answer->{state} || die("queried bogus job $id");
+
+    my $attributes = $answer->{state}[0];
+}
+
 sub set {
     my ($self, $resource, %hash) = @_;
 
@@ -403,6 +414,10 @@ the <new><mtp2_monitor>... command.
 
   Queries the given resource's attribute. Returns a value.
 
+=item query_job_verbose (Id)
+
+  Queries a job. Return a raw data structure.
+
 =item set (Name, Attribute, Value, ...)
 
   Sets the given attribute of a resource.
@@ -430,6 +445,6 @@ Copyright (C) 2009 by Corelatus AB, Stockholm, Sweden
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself, either Perl version 5.10.0 or,
-at your option, any later version of Perl 5 you may have available.
+at your option, any later version of Perl you may have available.
 
 =cut
