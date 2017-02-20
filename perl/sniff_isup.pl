@@ -91,14 +91,31 @@ sub decode_isup {
 sub isup_iam {
     my ($ignore, $CIC, $sif) = @_;
     # First 5 octets can be ignored
-    my ($_ignore, $_ignore2, $bnum_pointer, $anum_pointer)
+    my ($_ignore, $_ignore2, $bnum_pointer, $optional_param_ptr)
 	= unpack("NCCC", $sif);
     my $bnum = substr($sif, 5 + $bnum_pointer);
-    my $anum = substr($sif, 7 + $anum_pointer);
+    my $decoded_anum = find_caller_number($optional_param_ptr, substr($sif, 6));
     my $decoded_bnum = isup_number($bnum);
-    my $decoded_anum = isup_number($anum);
     print "IAM called party: $decoded_bnum calling party: $decoded_anum CIC=$CIC\n";
 }
+
+sub find_caller_number {
+    my ($pointer, $sif) = @_;
+
+    while ($pointer != 0) {
+        my $typecode = ord(substr($sif, $pointer, 1));
+        if ($typecode == 0) { goto EXIT };
+
+        my $length = ord(substr($sif, $pointer + 1, 1));
+        if ($typecode == 0x0a) {
+            return isup_number(substr($sif, $pointer + 1));
+        }
+        $pointer += $length + 2;
+    }
+
+    EXIT: return "unknown";
+}
+
 
 # Decode an ISUP number, as per C 3.7
 sub isup_number {

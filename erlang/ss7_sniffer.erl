@@ -153,11 +153,27 @@ isup_iam(CIC, <<_Nature_of_connection,  %% 3.23
 	       Parameters/binary>>) ->
 
     B = isup_number(Parameters),
-    Skip_bits = (Pointer_to_optional + 0) * 8,
-    <<_:Skip_bits, Optional/binary>> = Parameters,
-    A = isup_number(Optional),
+    A = possibly_decode_caller_number(Pointer_to_optional, Parameters),
     io:fwrite("IAM: CIC=~p Calling (A) number=~s Called (B) number=~s\n",
 	      [CIC, A, B]).
+
+possibly_decode_caller_number(0, _Parameters) -> %% pointer is zero
+    "unknown";
+possibly_decode_caller_number(Pointer, Parameters) ->
+    Skip_bits = (Pointer -1) * 8,
+    <<_:Skip_bits, Optional/binary>> = Parameters,
+    possibly_decode_caller_number(Optional).
+
+%% Optional parameters each have a one-octet identifier (Table C-4)
+%% and a one-octet length identifies parameters. Step through them
+%% to find the A-number, if there is one.
+possibly_decode_caller_number(<<0>>) -> %% End of optional parameters
+    "unknown";
+possibly_decode_caller_number(<<16#0a, Number/binary>>) ->
+    isup_number(Number);
+possibly_decode_caller_number(<<_Other, Length, Rest/binary>>) ->
+    <<_skip:Length/binary, Next/binary>> = Rest,
+    possibly_decode_caller_number(Next).
 
 isup_rlc(CIC, Tail) ->
     io:fwrite("RLC: CIC=~p Tail=~p\n", [CIC, Tail]).

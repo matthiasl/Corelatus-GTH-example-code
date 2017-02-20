@@ -82,14 +82,26 @@ def decode_isup(sif):
         }
     action.get(type, isup_ignore)(type, CIC, rest)
 
+# A-number may or may not be present. Cycle through all optional parameters
+# to try to find it.
+def find_caller_number(sif, pointer):
+    while pointer != 0 and ord(sif[pointer]) != 0:
+        typecode = sif[pointer]
+        length = ord(sif[pointer + 1])
+        if ord(typecode) == 0x0a:
+            return isup_number(sif[pointer + 1:])
+        pointer += length + 2
+
+    return "unknown"
+
 def isup_iam(_, CIC, sif):
     # First 5 octets can be ignored
     bnum_pointer = ord(sif[5])
-    anum_pointer = ord(sif[6])
+    optional_params_pointer = ord(sif[6])
     bnum = sif[5 + bnum_pointer:]
-    anum = sif[7 + anum_pointer:]
+    anum = find_caller_number(sif[6:], optional_params_pointer)
     print "IAM called party: %s calling party: %s CIC=%d" \
-        % (isup_number(bnum), isup_number(anum), CIC)
+        % (isup_number(bnum), anum, CIC)
 
 # Decode an ISUP number, as per C 3.7
 def isup_number(num):
