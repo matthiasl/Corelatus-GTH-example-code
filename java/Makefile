@@ -24,7 +24,7 @@ example_classes=$(addprefix corelatus/gth/, \
 	)
 
 ifndef CLASSPATH
-fail:
+ship:
 	@echo "------------------------------------------------------"
 	@echo "Warning: skipping java tools build because you have no CLASSPATH"
 	@echo "CLASSPATH should include xerces.jar and xalan.jar, "
@@ -32,9 +32,10 @@ fail:
 	@echo ""
 	@echo "Warning: faking java build."
 	touch gth_upgrade.jar $(archive_filename)
+else
+ship: gth_upgrade.jar $(archive_filename)
 endif
 
-ship: gth_upgrade.jar $(archive_filename)
 
 $(archive_filename):
 	zip $@ Makefile corelatus/gth/*.java README
