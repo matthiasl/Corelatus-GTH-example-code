@@ -234,6 +234,7 @@ typedef struct {
 // Command-line options provided by the user
 struct Options {
   int monitoring;
+  int skip_l1_setup;
   int verbose;
   int n_sus_per_file;
   int duration_per_file;
@@ -269,12 +270,13 @@ usage() {
 	  "save_to_pcap <options> <GTH-IP> <channels> [<channels>...] <filename>"
 	  "\n\nSave decoded signal units to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
-	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-m] [-n <rotation>]"
-	  "\n           [-p mtp2|lapd|aal0|aal2|aal5] [-v]\n"
+	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-l] [-m] [-n <rotation>]"
+	  "\n           [-p mtp2|lapd|aal0|aal2|aal5] [-s] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p aal5)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
+	  "\n-l skip layer 1 setup; assume it is already done"
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
@@ -1599,6 +1601,8 @@ process_arguments(char **argv,
       argv++;
       break;
 
+    case 'l': opts->skip_l1_setup = 1; break;
+
     case 'm': opts->monitoring = 1; break;
 
     case 'n':
@@ -1767,7 +1771,9 @@ main(int argc, char **argv)
   process_arguments(argv, argc, &options);
   connect_to_gth(&api, &options);
   read_hw_description(&api, options.hostname);
-  enable_l1(&api, options.channels, options.n_channels, options.monitoring);
+  if (!options.skip_l1_setup) {
+    enable_l1(&api, options.channels, options.n_channels, options.monitoring);
+  }
 
   listen_socket = gth_make_listen_socket(&listen_port);
   start_function = lookup_start_function(options.protocol);
