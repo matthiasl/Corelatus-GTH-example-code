@@ -307,16 +307,16 @@ void gth_event_handler(void *data, GTH_resp *resp)
       const char *name = attribute_value(child, "name");
       const char *length = attribute_value(child, "length");
       api->tone_handler(name, atoi(length));
-      break;
     }
+    break;
 
   case GTH_RESP_LEVEL:
     if (api->tone_handler) {
       const char *id = attribute_value(child, "detector");
       const char *state = attribute_value(child, "state");
       api->tone_handler(id, strcmp(state, "noisy") == 0);
-      break;
     }
+    break;
 
     // no handler -> fall through to printing the tone event
   default:
