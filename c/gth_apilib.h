@@ -355,14 +355,18 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port);
 
-// Start MTP-2 monitoring, with non-default options. The options are
-// key/value pairs exactly as per the API manual, for instance
-// option.name = "fisu"; option.value = "no".
+// Start MTP-2 monitoring, with non-default options.
+//
+// options: key/value pairs exactly as per the API manual, for instance
+//          option.name = "fisu"; option.value = "no".
+//
+// bandwidth: 64 (normal), 48 (Japan), 56 (North America)
 int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const int tag,
 			     const char *span,
 			     const int timeslots[],
 			     const int n_timeslots,
+                             const int bandwidth,
 			     char *job_id,
 			     const char *ip,
 			     const int port,

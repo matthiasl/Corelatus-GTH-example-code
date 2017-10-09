@@ -242,6 +242,7 @@ struct Options {
   int esnf;
   int vpi;
   int vci;
+  int bandwidth;
   char *hostname;
   Channel_t channels[MAX_CHANNELS];
   int n_channels;
@@ -273,6 +274,7 @@ usage() {
 	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-l] [-m] [-n <rotation>]"
 	  "\n           [-p mtp2|lapd|aal0|aal2|aal5] [-s] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p aal5)"
+          "\n-b 56|48 bandwidth, in kbit/s (used for ANSI/NTT subrate MTP-2)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
@@ -281,7 +283,7 @@ usage() {
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
           "\n-p mtp2|lapd|aal0|aal2|aal5: select the signalling protocol"
-          "\n-s: stop capturing (teriminate) instead of rotating files"
+          "\n-s: stop capturing (terminate) instead of rotating files"
           "\n-t utc=yes: append the UTC time to the filename"
           "\n-t utc=no: append the local time to the filename"
 	  "\n-v: print API commands and responses (verbose)"
@@ -589,6 +591,7 @@ monitor_mtp2(GTH_api *api,
 				    channel->source,
 				    channel->timeslots,
 				    channel->n_timeslots,
+                                    options.bandwidth,
 				    job_id, api->my_ip, listen_port,
 				    attrs, n_attrs);
   if (result != 0)
@@ -1571,6 +1574,7 @@ process_arguments(char **argv,
   opts->format = PCAP_NG;
   opts->protocol = MTP2;
   opts->link_type = LINK_TYPE_MTP2;
+  opts->bandwidth = 64;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -1580,6 +1584,18 @@ process_arguments(char **argv,
       }
       result = sscanf(argv[2], "%d:%d", &(opts->vpi), &(opts->vci));
       if (result != 2) {
+	usage();
+      }
+      argc--;
+      argv++;
+      break;
+
+    case 'b':
+      if (argc < 3) {
+	usage();
+      }
+      result = sscanf(argv[2], "%d", &(opts->bandwidth));
+      if (result != 1) {
 	usage();
       }
       argc--;

@@ -608,16 +608,28 @@ static int kv_to_attributes(char *buffer,
 static void format_sources(const char *span,
 			   const int timeslots[],
 			   const int n_timeslots,
+                           const int bandwidth,
 			   char *sources)
 {
   char *pos = sources;
+  char *template;
   int result;
   int x;
 
+  switch (bandwidth) {
+  case 64: template = "<pcm_source span='%s' timeslot='%d'/>";
+    break;
+  case 56: template = "<pcm_source span='%s' timeslot='%d' bandwidth='56'/>";
+    break;
+  case 48: template = "<pcm_source span='%s' timeslot='%d' bandwidth='48' first_bit='1'/>";
+    break;
+  default: die("invalid bandwidth, must be 48, 56 or 64");
+  }
+
+
   for (x = 0; x < n_timeslots; x++)
     {
-      result = snprintf(pos, MAX_COMMAND - (pos - sources),
-			"<pcm_source span='%s' timeslot='%d'/>",
+      result = snprintf(pos, MAX_COMMAND - (pos - sources), template,
 			span, timeslots[x]);
       pos += result;
       assert(result < (MAX_COMMAND - (pos - sources)));
@@ -708,7 +720,7 @@ int gth_new_atm_aal0_monitor(GTH_api *api,
   template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
     "%s</atm_aal0_monitor></new>";
 
-  format_sources(span, timeslots, n_timeslots, sources);
+  format_sources(span, timeslots, n_timeslots, 64, sources);
 
   result = snprintf(command, MAX_COMMAND, template, ip, port, tag, sources);
   assert(result < MAX_COMMAND);
@@ -945,7 +957,7 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port)
 {
-  return gth_new_mtp2_monitor_opt(api, tag, span, timeslots,
+  return gth_new_mtp2_monitor_opt(api, tag, span, timeslots, 64,
 				  n_timeslots, job_id, ip, port, 0, 0);
 }
 
@@ -955,6 +967,7 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const char *span,
 			     const int timeslots[],
 			     const int n_timeslots,
+                             const int bandwidth,
 			     char *job_id,
 			     const char *ip,
 			     const int port,
@@ -974,7 +987,7 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
   template = "<new><mtp2_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
     "%s</mtp2_monitor></new>";
 
-  format_sources(span, timeslots, n_timeslots, sources);
+  format_sources(span, timeslots, n_timeslots, bandwidth, sources);
 
   result = snprintf(command, MAX_COMMAND, template,
 		    attributes, ip, port, tag, sources);
@@ -2079,7 +2092,7 @@ static int new_atm_aal_monitor(GTH_api *api,
     "vpi='%d' vci='%d'>"
     "%s</atm_aal%d_monitor></new>";
 
-  format_sources(span, timeslots, n_timeslots, sources);
+  format_sources(span, timeslots, n_timeslots, 64, sources);
 
   result = snprintf(command, MAX_COMMAND, template,
 		    aal, ip, port, tag, vpi, vci, sources, aal);
