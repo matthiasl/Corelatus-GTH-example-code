@@ -433,7 +433,7 @@ the <new><mtp2_monitor>... command.
 
 =head1 SEE ALSO
 
-http://www.corelatus.com/gth/api/
+https://www.corelatus.com/gth/api/
 
 =head1 AUTHOR
 

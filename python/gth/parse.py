@@ -56,7 +56,7 @@ def gth_out():
     """
     A grammar to parse the responses which can come out of the GTH.
     This was written with reference to gth_out.dtd
-    More information about the GTH API at http://www.corelatus.com/gth/api/
+    More information about the GTH API at https://www.corelatus.com/gth/api/
     """
 
     global gth_out_grammar
