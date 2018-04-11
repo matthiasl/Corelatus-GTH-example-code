@@ -51,7 +51,7 @@ Building the code from source
 
   - GNU make or equivalent
 
-  - A java compiler and VM. We use Oracle's Java 8 (last checked 2016-10-31)
+  - A java compiler and VM. We use Oracle's Java 8 (last checked 2018-03)
 
   - The XERCES parser and support libraries. Included in JDK 1.4 and later.
     On Debian, it's libxerces2-java.
