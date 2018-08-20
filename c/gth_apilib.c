@@ -1980,6 +1980,9 @@ void gth_switch_to(const char *hostname,
   assert(system_name);
 
   result = gth_connect(&api, hostname, 0);
+  if (result != 0) {
+    die("unable to connect to the specified GTH");
+  }
 
   if (verbose) {
     fprintf(stderr, "switching to %s\n", system_name);
