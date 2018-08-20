@@ -70,6 +70,9 @@ typedef unsigned int u32;
 typedef unsigned short u16;
 typedef unsigned char u8;
 
+#define MAX_FILENAME 100
+#define MAX_TIMESTAMP 20
+
 //--------------------------------------------------
 // PCap classic file format structures.
 #pragma pack(1)
@@ -1242,9 +1245,6 @@ write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
   flush_file(file);
 }
 
-
-#define MAX_FILENAME 100
-
 static void
 make_file_timestamp(const struct Options *opts, char *string)
 {
@@ -1269,7 +1269,7 @@ make_file_timestamp(const struct Options *opts, char *string)
 
   }
 
-  snprintf(string, MAX_FILENAME, "_%04d%02d%02d%02d%02d%02d",
+  snprintf(string, MAX_TIMESTAMP, "_%04d%02d%02d%02d%02d%02d",
            timeinfo->tm_year + 1900,
            timeinfo->tm_mon + 1,
            timeinfo->tm_mday,
@@ -1282,7 +1282,7 @@ static HANDLE_OR_FILEPTR
 open_packet_file(const struct Options *opts, int *file_number)
 {
     char filename[MAX_FILENAME];
-    char timestamp[MAX_FILENAME];
+    char timestamp[MAX_TIMESTAMP];
     HANDLE_OR_FILEPTR file;
 
     if (opts->write_to_stdout)
@@ -1704,6 +1704,9 @@ process_arguments(char **argv,
   print_channels(opts->channels, opts->n_channels);
 
   opts->base_filename = argv[current_arg];
+  if (strlen(opts->base_filename) > (MAX_FILENAME - MAX_TIMESTAMP - 10)) {
+    die("output filename is ridiculously long");
+  }
   opts->write_to_stdout = (strcmp(opts->base_filename, "-") == 0);
   opts->write_to_winpipe = is_filename_a_pipe(opts->base_filename);
 }
