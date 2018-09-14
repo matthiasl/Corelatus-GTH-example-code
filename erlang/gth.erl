@@ -126,6 +126,7 @@
 	 new_wide_recorder/3,
 	 new_tone_detector/3, new_tone_detector/4,
 	 new_tone_detector/5, new_tone_detector/6,
+	 new_v110_monitor/5,
 	 nop/1,
 	 query_jobs/3, query_jobs/2, query_job/2, query_job/3,
 	 query_resource/2, query_resource/3,
@@ -608,6 +609,12 @@ new_tone_detector(Pid, Span, Ts, Freq, Length, Event_handler)
   when is_pid(Pid), Freq > 0, Freq < 4000,  Length > 40, Length < 10000 ->
     gen_server:call(Pid, {new_tone_detector, Span, Ts, Freq, Length,
 			  Event_handler}).
+
+-spec new_v110_monitor(pid(), string(), subrate(), integer(), keyval_list())
+                      -> {'ok', Id::string(), Signalling_socket::port()}
+                             | {'error', any()}.
+new_v110_monitor(Pid, Span, Ts, Rate, Options) when is_pid(Pid) ->
+    gen_server:call(Pid, {new_v110_monitor, Span, Ts, Rate, Options}).
 
 -spec nop(pid()) ->  ok_or_error().
 nop(Pid) when is_pid(Pid) ->
@@ -1145,6 +1152,12 @@ handle_call({new_recorder, Span, Ts, Options},
 		    end,
 	    {reply, Reply, State}
     end;
+
+handle_call({new_v110_monitor, Span, Subrate, Speed, Options},
+            {Pid, _}, State) ->
+    Rep = new_signalling_monitor(Pid, State, Span, Subrate,
+                                 "v110_monitor", [{"rate", Speed}|Options]),
+    {reply, Rep, State};
 
 handle_call({new_wide_recorder, Span, Options},
 	    {Pid, _tag},
