@@ -121,19 +121,6 @@ class API:
 
         return (recorder_id, data)
 
-    def new_wide_recorder(self, span):
-        """Returns a (job_id, socket) tuple.
-        Record an entire E1, transport it over UDP to the server"""
-
-        IP, _api_port = self.socket._socket.getsockname()
-        port, data = udp_listen()
-        self.send("<new><wide_recorder span='%s'>" \
-                             "<udp_sink ip_addr='%s' ip_port='%d'/>" \
-                             "</wide_recorder></new>" \
-                             % (span, IP, port))
-        recorder_id, _ignored_events = self.receive_job_id()
-        return (recorder_id, data)
-
     def query_resource(self, name):
         """Returns a dict of attributes
         Query a GTH resource"""

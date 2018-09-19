@@ -64,16 +64,6 @@ E1/T1 timeslot dump to a file
     >./record.py 172.16.2.7 1A 16 4000 signalling.raw
     All done, wrote 4000 octets
 
-
-E1/T1 full dump to a file
--------------------------
-
-  This demonstrates the experimental (as of 2013-01) 'wide_recorder'
-  feature which is available on the SDH/SONET Monitoring Probe only.
-
-    >./wide_recorder.py 172.16.1.10 1 /tmp/full_e1.raw
-
-
 Sniff ISUP
 ----------
 
@@ -90,4 +80,3 @@ Sniff ISUP
      RLC on CIC=0
 
 # eof
-
