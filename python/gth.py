@@ -22,14 +22,14 @@ gth.py [-vN] <hostname> <command> [<argument> [<argument> ...]]
 
 Examples:
 
-     ./gth.py disable 172.16.1.10 sdh1
-     ./gth.py enable  172.16.1.10 sdh1
-     ./gth.py map     172.16.1.10 sdh1:hop1_1:lop1_1_1
-     ./gth.py query   172.16.1.10 os
-     ./gth.py reset   172.16.1.10
-     ./gth.py set     172.16.1.10 eth2 "IP4 address" 192.168.1.15
-     ./gth.py unmap   172.16.1.10 pcm13
-     ./gth.py zero    172.16.1.10 pcm13
+     ./gth.py 172.16.1.10 disable sdh1
+     ./gth.py 172.16.1.10 enable  sdh1
+     ./gth.py 172.16.1.10 map     sdh1:hop1_1:lop1_1_1
+     ./gth.py 172.16.1.10 query   os
+     ./gth.py 172.16.1.10 reset
+     ./gth.py 172.16.1.10 set     eth2 "IP4 address" 192.168.1.15
+     ./gth.py 172.16.1.10 unmap   pcm13
+     ./gth.py 172.16.1.10 zero    pcm13
 
 
 """)
