@@ -52,6 +52,27 @@ class API:
             raise SemanticError(se)
         print reply.name
 
+    def new_atm_aal5_monitor(self, span, timeslot_list, (vpi, vci), opts = {}):
+        """Returns a (job_id, socket) tuple.
+        Monitor ATM AAL5 on a GTH. Socket returned uses the format defined in
+        the GTH API manual, under new_atm_aal5_monitor."""
+
+        IP, _api_port = self.socket._socket.getsockname()
+        port, ls = tcp_listen()
+        opts['ip_addr'] = IP
+        opts['ip_port'] = "%d" % port
+        opts['vpi'] = "%d" % vpi
+        opts['vci'] = "%d" % vci
+
+        self.send("<new><atm_aal5_monitor %s>%s" \
+                  "</atm_aal5_monitor></new>"\
+                  % (options(opts), sources(span, timeslot_list)))
+        aal5_id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+
+        return (aal5_id, data)
+
     def new_fr_monitor(self, span, timeslots):
         """Returns a (job_id, socket) tuple.  Monitor Frame Relay on a
         GTH. Socket returned uses the format defined in the GTH API
@@ -72,7 +93,7 @@ class API:
     def new_mtp2_monitor(self, span, timeslot):
         """Returns a (job_id, socket) tuple.
         Monitor MTP-2 on a GTH. Socket returned uses the format defined in
-        the GTH API manual, under new_fr_monitor."""
+        the GTH API manual, under new_mtp2_monitor."""
 
         IP, _api_port = self.socket._socket.getsockname()
         port, ls = tcp_listen()
@@ -214,15 +235,22 @@ class API:
         else:
             raise SemanticError(answer)
 
+def options(dict):
+    "Returns a string with an XML representation of a list of key/value opts"
+
+    list = ""
+    for key,val in dict.items():
+        list += " " + key + "='" + val + "'"
+    return list
+
 def sources(span, timeslots):
     "Returns a string with an XML representation of the sources"
 
     list = ""
     for ts in timeslots:
-        list += "<pcm_source span='%s' timeslot='%d'/>" % span, ts
+        list += "<pcm_source span='%s' timeslot='%d'/>" % (span, ts)
 
     return list
-
 
 
 def tcp_listen():
