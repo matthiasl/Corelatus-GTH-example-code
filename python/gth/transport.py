@@ -22,6 +22,7 @@
 import sys
 from sys import stderr
 import socket
+import select
 import gth.parse
 import pyparsing
 
@@ -57,9 +58,16 @@ class API_socket:
   def send_fs_image(self, data):
     send(self, data, "binary/filesystem")
 
-  # revisit: what do we do with the timeout? Does this make sense in python?
+  def check_is_readable(self, timeout):
+    readable, writable, exceptional = select.select([self._file], [], [self._file], timeout)
+    if readable == []:
+      raise TransportError("timeout")
+
   def receive_raw(self, timeout = 5000):
     """Return the next block from the API socket"""
+
+    self.check_is_readable(timeout)
+
     try:
       first = self._file.readline(100)
       second = self._file.readline(100)
@@ -86,7 +94,6 @@ class API_socket:
     except pyparsing.ParseException, detail:
       raise ParseError, (string, detail)
 
-  # revisit: the timeout, again
   # read exactly the number of bytes requested, or fail
   def _definite_read(self, length):
     data = self._file.read(length)
@@ -110,4 +117,3 @@ class ParseError(Exception):
     stderr.write("Unexpected and unparseable GTH reply:\n")
     stderr.write(text)
     stderr.write("\n")
-
