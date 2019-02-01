@@ -1358,8 +1358,9 @@ handle_info(kick, State = #state{socket = S}) ->
     end;
 
 handle_info({tcp_closed, S}, State = #state{socket = S}) ->
-    {stop, {"API socket closed unexpectedly", State#state.debug_remote_ip},
-     State#state{socket = none}}.
+    error_logger:info_report({"API socket closed unexpectedly; shutdown",
+                               State#state.debug_remote_ip}),
+    {stop, shutdown, State#state{socket = none}}.
 
 terminate(_Reason, _State) ->
     ok.
