@@ -142,6 +142,26 @@ class API:
 
         return (recorder_id, data)
 
+    def new_v110_monitor(self, span, timeslot, first_bit, n_bits, ra0="no"):
+        """Returns a (job_id, socket) tuple.
+        Monitor V.110. Socket returned uses the format defined in
+        the GTH API manual, under new_fr_monitor."""
+
+        IP, _api_port = self.socket._socket.getsockname()
+        port, ls = tcp_listen()
+        self.send("<new>"\
+                  "<v110_monitor ip_addr='%s' ip_port='%s' rate='%d' ra0='%s'>"\
+                  "<pcm_source span='%s' timeslot='%d'"\
+                  " first_bit='%d' bandwidth='%d'/>"\
+                  "</v110_monitor></new>"\
+                  % (IP, port, 4800 * n_bits, ra0,\
+                     span, timeslot, first_bit, n_bits * 8) )
+        id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+
+        return (id, data)
+
     def query_resource(self, name):
         """Returns a dict of attributes
         Query a GTH resource"""
