@@ -1007,7 +1007,7 @@ max_arg(int a, int b)
 
 
 
-// Block (or loop) until a packet arrives. Flush API events with <nop/>
+// Block (or loop) until a packet arrives.
 // Returns 0 on timeout, 1 otherwise.
 static int
 wait_for_packet(GTH_api *api, int data_socket)
@@ -1038,7 +1038,7 @@ wait_for_packet(GTH_api *api, int data_socket)
 
       if (FD_ISSET(api->fd, &fds))
 	{
-	  gth_nop(api);
+          gth_process_event(api);
 	}
 
       if (FD_ISSET(data_socket, &fds))
@@ -1746,6 +1746,17 @@ void event_handler(void *data, GTH_resp *resp)
 
   case GTH_RESP_SDH_MESSAGE: {
     // suppress SDH messages; use the -v switch to see them
+    break;
+  }
+
+  case GTH_RESP_ATM_MESSAGE:     /* fall through */
+  case GTH_RESP_F_RELAY_MESSAGE: /* fall through */
+  case GTH_RESP_LAPD_MESSAGE:    /* fall through */
+  case GTH_RESP_MTP2_MESSAGE: {
+    gth_print_timestamp();
+    fprintf(stderr, "signalling job %s changed state to '%s'\n",
+            gth_attribute_value(child, "id"),
+            gth_attribute_value(child, "value"));
     break;
   }
 

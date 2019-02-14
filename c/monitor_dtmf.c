@@ -124,7 +124,7 @@ int main(int argc, char** argv)
   while (detections != 0) {
     result = select(api.fd + 1, &readfds, 0, 0, 0);
     assert(result == 1);
-    gth_nop(&api);
+    gth_process_event(&api);
   }
 
   return 0;

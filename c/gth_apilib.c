@@ -146,8 +146,6 @@ static int definite_read(int fd,
 			 const int max_response_length);
 static GTH_resp *gth_next_non_event(GTH_api *api);
 static void string_write(int s, const char* string);
-static char *attribute_value(const GTH_resp *resp, const char *key);
-static char *attribute_value_and_clear(GTH_resp *resp, const char *key);
 static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
@@ -249,7 +247,7 @@ void *checked_malloc(size_t size)
   return result;
 }
 
-void print_timestamp()
+void gth_print_timestamp()
 {
   char timestring[50];  // manpage promises max 26 bytes
   char *nl;
@@ -281,7 +279,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
   switch (child->type) {
 
   case GTH_RESP_INFO: {
-    const char *reason = attribute_value(child, "reason");
+    const char *reason = gth_attribute_value(child, "reason");
 
     if (!strcmp(reason, "failsafe_mode")) {
       api->is_failsafe = 1;
@@ -297,30 +295,30 @@ void gth_event_handler(void *data, GTH_resp *resp)
   case GTH_RESP_LAPD_MESSAGE:     // fall through
   case GTH_RESP_MTP2_MESSAGE:     // fall through
   case GTH_RESP_SYNC_MESSAGE: {
-    print_timestamp();
+    gth_print_timestamp();
     gth_print_tree(resp);
     break;
   }
 
   case GTH_RESP_TONE:
     if (api->tone_handler) {
-      const char *name = attribute_value(child, "name");
-      const char *length = attribute_value(child, "length");
+      const char *name = gth_attribute_value(child, "name");
+      const char *length = gth_attribute_value(child, "length");
       api->tone_handler(name, atoi(length));
     }
     break;
 
   case GTH_RESP_LEVEL:
     if (api->tone_handler) {
-      const char *id = attribute_value(child, "detector");
-      const char *state = attribute_value(child, "state");
+      const char *id = gth_attribute_value(child, "detector");
+      const char *state = gth_attribute_value(child, "state");
       api->tone_handler(id, strcmp(state, "noisy") == 0);
     }
     break;
 
     // no handler -> fall through to printing the tone event
   default:
-    print_timestamp();
+    gth_print_timestamp();
     fprintf(stderr,
 	    "gth_event_handler got an event, handling with default handler\n");
     gth_print_tree(resp);
@@ -507,7 +505,7 @@ static int is_install_done_event(GTH_resp *resp)
     child = resp->children + 0;
 
     if (child->type == GTH_RESP_INFO) {
-      if (!strcmp("install_done", attribute_value(child, "reason"))) {
+      if (!strcmp("install_done", gth_attribute_value(child, "reason"))) {
 	return 1;
       }
     }
@@ -1166,7 +1164,7 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
     child = resp->children + 0;
 
     if (child->type == GTH_RESP_MESSAGE_ENDED) {
-      event_job_id = attribute_value(child, "id");
+      event_job_id = gth_attribute_value(child, "id");
       if (!strcmp(event_job_id, job_id)) {
 	gth_free_resp(resp);
 	return 0;
@@ -1198,7 +1196,7 @@ static int recv_job_id(GTH_api *api, char *id)
 
   if (resp->type == GTH_RESP_JOB)
     {
-      id_attr = attribute_value(resp, "id");
+      id_attr = gth_attribute_value(resp, "id");
       strncpy_s(id, MAX_JOB_ID, id_attr, MAX_JOB_ID - 1);
     }
   else
@@ -1469,10 +1467,7 @@ static void api_write_non_xml(int s,
   assert(result == len);
 }
 
-// Returns null if the attribute isn't there.
-//
-// Does not change the resp at all.
-static char *attribute_value(const GTH_resp *resp, const char *key) {
+const char *gth_attribute_value(const GTH_resp *resp, const char *key) {
   int x;
 
   assert(resp);
@@ -1487,11 +1482,7 @@ static char *attribute_value(const GTH_resp *resp, const char *key) {
   return 0;
 }
 
-// Returns null if the attribute isn't there.
-//
-// Clears the value pointer in the resp, the caller is responsible for
-// calling free() on the returned value.
-static char *attribute_value_and_clear(GTH_resp *resp, const char *key) {
+char *gth_attribute_value_and_clear(GTH_resp *resp, const char *key) {
   int x;
   char *copy;
 
@@ -1551,8 +1542,8 @@ int gth_query_resource_attribute(GTH_api *api,
 
 	assert(attribute->type == GTH_RESP_ATTRIBUTE);
 
-	name  = attribute_value(attribute, "name");
-	value = attribute_value(attribute, "value");
+	name  = gth_attribute_value(attribute, "name");
+	value = gth_attribute_value(attribute, "value");
 
 	assert(name);
 	assert(value);
@@ -1583,7 +1574,7 @@ int gth_query_job(GTH_api *api,
   char buffer[MAX_COMMAND];
   GTH_resp *resp;
   GTH_resp *job;
-  char *owner_copy;
+  const char *owner_copy;
   int x;
   int retval = 0;
 
@@ -1603,7 +1594,7 @@ int gth_query_job(GTH_api *api,
     {
       job = resp->children;
 
-      owner_copy = attribute_value(job, "owner");
+      owner_copy = gth_attribute_value(job, "owner");
       strncpy_s(owner, MAX_JOB_ID, owner_copy, MAX_JOB_ID - 1);
 
       *n_attributes = job->n_children;
@@ -1618,8 +1609,8 @@ int gth_query_job(GTH_api *api,
 	if (attribute->type != GTH_RESP_ATTRIBUTE)
 	  die("invalid response from GTH");
 
-	name  = attribute_value_and_clear(attribute, "name");
-	value = attribute_value_and_clear(attribute, "value");
+	name  = gth_attribute_value_and_clear(attribute, "name");
+	value = gth_attribute_value_and_clear(attribute, "value");
 
 	(*attributes)[x].key   = name;
 	(*attributes)[x].value = value;
@@ -1712,8 +1703,8 @@ static int query_single_resource(GTH_api *api,
 	if (attribute->type != GTH_RESP_ATTRIBUTE)
 	  die("invalid response from GTH");
 
-	name  = attribute_value_and_clear(attribute, "name");
-	value = attribute_value_and_clear(attribute, "value");
+	name  = gth_attribute_value_and_clear(attribute, "name");
+	value = gth_attribute_value_and_clear(attribute, "value");
 
 	(*attributes)[x].key   = name;
 	(*attributes)[x].value = value;
@@ -1735,8 +1726,8 @@ static int query_single_resource(GTH_api *api,
         if (job->type != GTH_RESP_JOB)
           die("invalid response from GTH");
 
-        id = attribute_value_and_clear(job, "id");
-	owner = attribute_value_and_clear(job, "owner");
+        id = gth_attribute_value_and_clear(job, "id");
+	owner = gth_attribute_value_and_clear(job, "owner");
 
 	(*attributes)[x].key   = id;
 	(*attributes)[x].value = owner;
@@ -1782,7 +1773,7 @@ static int query_inventory(GTH_api *api,
 	if (resource->type != GTH_RESP_RESOURCE)
 	  die("invalid response from GTH");
 
-	name  = attribute_value_and_clear(resource, "name");
+	name  = gth_attribute_value_and_clear(resource, "name");
 
 	(*attributes)[x].key   = name;
 	(*attributes)[x].value = 0;
@@ -1879,7 +1870,7 @@ static void my_ip_address(GTH_api *api)
 
   assert(resp && resp->type == GTH_RESP_STATE);
   assert(resp->n_children == 1 && resp->children[0].type == GTH_RESP_JOB);
-  job_id = attribute_value(resp->children+0, "id");
+  job_id = gth_attribute_value(resp->children+0, "id");
   snprintf(buffer, sizeof(buffer), "<query><job id='%s'/></query>", job_id);
 
   gth_free_resp(resp);
@@ -1889,7 +1880,7 @@ static void my_ip_address(GTH_api *api)
   assert(resp && resp->type == GTH_RESP_STATE);
   assert(resp->n_children == 1
 	 && resp->children[0].type == GTH_RESP_CONTROLLER);
-  ip_addr = attribute_value(resp->children+0, "ip_addr");
+  ip_addr = gth_attribute_value(resp->children+0, "ip_addr");
   assert(strlen(ip_addr) < sizeof(api->my_ip));
 
   strncpy_s(api->my_ip, sizeof(api->my_ip), ip_addr, sizeof(api->my_ip) - 1);
@@ -1960,6 +1951,27 @@ int gth_wait_for_event(GTH_api *api, const int milliseconds)
   result = select(api->fd + 1, &readfds, 0, 0, &timeout);
 
   if (result == 0) return -1; // timeout
+
+  return 0;
+}
+
+int gth_process_event(GTH_api *api)
+{
+  int result;
+  char buffer[MAX_COMMAND];
+  GTH_resp *resp = 0;
+
+  result = next_api_response(api, buffer, sizeof(buffer));
+  if (result != 0) {
+    return 1;
+  }
+  resp = gth_parse(buffer);
+
+  assert(resp);
+  assert(resp->type == GTH_RESP_EVENT);
+  assert(api->event_handler);
+  (*(api->event_handler))(api, resp);
+  gth_free_resp(resp);
 
   return 0;
 }

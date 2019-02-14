@@ -19,7 +19,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2013, 2009, Corelatus AB Stockholm
+// Copyright (c) 2013, 2009, 2019, Corelatus AB Stockholm
 //
 // Licence: BSD
 //
@@ -501,6 +501,11 @@ int gth_wait_for_reboot(const char *hostname);
 //        -1 on timeout
 int gth_wait_for_event(GTH_api *api, const int milliseconds);
 
+// Block until an event arrives, then process it.
+//
+// Return 0 on success
+int gth_process_event(GTH_api *api);
+
 // Make a GTH run the specified software image. If necessary, this
 // reboots the GTH.
 //
@@ -509,6 +514,26 @@ int gth_wait_for_event(GTH_api *api, const int milliseconds);
 void gth_switch_to(const char *hostname,
 		   const char *system_name,
 		   const int verbose);
+
+// Helper function for manipulating API GTH response trees; mainly useful
+// inside a custom event handler.
+//
+// Return the value of the given attribute in a resp, null if absent.
+//
+// Does not change the resp at all.
+const char *gth_attribute_value(const GTH_resp *resp, const char *key);
+
+// Helper function for manipulating API GTH response trees; mainly useful
+// inside a custom event handler.
+//
+// Returns the value of the given attribute in a resp, null if absent.
+//
+// Clears the value pointer in the resp, the caller is responsible for
+// calling free() on the returned value.
+char *gth_attribute_value_and_clear(GTH_resp *resp, const char *key);
+
+// Print a timestamp to stderr. Intended for logging.
+void gth_print_timestamp();
 
 // The Win32 socket library needs some startup actions before it works.
 // So call this before doing anything if you're running on win32.
