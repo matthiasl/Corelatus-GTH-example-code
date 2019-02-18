@@ -162,7 +162,7 @@ static void record_a_file(GTH_api *api,
 {
   int data_socket;
   char buffer[2000];
-  size_t octet_count;
+  ssize_t octet_count;
   int octet_sum = 0;
   char job_id[MAX_JOB_ID];
   int result;

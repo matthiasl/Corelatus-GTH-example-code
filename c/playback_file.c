@@ -83,7 +83,7 @@ static void play_a_file(GTH_api *api,
   size_t octet_count;
   size_t octet_sum = 0;
   char job_id[MAX_COMMAND];
-  int result;
+  ssize_t result;
   FILE* file = 0;
 
   if ( (timeslot < 1) || (timeslot > 31) ) {

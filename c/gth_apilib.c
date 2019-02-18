@@ -1278,7 +1278,7 @@ static int definite_read(int fd,
 			 const int max_response_length)
 {
   size_t to_read;
-  int result;
+  ssize_t result;
 
   to_read = length;
   if (max_response_length <= length) {
@@ -1441,12 +1441,12 @@ static GTH_resp *gth_next_non_event(GTH_api *api) {
 
 static void string_write(int s, const char* string)
 {
-  size_t result;
+  ssize_t result;
 
   assert(string);
 
   result = send(s, string, strlen(string), 0);
-  if (result != strlen(string)) {
+  if (result != (ssize_t)strlen(string)) {
     die("unexpected failure writing a string to the GTH");
   }
 }

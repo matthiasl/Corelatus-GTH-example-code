@@ -148,7 +148,7 @@ static void send_dl_establish_req(int data_socket)
 static void send_dl_data_req(int data_socket)
 {
   GTH_lapd_tx_su su;
-  size_t result;
+  ssize_t result;
 
   su.length = htons(6 + 11);
   su.tag = 0;
@@ -158,7 +158,7 @@ static void send_dl_data_req(int data_socket)
   strcpy(su.payload, "hello world");
 
   result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
-  assert(result == ntohs(su.length) + sizeof(su.length));
+  assert(result == (ssize_t)(ntohs(su.length) + sizeof(su.length)));
 }
 
 // Start up duplex LAPD on the given timeslot
@@ -193,7 +193,7 @@ static int setup_lapd(GTH_api *api,
 
 // Read exactly the requested number of bytes from the given descriptor
 void read_exact(int fd, char *buf, size_t count) {
-  size_t this_time;
+  ssize_t this_time;
 
   while (count > 0) {
     this_time = recv(fd, buf, count, 0);

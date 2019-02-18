@@ -726,7 +726,7 @@ monitor_aal5(GTH_api *api,
 void
 read_exact(int fd, char* buf, size_t count)
 {
-  size_t this_time;
+  ssize_t this_time;
 
   while (count > 0) {
     this_time = recv(fd, buf, count, 0);

@@ -3,7 +3,7 @@
 //
 //    Case 1. gcc native-compiling on a unix-like system
 //    Case 2. gcc cross-compiling for win32 (using mingw32msvc-gcc)
-//    Case 3. visual studio 2010 native compiling on win32
+//    Case 3. Microsoft visual studio compiling Windows
 //
 //
 // Sources of problems
@@ -29,7 +29,9 @@
 //       for printing size_t. Windows doesn't.
 //
 //    E. C99 and GNU-89 disagree about what 'extern inline' means.
-//       
+//
+//    F. Microsoft don't have ssize_t
+//
 //
 //
 #ifndef GTH_WIN32_COMPAT_H
@@ -50,6 +52,10 @@
 
 #define HANDLE_OR_FILEPTR HANDLE
 #define PACK_SUFFIX
+
+// Microsoft VS does not support ssize_t; it's POSIX
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
 
 //----------------------------------------------------------------------
 // Cases 1 & 2
