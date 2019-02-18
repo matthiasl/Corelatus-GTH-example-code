@@ -1030,6 +1030,32 @@ int gth_new_player(GTH_api *api,
   return (result == 0)?data_socket:-1;
 }
 
+
+int gth_new_raw_monitor(GTH_api *api,
+                        const int tag,
+                        const char *span,
+                        const int timeslot,
+                        char *job_id,
+                        const char *ip,
+                        const int port)
+{
+  char command[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  template = "<new><raw_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+    "<pcm_source span='%s' timeslot='%d'/></raw_monitor></new>";
+
+  result = snprintf(command, MAX_COMMAND, template,
+                    ip, port, tag, span, timeslot);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
+
 int gth_new_recorder(GTH_api *api,
 		     const char *span,
 		     int timeslot,

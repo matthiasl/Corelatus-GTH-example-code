@@ -381,6 +381,23 @@ int gth_new_player(GTH_api *api,
 		   int timeslot,      // E1: 1--31   T1: 1--24
 		   char *job_id);     // function writes the job-id here
 
+// Start raw timeslot monitoring.
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_raw_monitor(GTH_api *api,
+                        const int tag,
+                        const char *span,
+                        const int timeslots,
+                        char *job_id,
+                        const char *ip,
+                        const int port);
+
 // Return: the file descriptor (>= 0) on success.
 //
 // The file descriptor is a socket the recorder data gets written to
