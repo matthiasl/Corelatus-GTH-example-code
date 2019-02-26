@@ -525,13 +525,14 @@ new_player(Pid, Clips, Span, Ts, Loop)
     gen_server:call(Pid, {new_player, Clips, Span, Ts, Loop}).
 
 %% Raw monitors are experimental (unsupported & undocumented, 2011-12-09)
--spec new_raw_monitor(pid(), string(), 0..31, monitoring_options()) ->
+-spec new_raw_monitor(pid(), string(), 0..31 | subrate(),
+                      monitoring_options()) ->
 			 {ok, string(), Raw_socket::port()} | {error, any()}.
 new_raw_monitor(Pid, Span, Ts) ->
     new_raw_monitor(Pid, Span, Ts, []).
 
 new_raw_monitor(Pid, Span, Ts, Options)
-  when is_pid(Pid), is_integer(Ts), is_list(Options) ->
+  when is_pid(Pid), is_list(Options) ->
     gen_server:call(Pid, {new_raw_monitor, Span, Ts, Options}).
 
 
