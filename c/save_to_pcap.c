@@ -164,9 +164,9 @@ struct NG40_aal2_header {
 
 // How many channels can we run at the same time?
 //
-// The hardware also has a limit; if we go over that we'll get an error
-// back via the API.
-#define MAX_CHANNELS 96
+// The maximum differs depending on hardware and protocol, if exceeded
+// the port-2089 API will return a 'refused' error with reason 'capacity.
+#define MAX_CHANNELS 400
 
 struct GTH_mtp2_lapd {
   char payload[MAX_SIGNAL_UNIT];
