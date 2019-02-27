@@ -961,13 +961,6 @@ handle_call({new_clip, Name, Bin}, _From, State = #state{socket = S}) ->
     Reply = receive_job_id(State),
     {reply, Reply, State};
 
-handle_call({new_connection, S_span, S_ts, D_IP, D_span, D_ts}, _From, State) ->
-    send_xml(State, xml:new("connection", [],
-				    [xml:pcm_source(S_span, S_ts),
-				     xml:pcm_sink(D_IP, D_span, D_ts)])),
-    Reply = receive_job_id(State),
-    {reply, Reply, State};
-
 handle_call({new_connection, S_span, S_ts, D_span, D_ts}, _From, State) ->
     send_xml(State, xml:new("connection", [],
 			    [xml:pcm_source(S_span, S_ts),
