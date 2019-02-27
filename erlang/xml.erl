@@ -17,8 +17,8 @@
 	 new/3,
 	 new_clip/1,
 	 pcm_sink/2,
-	 pcm_sink/3,
 	 pcm_source/2,
+	 pcm_source/4,
 	 player/3, player/4,
 	 query_jobs/2, query_job/1,
 	 query_resource/1,
@@ -91,14 +91,16 @@ pcm_source(Span, Timeslot) when is_integer(Timeslot) ->
     ST = integer_to_list(Timeslot),
     tag("pcm_source", [{"span", Span}, {"timeslot", ST}], []).
 
+pcm_source(Span, Timeslot, First_bit, Bandwidth)
+  when is_integer(Timeslot),
+       First_bit >= 0, First_bit < 8,
+       Bandwidth >= 8, Bandwidth =< 64 ->
+    tag("pcm_source", [{"span", Span}, {"timeslot", Timeslot},
+                       {"first_bit", First_bit}, {"bandwidth", Bandwidth}], []).
+
 pcm_sink(Span, Timeslot) when is_integer(Timeslot) ->
     ST = integer_to_list(Timeslot),
     tag("pcm_sink", [{"span", Span}, {"timeslot", ST}], []).
-
-%% Experimental version for EBS. Experimental as at 2008-09-23
-pcm_sink(IP, Span, Timeslot) when is_integer(Timeslot) ->
-    ST = integer_to_list(Timeslot),
-    tag("pcm_sink", [{"ip_addr", IP}, {"span", Span}, {"timeslot", ST}], []).
 
 query_jobs(Ids, Verbose) ->
     Attrs = case Verbose of

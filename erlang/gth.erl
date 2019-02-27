@@ -1581,11 +1581,8 @@ new_signalling_monitor(Pid, State, Span, Timeslots, Name, Options) ->
 	[] ->
             Sources = case Timeslots of
                           [{subrate, Timeslot, First_bit, Bandwidth}] ->
-                              xml:tag("pcm_source",
-                                      [{"span", Span},
-                                       {"timeslot", Timeslot},
-                                       {"bandwidth", Bandwidth},
-                                       {"first_bit", First_bit}]);
+                              xml:pcm_source(Span, Timeslot, First_bit,
+                                             Bandwidth);
                           _ ->
                               [xml:pcm_source(Span, Ts) || Ts <- Timeslots ]
                       end,
