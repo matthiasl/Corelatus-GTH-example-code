@@ -102,6 +102,7 @@ int main(int argc, char** argv)
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
   }
+  api.event_handler = &gth_silent_event_handler;
 
   result = gth_map(&api, sdh_resource, name, MAX_RESOURCE_NAME);
 
@@ -118,4 +119,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-

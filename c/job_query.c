@@ -82,6 +82,9 @@ static void query_job(GTH_api *api, const char *id)
       exit(-1);
     }
 
+  if (n_attributes == 0)
+    printf("%s has no attributes\n", id);
+
   for (x = 0; x < n_attributes; x++)
     printf("%s=%s\n", attrs[x].key, attrs[x].value);
 }
@@ -116,6 +119,7 @@ int main(int argc, char** argv)
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
   }
+  api.event_handler = &gth_silent_event_handler;
 
   query_job(&api, argv[2]);
 

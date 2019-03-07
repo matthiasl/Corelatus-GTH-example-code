@@ -106,6 +106,7 @@ int main(int argc, char** argv)
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
   }
+  api.event_handler = &gth_silent_event_handler;
 
   // First attribute is in argv[3], first value in argv[4]
   if (argc >= MAX_ATTRIBUTES) {
@@ -126,4 +127,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-

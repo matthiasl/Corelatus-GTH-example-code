@@ -328,6 +328,12 @@ void gth_event_handler(void *data, GTH_resp *resp)
   // do not free the resp, it's not yours to free. (handlers may be chained)
 }
 
+void gth_silent_event_handler(void *data, GTH_resp *resp)
+{
+  (void)data;   // unused arguments
+  (void)resp;
+  return;
+}
 
 int gth_connect(GTH_api *api, const char *address, const int verbose)
 {
@@ -338,7 +344,7 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
   api->is_failsafe = 0;
   api->print_cmds = verbose;
   api->print_responses = verbose;
-  api->event_handler = &gth_event_handler;
+  api->event_handler = &gth_silent_event_handler;
   api->tone_handler = 0;
 
   host = gethostbyname(address);
@@ -367,6 +373,9 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
   }
 
   my_ip_address(api);
+
+  // Now that we're all set up, install the verbose event handler
+  api->event_handler = &gth_event_handler;
 
   return 0;
 }
@@ -2193,8 +2202,6 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
 
   return result;
 }
-
-
 
 // Win32 requires an initialisation call to its socket library at program
 // startup.

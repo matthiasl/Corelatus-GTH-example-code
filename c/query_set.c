@@ -146,6 +146,7 @@ int main(int argc, char** argv)
   if (result != 0) {
     die("Unable to connect to the GTH. Giving up.");
   }
+  api.event_handler = &gth_silent_event_handler;
 
   if (argc == 2)  // no resource given, do an inventory query
     {

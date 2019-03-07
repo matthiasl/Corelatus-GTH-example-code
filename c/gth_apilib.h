@@ -565,6 +565,9 @@ const char *gth_attribute_value(const GTH_resp *resp, const char *key);
 // calling free() on the returned value.
 char *gth_attribute_value_and_clear(GTH_resp *resp, const char *key);
 
+// Alternative event handler which silently discards all API events
+void gth_silent_event_handler(void *data, GTH_resp *resp);
+
 // Print a timestamp to stderr. Intended for logging.
 void gth_print_timestamp();
 
