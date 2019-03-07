@@ -44,11 +44,11 @@ then usage
 fi
 
 IP=$1
-arch=`../query_set $IP board architecture | cut -d = -f 2`
-case $arch in
-    gth2.1)
-	invalid_connect
-	valid_connect ;;
-    *)
-	echo "skipping connect_timeslots test because DUT is a $arch"
-esac
+../query_set $IP system_image version | grep -q duplex
+if [ $? -eq 0 ]
+then
+    invalid_connect
+    valid_connect
+else
+    echo "skipping connect_timeslots test because DUT isn't TX-capable"
+fi

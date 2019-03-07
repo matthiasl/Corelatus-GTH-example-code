@@ -32,12 +32,12 @@ then usage
 fi
 
 IP=$1
-arch=`../query_set $IP board architecture | cut -d = -f 2`
 
-case $arch in
-    gth2*)
-	invalid_playback
-	valid_playback;;
-    *)
-	echo "skipping because DUT is not capable of transmit"
-esac
+../query_set $IP system_image version | grep -q duplex
+if [ $? -eq 0 ]
+then
+    invalid_playback
+    valid_playback
+else
+    echo "skipping connect_timeslots test because DUT isn't TX-capable"
+fi
