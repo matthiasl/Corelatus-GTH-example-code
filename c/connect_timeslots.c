@@ -81,7 +81,7 @@ int main(int argc, char** argv)
 {
   int result;
   GTH_api api;
-  int verbose;
+  int verbose = 0;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -137,4 +137,3 @@ int main(int argc, char** argv)
 
   return 0;
 }
-
