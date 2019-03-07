@@ -308,7 +308,7 @@ int gth_new_lapd_layer(GTH_api *api,
 		       const char *ip,
 		       const int port);
 
-// Start a LAPD monitor.
+// Start a LAPD monitor with default options.
 //
 // The TCP port specified by (ip/port) is expected to be in a
 // listening state before entering this function, e.g. by
@@ -324,6 +324,22 @@ int gth_new_lapd_monitor(GTH_api *api,
 			 char *job_id,
 			 const char *ip,
 			 const int port);
+
+// Start a LAPD monitor; with all options possible
+//
+// Bandwidth can be 16, 32 and 64
+// First bit can be 0,2,4,6 for 16 kbit/s and 0,4 for 32 kbit/s.
+int gth_new_lapd_monitor_opt(GTH_api *api,
+                             const int tag,
+                             const char *span,
+                             const int ts,
+                             const int bandwidth,
+                             const int first_bit,
+                             char *job_id,
+                             const char *ip,
+                             const int port,
+                             const GTH_attribute *options,
+                             const int n_options);
 
 // Start a level detector.
 //

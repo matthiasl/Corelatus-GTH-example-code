@@ -897,24 +897,47 @@ int gth_new_lapd_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port)
 {
+  return gth_new_lapd_monitor_opt(api, tag, span, ts, 64, 0,
+                                  job_id, ip, port, 0, 0);
+}
+
+int gth_new_lapd_monitor_opt(GTH_api *api,
+                             const int tag,
+                             const char *span,
+                             const int ts,
+                             const int bandwidth,
+                             const int first_bit,
+                             char *job_id,
+                             const char *ip,
+                             const int port,
+                             const GTH_attribute *options,
+                             const int n_options)
+{
   char command[MAX_COMMAND];
+  char attributes[MAX_COMMAND];
+  char source[MAX_COMMAND];
   int result;
   const char* template;
 
   assert(ts > 0 && ts < 32);
 
-  template = "<new><lapd_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
-    "<pcm_source span='%s' timeslot='%d'/>"
+  result = kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
+
+  snprintf(source, MAX_COMMAND, "timeslot='%d' bandwidth='%d' first_bit='%d'",
+           ts, bandwidth, first_bit);
+
+  template = "<new><lapd_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
+    "<pcm_source span='%s' %s />"
     "</lapd_monitor></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, ip, port, tag, span, ts);
+  result = snprintf(command, MAX_COMMAND, template, attributes, ip, port,
+                    tag, span, source);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
 
   return result;
 }
-
 
 int gth_new_level_detector(GTH_api *api,
                            const char *span,
