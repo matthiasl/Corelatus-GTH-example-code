@@ -267,7 +267,7 @@ int main(int argc, char** argv)
 
   assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
   strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
-  strncat(pcm_name, argv[2], sizeof pcm_name);
+  strncat(pcm_name, argv[2], sizeof pcm_name - strlen(pcm_name) - 1);
 
   if (setup_l1) {
     setup_layer_1(&api, pcm_name, t1_mulaw_mode);

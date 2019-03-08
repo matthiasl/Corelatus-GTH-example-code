@@ -334,7 +334,7 @@ static void resp_add_attribute(GTH_resp *resp, char *key, char *value)
 static GTH_token *parse(GTH_token *token, GTH_resp *resp);
 static GTH_token *attributes(GTH_token *token, GTH_resp *resp);
 static GTH_token *parse_inside_tag(GTH_token *token, char **text);
-static enum Token_type name_to_token_type(const char* name);
+static GTH_resp_type name_to_token_type(const char* name);
 
 void gth_free_resp(GTH_resp *resp);
 static int can_lookahead(const GTH_token *token, int n);
@@ -484,7 +484,7 @@ static GTH_token *attributes(GTH_token *token, GTH_resp *resp) {
 }
 
 
-static enum Token_type name_to_token_type(const char* name)
+static GTH_resp_type name_to_token_type(const char* name)
 {
   if (!strcmp(name, "alarm"))           return  GTH_RESP_ALARM;
   if (!strcmp(name, "alert"))           return  GTH_RESP_ALERT;

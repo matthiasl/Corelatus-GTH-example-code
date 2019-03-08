@@ -524,7 +524,7 @@ enable_electrical_l1(GTH_api *api,
 
   assert(sizeof(span_name) > (strlen(span) + strlen("pcm")));
   strncpy_s(span_name, sizeof span_name, "pcm", sizeof span_name - 1);
-  strncat(span_name, span, sizeof span_name);
+  strncat(span_name, span, sizeof span_name - strlen(span_name) - 1);
 
   // Use <set> here: <enable> isn't supported until gth2_system_37a.
   result = gth_set(api, span_name, attributes, n_attributes);
@@ -750,7 +750,7 @@ checked_fwrite(void *b, int n, HANDLE_OR_FILEPTR f)
 
 
 static void
-write_pcap_classic_header(HANDLE_OR_FILEPTR file, enum PCap_format format)
+write_pcap_classic_header(HANDLE_OR_FILEPTR file, enum Link_type link_type)
 {
   PCap_classic_global_header header;
 
@@ -762,7 +762,7 @@ write_pcap_classic_header(HANDLE_OR_FILEPTR file, enum PCap_format format)
   header.GMT_to_localtime = 0;
   header.sigfigs = 0;
   header.snaplen = 65535;
-  header.network = format;
+  header.network = link_type;
 
   checked_fwrite((void*)&header, sizeof header, file);
 

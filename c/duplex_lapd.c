@@ -118,7 +118,7 @@ static void enable_l1(GTH_api *api, const char* span)
 
   assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
   strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
-  strncat(pcm_name, span, sizeof pcm_name);
+  strncat(pcm_name, span, sizeof pcm_name - strlen(pcm_name) - 1);
 
   result = gth_set(api, pcm_name, attributes, 2);
   if (result != 0) {

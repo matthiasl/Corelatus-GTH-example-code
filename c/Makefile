@@ -33,20 +33,26 @@ CC_WIN32=i686-w64-mingw32-gcc
 LIBS_WIN32=-lws2_32
 LIBS=-lrt
 
-CC=gcc
-
 repo_head=$(shell git describe --abbrev=8 --dirty --always)
 
 unix: $(target_basenames)
 
 win32: $(win_targets)
 
+clang_build:
+	CC=clang make
+
+gcc_build:
+	CC=gcc make
+
 clean:
 	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos version.c
 
 ship: version.c
 	make clean
-	make
+	make gcc_build
+	make clean
+	make clang_build
 	make win32
 	sed -e 's/$$/\r/g' < README.unix > README.txt
 	zip gth_c_examples *.c *.h Corelatus-GTH-example-code.sln Build_all.vcxproj NMakefile Makefile audio/* README.* *.exe
