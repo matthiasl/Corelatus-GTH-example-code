@@ -247,7 +247,8 @@ void *checked_malloc(size_t size)
   return result;
 }
 
-void gth_print_timestamp()
+void
+gth_print_timestamp()
 {
   char timestring[50];  // manpage promises max 26 bytes
   char *nl;
@@ -263,9 +264,8 @@ void gth_print_timestamp()
   fputs(timestring, stderr);
 }
 
-
-void gth_event_handler(void *data, GTH_resp *resp)
-{
+// Return: 1 if we did something with the event, 0 otherwise
+static int common_event_handler(void *data, GTH_resp *resp) {
   GTH_resp *child;
   GTH_api *api = data;
 
@@ -276,55 +276,37 @@ void gth_event_handler(void *data, GTH_resp *resp)
 
   child = resp->children + 0;
 
-  switch (child->type) {
-
-  case GTH_RESP_INFO: {
+  if (child->type == GTH_RESP_INFO) {
     const char *reason = gth_attribute_value(child, "reason");
 
     if (!strcmp(reason, "failsafe_mode")) {
       api->is_failsafe = 1;
-    } else {
-      fprintf(stderr, "Ignoring an <info> with reason=%s\n", reason);
+      return 1;
     }
-    break;
   }
 
-  case GTH_RESP_ALARM:            // fall through
-  case GTH_RESP_ALERT:            // fall through
-  case GTH_RESP_ATM_MESSAGE:      // fall through
-  case GTH_RESP_F_RELAY_MESSAGE:  // fall through
-  case GTH_RESP_L1_MESSAGE:       // fall through
-  case GTH_RESP_LAPD_MESSAGE:     // fall through
-  case GTH_RESP_MTP2_MESSAGE:     // fall through
-  case GTH_RESP_SYNC_MESSAGE: {
-    gth_print_timestamp();
-    gth_print_tree(resp);
-    break;
+  if (child->type == GTH_RESP_TONE && api->tone_handler) {
+    const char *name = gth_attribute_value(child, "name");
+    const char *length = gth_attribute_value(child, "length");
+    api->tone_handler(name, atoi(length));
+    return 1;
   }
 
-  case GTH_RESP_TONE:
-    if (api->tone_handler) {
-      const char *name = gth_attribute_value(child, "name");
-      const char *length = gth_attribute_value(child, "length");
-      api->tone_handler(name, atoi(length));
-    }
-    break;
+  if (child->type == GTH_RESP_LEVEL && api->tone_handler) {
+    const char *id = gth_attribute_value(child, "detector");
+    const char *state = gth_attribute_value(child, "state");
+    api->tone_handler(id, strcmp(state, "noisy") == 0);
+    return 1;
+  }
 
-  case GTH_RESP_LEVEL:
-    if (api->tone_handler) {
-      const char *id = gth_attribute_value(child, "detector");
-      const char *state = gth_attribute_value(child, "state");
-      api->tone_handler(id, strcmp(state, "noisy") == 0);
-    }
-    break;
+  return 0;
+}
 
-    // no handler -> fall through to printing the tone event
-  default:
+void gth_event_handler(void *data, GTH_resp *resp)
+{
+  if (!common_event_handler(data, resp)) {
     gth_print_timestamp();
-    fprintf(stderr,
-	    "gth_event_handler got an event, handling with default handler\n");
     gth_print_tree(resp);
-    break;
   }
 
   // do not free the resp, it's not yours to free. (handlers may be chained)
@@ -332,8 +314,7 @@ void gth_event_handler(void *data, GTH_resp *resp)
 
 void gth_silent_event_handler(void *data, GTH_resp *resp)
 {
-  (void)data;   // unused arguments
-  (void)resp;
+  common_event_handler(data, resp);
   return;
 }
 
