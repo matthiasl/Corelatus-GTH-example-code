@@ -60,7 +60,7 @@ static void usage()
 	  "<command> is an XML command, as per the GTH API manual.\n"
 
 	  "Example:\n"
-	  "./raw_xml 172.16.1.10 \"<query verbose='true'><job id='ldmo137'/></query>\n",
+	  "./raw_xml 172.16.1.10 \"<query verbose='true'><job id='ldmo137'/></query>\"\n",
 	  git_head, build_hostname);
 
   exit(-1);
