@@ -63,10 +63,11 @@ static void usage()
   fprintf(stderr,
 	  "monitor_dtmf git_head: %s build_hostname: %s\n\n"
 
-	  "monitor_dtmf [-v] <GTH-IP> <span> <timeslot>.\n\n"
+	  "monitor_dtmf [-v] [-n <number>] <GTH-IP> <span> <timeslot>.\n\n"
 	  "Set up DTMF monitoring on a GTH and print all received tones\n\n"
 
 	  "-v: print the API commands and responses (verbose)\n"
+	  "-n <number>: exit after the given number of detections\n"
 	  "<GTH-IP> is the GTH's IP address or hostname\n\n"
 	  "<span> is the E1/T1 interface, e.g. '1A'\n"
 	  "<timeslot> is the timeslot, 1--31\n\n"
@@ -98,7 +99,7 @@ int main(int argc, char** argv)
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'v': verbose = 1; break;
-    case 'n': detections = atoi(argv[2]); argc--; argv++; break; // undocumented
+    case 'n': detections = checked_atoi(argv[2]); argc--; argv++; break;
     default: usage();
     }
     argc--;

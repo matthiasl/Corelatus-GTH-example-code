@@ -164,7 +164,7 @@ int main(int argc, char **argv)
       gth_set_single(&api, pcm_name, "status", "enabled");
     }
 
-  play_a_file(&api, argv[2], atoi(argv[3]), argv[4]);
+  play_a_file(&api, argv[2], checked_atoi(argv[3]), argv[4]);
 
   gth_bye(&api);
 

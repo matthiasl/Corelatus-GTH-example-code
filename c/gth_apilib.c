@@ -2220,6 +2220,22 @@ void win32_specific_startup() {
   return;
 }
 
+// We get numbers from the command line in many examples. Make sure
+// they really are numbers.
+int checked_atoi(const char *s)
+{
+  int result;
+  char *end;
+
+  result = strtol(s, &end, 10);
+  if (*end) {
+    fprintf(stderr, "attempted to convert '%s' to an integer\n", s);
+    die("can't convert value to an integer");
+  }
+
+  return result;
+}
+
 #ifndef WIN32
 // Microsoft use a "more secure" variant of fopen(). So, if we're using
 // gcc for a non-windows target, provide a workalike:

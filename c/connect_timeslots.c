@@ -74,6 +74,8 @@ static void usage()
   exit(-1);
 }
 
+// Different hardware versions have different maximum connection numbers.
+// 100 works on all of them and is plenty for experiments.
 #define MAX_CONNECTIONS 100
 
 // Entry point
@@ -111,8 +113,8 @@ int main(int argc, char** argv)
       char job_id[MAX_JOB_ID];
 
       result = gth_new_connection(&api,
-				  argv[0], atoi(argv[1]),
-				  argv[2], atoi(argv[3]),
+				  argv[0], checked_atoi(argv[1]),
+				  argv[2], checked_atoi(argv[3]),
 				  job_id);
 
       fprintf(stderr, "connecting %s:%s -> %s:%s. ",

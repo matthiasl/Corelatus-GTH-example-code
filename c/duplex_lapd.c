@@ -307,7 +307,7 @@ int main(int argc, char** argv)
   }
 
   enable_l1(&api, argv[2]);
-  data_socket = setup_lapd(&api, argv[2], atoi(argv[3]), end);
+  data_socket = setup_lapd(&api, argv[2], checked_atoi(argv[3]), end);
 
   fprintf(stderr, "lapd started, press ^C to abort\n");
   dump_incoming_lapd(data_socket);

@@ -273,7 +273,7 @@ int main(int argc, char** argv)
     setup_layer_1(&api, pcm_name, t1_mulaw_mode);
   }
 
-  record_a_file(&api, argv[2], atoi(argv[3]), argv[4], t1_mulaw_mode);
+  record_a_file(&api, argv[2], checked_atoi(argv[3]), argv[4], t1_mulaw_mode);
 
   gth_bye(&api);
 

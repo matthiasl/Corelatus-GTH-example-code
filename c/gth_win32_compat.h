@@ -109,6 +109,9 @@ int strncpy_s(char *dest,
 // Print message and abort
 void die(const char *message);
 
+// atoi which calls die() if passed something which isn't a number
+int checked_atoi(const char *s);
+
 // Wrapped memory allocation; exits on failure.
 void *checked_realloc(void *ptr, size_t size);
 void *checked_malloc(size_t size);
