@@ -34,15 +34,6 @@
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <string.h>
-
-#ifdef WIN32
-#include <winsock2.h>
-#else
-#include <sys/socket.h>
-#include <netinet/in.h>
-#endif // WIN32
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"

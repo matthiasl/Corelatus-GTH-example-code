@@ -33,12 +33,10 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <assert.h>
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
-#include "gth_client_xml_parse.h"
 
 static void usage()
 {
