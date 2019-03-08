@@ -279,6 +279,21 @@ Send raw XML commands
 
   ./raw_xml 172.16.1.10 "<query verbose='true'><job id='ldmo137'/></query>"
 
+Print broadcast events
+----------------------
+
+  When an interesting status change happens---for instance an E1
+  changes states---the GTH broadcasts this information to all
+  API connections. This program prints such broadcast events. Typical run:
+
+    >./print_broadcast_events 172.16.1.10
+    Fri Mar  8 13:44:21 2019 event: sync message: state=dead
+    Fri Mar  8 13:44:21 2019 event: l1 message: name=pcm1A state=LOS
+    Fri Mar  8 13:44:21 2019 event: l1 message: name=pcm1A state=OK
+    Fri Mar  8 13:44:21 2019 event: sync message: state=locked
+    Fri Mar  8 13:44:28 2019 event: alert: reason=ntp
+    [Problem contacting 172.16.3.1]
+
 GTH API for C programs
 ----------------------
 

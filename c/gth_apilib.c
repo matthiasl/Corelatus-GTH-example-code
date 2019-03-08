@@ -289,6 +289,8 @@ void gth_event_handler(void *data, GTH_resp *resp)
     break;
   }
 
+  case GTH_RESP_ALARM:            // fall through
+  case GTH_RESP_ALERT:            // fall through
   case GTH_RESP_ATM_MESSAGE:      // fall through
   case GTH_RESP_F_RELAY_MESSAGE:  // fall through
   case GTH_RESP_L1_MESSAGE:       // fall through

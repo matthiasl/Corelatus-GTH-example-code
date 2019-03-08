@@ -9,12 +9,11 @@ query_set
 install_release
 install_start_script
 map
-monitor_cas
 monitor_dtmf
 playback_file
+print_broadcast_events
 raw_xml
 record
 save_to_pcap
 unmap
-wide_recorder
 version.c

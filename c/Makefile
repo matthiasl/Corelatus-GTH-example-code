@@ -13,11 +13,12 @@ target_basenames=\
 	job_query \
 	map \
 	monitor_dtmf \
-	playback_file\
-	query_set\
-	raw_xml\
-	record\
-	save_to_pcap\
+	playback_file \
+	print_broadcast_events \
+	query_set \
+	raw_xml \
+	record \
+	save_to_pcap \
 	unmap
 
 headers=gth_apilib.h gth_client_xml_parse.h

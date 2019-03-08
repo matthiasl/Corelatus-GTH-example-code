@@ -589,6 +589,7 @@ void gth_print_tree(GTH_resp *resp) {
   case GTH_RESP_ALERT:
     fprintf(stderr, "alert: ");
     print_attributes(resp);
+    if (resp->text) fprintf(stderr, "[%s]\n", resp->text);
     break;
 
   case GTH_RESP_ATM_MESSAGE:
@@ -613,14 +614,13 @@ void gth_print_tree(GTH_resp *resp) {
   case GTH_RESP_ERROR:
     fprintf(stderr, "error: ");
     print_attributes(resp);
-    if (resp->text) fprintf(stderr, "[%s]", resp->text);
+    if (resp->text) fprintf(stderr, "[%s]\n", resp->text);
     fprintf(stderr, "\n");
     break;
 
   case GTH_RESP_EVENT:
     fprintf(stderr, "event: ");
     print_children(resp);
-    fprintf(stderr, "\n");
     break;
 
   case GTH_RESP_FATALITY:
@@ -634,13 +634,14 @@ void gth_print_tree(GTH_resp *resp) {
     break;
 
   case GTH_RESP_F_RELAY_MESSAGE:
-    fprintf(stderr, "  f_relay_message: ");
+    fprintf(stderr, "f_relay_message: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_INFO:
-    fprintf(stderr, "  info: ");
+    fprintf(stderr, "info: ");
     print_attributes(resp);
+    if (resp->text) fprintf(stderr, "[%s]\n", resp->text);
     break;
 
   case GTH_RESP_JOB:
@@ -648,37 +649,37 @@ void gth_print_tree(GTH_resp *resp) {
     break;
 
   case GTH_RESP_L1_MESSAGE:
-    fprintf(stderr, "  l1 message ");
+    fprintf(stderr, "l1 message: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_L2_ALARM:
-    fprintf(stderr, "  l2_alarm: ");
+    fprintf(stderr, "l2_alarm: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_L2_SOCKET_ALERT:
-    fprintf(stderr, "  l2_socket_alert: ");
+    fprintf(stderr, "l2_socket_alert: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_LAPD_MESSAGE:
-    fprintf(stderr, "  lapd_message: ");
+    fprintf(stderr, "lapd_message: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_LEVEL:
-    fprintf(stderr, "  level: ");
+    fprintf(stderr, "level: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_MESSAGE_ENDED:
-    fprintf(stderr, "  message ended:");
+    fprintf(stderr, "message ended:");
     print_attributes(resp);
     break;
 
   case GTH_RESP_MTP2_MESSAGE:
-    fprintf(stderr, "  mtp2_message: ");
+    fprintf(stderr, "mtp2_message: ");
     print_attributes(resp);
     break;
 
@@ -693,17 +694,17 @@ void gth_print_tree(GTH_resp *resp) {
     break;
 
   case GTH_RESP_SDH_MESSAGE:
-    fprintf(stderr, "  sdh_message: ");
+    fprintf(stderr, "sdh_message: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_SFP_MESSAGE:
-    fprintf(stderr, "  sfp_message: ");
+    fprintf(stderr, "sfp_message: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_SLIP:
-    fprintf(stderr, "  slip: ");
+    fprintf(stderr, "slip: ");
     print_attributes(resp);
     break;
 
@@ -714,12 +715,12 @@ void gth_print_tree(GTH_resp *resp) {
     break;
 
   case GTH_RESP_SYNC_MESSAGE:
-    fprintf(stderr, "  sync message ");
+    fprintf(stderr, "sync message: ");
     print_attributes(resp);
     break;
 
   case GTH_RESP_TONE:
-    fprintf(stderr, "  tone: ");
+    fprintf(stderr, "tone: ");
     print_attributes(resp);
     break;
 
