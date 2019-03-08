@@ -533,17 +533,55 @@ enable_electrical_l1(GTH_api *api,
     die("Setting up L1 failed. (-v switch gives more information)");
 }
 
+// Build an array with a sorted list of unique sources
+// tactic: insertion sort. Uses a linear search. Fast enough in practice,
+//         sorting 400 channels with 64 E1s takes less than 1 ms.
+static void
+build_sources_list(const Channel_t channels[], const int n_channels,
+                   char *sources[], int *n_sources)
+{
+  int channel;
+  int source;
+  int i;
+
+  *n_sources = 0;
+
+  for (channel = 0; channel < n_channels; channel++) {
+    int compare;
+
+    // Find insertion point
+    for (source = 0; source < *n_sources; source++) {
+      compare = strcmp(sources[source], channels[channel].source);
+      if (compare >= 0) break;
+    }
+
+    if (compare == 0) continue;   // source already present
+
+    // Make space for insertion
+    (*n_sources)++;
+    for (i = *n_sources; i > source; i--)
+      sources[i] = sources[i-1];
+
+    // Insert
+    sources[i] = channels[channel].source;
+  }
+}
+
 // Start L1 for all channels.
 // This can cause an L1 to be started multiple times. That's OK.
 static void
 enable_l1(GTH_api *api,
 	  const Channel_t channels[],
-	  const int n_channels,
+          const int n_channels,
 	  const int monitoring)
 {
   char architecture[10];
   int i;
   int result;
+  char *sources[MAX_SOURCES];
+  int n_sources;
+
+  build_sources_list(channels, n_channels, sources, &n_sources);
 
   result = gth_query_resource_attribute(api, "board", "architecture",
 					architecture, 10);
@@ -552,13 +590,13 @@ enable_l1(GTH_api *api,
 
   architecture[3] = 0;
   if (strcmp(architecture, "gth") == 0) {
-    for (i = 0; i < n_channels; i++) {
-      enable_electrical_l1(api, channels[i].source, monitoring);
+    for (i = 0; i < n_sources; i++) {
+      enable_electrical_l1(api, sources[i], monitoring);
     }
   }
   else {
-    for (i = 0; i < n_channels; i++) {
-      enable_optical_l1(api, channels[i].source, monitoring);
+    for (i = 0; i < n_sources; i++) {
+      enable_optical_l1(api, sources[i], monitoring);
     }
   }
 }
