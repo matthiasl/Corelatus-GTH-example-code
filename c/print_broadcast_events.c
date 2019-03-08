@@ -37,20 +37,6 @@
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>
-#include <assert.h>
-#include <string.h>
-#include <signal.h>
-#include <time.h>
-
-#ifdef WIN32
-#include <winsock2.h>
-#include <windows.h>
-#else
-#include <sys/socket.h>
-#include <sys/select.h>
-#include <arpa/inet.h>
-#endif // WIN32
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
@@ -73,32 +59,6 @@ usage(void)
   exit(-1);
 }
 
-static void
-event_loop(GTH_api *api)
-{
-  fd_set fds;
-  int result;
-
-  FD_ZERO(&fds);
-
-  for (;;)
-    {
-      FD_SET(api->fd, &fds);
-
-      result = select(api->fd + 1, &fds, 0, 0, NULL);
-
-      if (result != 1)
-	{
-	  die("internal error---select()");
-	}
-
-      if(gth_process_event(api))
-	{
-	  die("Event processing stopped");
-	}
-    }
-}
-
 // Entry point
 int
 main(int argc, char **argv)
@@ -113,7 +73,10 @@ main(int argc, char **argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  event_loop(&api);
+  while (0 == gth_process_event(&api))
+    /* empty body */;
+
+  die("event processing ended");
 
   return 0;
 }

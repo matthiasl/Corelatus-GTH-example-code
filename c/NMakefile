@@ -11,6 +11,7 @@ targets=\
 	map.exe\
 	monitor_dtmf.exe\
 	playback_file.exe\
+	print_broadcast_events.exe\
 	query_set.exe\
 	record.exe\
 	save_to_pcap.exe \
