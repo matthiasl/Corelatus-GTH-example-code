@@ -66,7 +66,7 @@ version.c:
 %: %.c $(headers)
 
 %: %.c $(common_c_files) version.c
-	$(CC) -Wall -Wextra -g -o $@ $^ $(LIBS)
+	$(CC) -Wall -Wextra -Wstrict-prototypes -g -o $@ $^ $(LIBS)
 
 %.exe: %.c $(headers)
 

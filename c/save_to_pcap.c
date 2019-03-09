@@ -267,7 +267,7 @@ static GTH_event_handler *default_event_handler;
 
 //----------------------------------------------------------------------
 void
-usage() {
+usage(void) {
   fprintf(stderr,
 	  "save_to_pcap git_head: %s build_hostname: %s\n\n"
 
@@ -369,7 +369,7 @@ write_to_handle_or_file(void *buffer,
 }
 
 static HANDLE_OR_FILEPTR
-stdout_handle_or_file()
+stdout_handle_or_file(void)
 {
   return GetStdHandle(STD_OUTPUT_HANDLE);
 }
@@ -378,7 +378,7 @@ stdout_handle_or_file()
 
 #else
 static HANDLE_OR_FILEPTR
-stdout_handle_or_file()
+stdout_handle_or_file(void)
 {
   return stdout;
 }

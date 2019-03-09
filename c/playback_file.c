@@ -50,7 +50,7 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 
-static void usage()
+static void usage(void)
 {
   fprintf(stderr,
 	  "playback_file git_head: %s build_hostname: %s\n\n"

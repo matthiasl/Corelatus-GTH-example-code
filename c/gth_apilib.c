@@ -248,7 +248,7 @@ void *checked_malloc(size_t size)
 }
 
 void
-gth_print_timestamp()
+gth_print_timestamp(void)
 {
   char timestring[50];  // manpage promises max 26 bytes
   char *nl;

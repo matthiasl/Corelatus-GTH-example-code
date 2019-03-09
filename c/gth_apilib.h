@@ -569,7 +569,7 @@ char *gth_attribute_value_and_clear(GTH_resp *resp, const char *key);
 void gth_silent_event_handler(void *data, GTH_resp *resp);
 
 // Print a timestamp to stderr. Intended for logging.
-void gth_print_timestamp();
+void gth_print_timestamp(void);
 
 // The Win32 socket library needs some startup actions before it works.
 // So call this before doing anything if you're running on win32.

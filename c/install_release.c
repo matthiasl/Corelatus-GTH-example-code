@@ -112,7 +112,7 @@ struct Compatibility compatibility[] =
    { END_OF_TABLE, 0,         {0, 0},         {0, 0}}};
 
 
-static void usage()
+static void usage(void)
 {
   fprintf(stderr,
 	  "install_release git_head: %s build_hostname: %s\n\n"

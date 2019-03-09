@@ -86,7 +86,7 @@ typedef struct {
   char payload[MAX_SIGNAL_UNIT];
 } GTH_lapd_tx_su;
 
-void usage() {
+void usage(void) {
   fprintf(stderr,
 	  "duplex_lapd git_head: %s build_hostname: %s\n\n"
 
