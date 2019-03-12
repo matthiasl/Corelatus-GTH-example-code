@@ -928,17 +928,19 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
 
 static void
 write_pcap_global_header(HANDLE_OR_FILEPTR file,
-			 const struct Options *options)
+			 const struct Options *user_options)
 {
-  switch (options->format) {
+  switch (user_options->format) {
   case PCAP_CLASSIC:
-    write_pcap_classic_header(file, options->link_type);
+    write_pcap_classic_header(file, user_options->link_type);
     break;
 
   case PCAP_NG:
     write_pcap_ng_shb(file);
     write_pcap_idbs(file,
-                    options->channels, options->n_channels, options->link_type);
+                    user_options->channels,
+                    user_options->n_channels,
+                    user_options->link_type);
     break;
 
   default: die("internal error writing global pcap header");
@@ -1360,7 +1362,7 @@ open_packet_file(const struct Options *opts, int *file_number)
 static void
 convert_to_pcap(GTH_api *api,
 		int data_socket,
-                const struct Options options)
+                const struct Options user_options)
 {
   u16 length;
   struct GTH_su signal_unit;
@@ -1371,8 +1373,8 @@ convert_to_pcap(GTH_api *api,
   init_timer(options.duration_per_file);
 
   do {
-    file = open_packet_file(&options, &file_number);
-    write_pcap_global_header(file, &options);
+    file = open_packet_file(&user_options, &file_number);
+    write_pcap_global_header(file, &user_options);
     su_count = 0;
 
     do
@@ -1384,7 +1386,7 @@ convert_to_pcap(GTH_api *api,
 	    assert(length <= sizeof signal_unit);
 	    read_exact(data_socket, (void*)&signal_unit, length);
 
-	    switch (options.protocol) {
+	    switch (user_options.protocol) {
             case AAL0: write_aal0(file, &signal_unit, length); break;
             case AAL2: write_aal2(file, &signal_unit, length); break;
 	    case AAL5: write_aal5(file, &signal_unit, length); break;
@@ -1394,10 +1396,10 @@ convert_to_pcap(GTH_api *api,
 	    su_count++;
 	  }
       }
-    while ( keep_capturing(su_count, options) );
+    while ( keep_capturing(su_count, user_options) );
     fclose(file);
   }
-  while ( !options.capture_autostop );
+  while ( !user_options.capture_autostop );
 }
 
 static void

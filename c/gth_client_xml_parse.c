@@ -425,8 +425,8 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
     }
     else {                         // first case clause
       if (can_lookahead(token, 2)) {
-	GTH_token *slash = token++;
-	GTH_token *close = token++;
+	slash = token++;
+	close = token++;
 
 	assert(slash->type == TOK_SLASH);
 	assert(close->type == TOK_CLOSE);

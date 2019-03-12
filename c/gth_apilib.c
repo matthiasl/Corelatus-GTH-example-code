@@ -1576,21 +1576,21 @@ int gth_query_resource_attribute(GTH_api *api,
 
       for (x = 0; x < resource->n_children; x++) {
 	GTH_resp *attribute;
-	const char *name;
-	const char *value;
+	const char *attribute_name;
+	const char *attribute_value;
 
 	attribute = resource->children+x;
 
 	assert(attribute->type == GTH_RESP_ATTRIBUTE);
 
-	name  = gth_attribute_value(attribute, "name");
-	value = gth_attribute_value(attribute, "value");
+	attribute_name  = gth_attribute_value(attribute, "name");
+	attribute_value = gth_attribute_value(attribute, "value");
 
-	assert(name);
-	assert(value);
+	assert(attribute_name);
+	assert(attribute_value);
 
-	if (strcmp(name, key) == 0) {
-	  strncpy_s(result, max_result, value, max_result - 1);
+	if (strcmp(attribute_name, key) == 0) {
+	  strncpy_s(result, max_result, attribute_value, max_result - 1);
 	  result[max_result - 1] = 0;
 	  retval = 0;
 	}
@@ -1737,18 +1737,15 @@ static int query_single_resource(GTH_api *api,
 
       for (x = 0; x < resource->n_children; x++) {
 	GTH_resp *attribute;
-	char *name;
-	char *value;
 
 	attribute = resource->children+x;
 	if (attribute->type != GTH_RESP_ATTRIBUTE)
 	  die("invalid response from GTH");
 
-	name  = gth_attribute_value_and_clear(attribute, "name");
-	value = gth_attribute_value_and_clear(attribute, "value");
-
-	(*attributes)[x].key   = name;
-	(*attributes)[x].value = value;
+	(*attributes)[x].key
+          = gth_attribute_value_and_clear(attribute, "name");
+	(*attributes)[x].value
+          = gth_attribute_value_and_clear(attribute, "value");
       }
     }
   else if (resp->type == GTH_RESP_STATE

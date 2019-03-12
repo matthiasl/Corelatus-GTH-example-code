@@ -32,7 +32,10 @@ example_c_files=$(addsuffix .c, $(target_basenames))
 # which is pretty much every debian box since about 2012.
 CC_WIN32=i686-w64-mingw32-gcc
 LIBS_WIN32=-lws2_32
+
 LIBS=-lrt
+CFLAGS=-Wall -g $(PEDANTIC)
+PEDANTIC_CFLAGS=-Wextra -Wshadow -Wstrict-prototypes
 
 repo_head=$(shell git describe --abbrev=8 --dirty --always)
 
@@ -41,10 +44,10 @@ unix: $(target_basenames)
 win32: $(win_targets)
 
 clang_build:
-	CC=clang make
+	CC=clang PEDANTIC="$(PEDANTIC_CFLAGS)" make
 
 gcc_build:
-	CC=gcc make
+	CC=gcc PEDANTIC="$(PEDANTIC_CFLAGS)" make
 
 clean:
 	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos version.c
@@ -66,7 +69,7 @@ version.c:
 %: %.c $(headers)
 
 %: %.c $(common_c_files) version.c
-	$(CC) -Wall -Wextra -Wstrict-prototypes -g -o $@ $^ $(LIBS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 %.exe: %.c $(headers)
 
