@@ -76,9 +76,9 @@ static void usage(void)
   exit(-1);
 }
 
-int detections = -1;
+static int detections = -1;
 
-void tone_handler(const char *name, int length)
+static void tone_handler(const char *name, int length)
 {
   if (detections > 0) detections--;
   printf("detected DTMF digit %s (duration: %d ms)\n", name, length);

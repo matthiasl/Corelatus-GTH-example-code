@@ -158,7 +158,7 @@ int main(int argc, char** argv)
 
   else
     {
-      GTH_attribute attrs[MAX_ATTRIBUTES];
+      GTH_const_attribute attrs[MAX_ATTRIBUTES];
       int n_attrs = 0;
 
       // First attribute is in argv[3], first value in argv[4]

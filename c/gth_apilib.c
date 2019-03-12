@@ -66,7 +66,7 @@ typedef int socklen_t;
 #define MAX_RESPONSE 10000
 #define MAX_LOGFILE 20000000
 
-const int GTH_API_PORT = 2089;        // TCP port a Corelatus GTH listens on
+static const int GTH_API_PORT = 2089;   // TCP port a Corelatus GTH listens on
 
 #ifndef WIN32   // i.e. unix.
 
@@ -108,7 +108,7 @@ strncpy_s(char *dest,
 // asctime_s is provided by Microsoft, in such a way that the easiest way
 // to make it work on both *nix and Microsoft is to use Microsoft's
 // naming scheme.
-int asctime_s(char *dest, size_t dest_size, const struct tm *time)
+static int asctime_s(char *dest, size_t dest_size, const struct tm *time)
 {
   char *result;
   result = asctime_r(time, dest);
@@ -116,14 +116,14 @@ int asctime_s(char *dest, size_t dest_size, const struct tm *time)
   return (result == 0 /* asctime_r returns a pointer, or NULL */);
 }
 
-void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
 {
   int flags = on_or_off?O_NONBLOCK:0;
   int result = fcntl(s, F_SETFL, flags);
   assert(result == 0);
 }
 #else
-void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
 {
   int result;
   u_long mode = on_or_off;
@@ -302,7 +302,7 @@ static int common_event_handler(void *data, GTH_resp *resp) {
   return 0;
 }
 
-void gth_event_handler(void *data, GTH_resp *resp)
+static void gth_event_handler(void *data, GTH_resp *resp)
 {
   if (!common_event_handler(data, resp)) {
     gth_print_timestamp();
@@ -557,7 +557,7 @@ static int gth_wait_for_install_complete(GTH_api *api, int need_install_done)
 
 static int kv_to_tags(char *buffer,
 		      const size_t buflen,
-		      const GTH_attribute *attributes,
+		      const GTH_const_attribute *attributes,
 		      int n)
 {
   int used = 0;
@@ -631,7 +631,7 @@ static void format_sources(const char *span,
 static int gth_enable_or_set(const char *command,
 			     GTH_api *api,
 			     const char *resource,
-			     const GTH_attribute *attributes,
+			     const GTH_const_attribute *attributes,
 			     int n_attributes)
 {
   char buffer[MAX_COMMAND];
@@ -664,7 +664,7 @@ int gth_disable(GTH_api *api,
 
 int gth_enable(GTH_api *api,
 	       const char *resource,
-	       const GTH_attribute *attributes,
+	       const GTH_const_attribute *attributes,
 	       int n_attributes)
 {
   return gth_enable_or_set("enable", api, resource, attributes, n_attributes);
@@ -1019,7 +1019,7 @@ int gth_new_player(GTH_api *api,
 {
   int listen_port = 0;
   int listen_socket = gth_make_listen_socket(&listen_port);
-  int data_socket;
+  int data_socket = -1;
   char command[MAX_COMMAND];
   int result;
   const char* template;
@@ -1078,7 +1078,7 @@ int gth_new_recorder(GTH_api *api,
 {
   int listen_port = 0;
   int listen_socket = gth_make_listen_socket(&listen_port);
-  int data_socket;
+  int data_socket = -1;
   char command[MAX_COMMAND];
   int result;
   const char* template;
@@ -1841,7 +1841,7 @@ int gth_query_resource(GTH_api *api,
 
 int gth_set(GTH_api *api,
 	    const char *resource,
-	    const GTH_attribute *attributes,
+	    const GTH_const_attribute *attributes,
 	    int n_attributes)
 {
   return gth_enable_or_set("set", api, resource, attributes, n_attributes);
@@ -1853,7 +1853,7 @@ int gth_set_single(GTH_api *api,
 		   const char *attribute,
 		   const char *value)
 {
-  const GTH_attribute a = {(char*)attribute, (char*)value};
+  const GTH_const_attribute a = {attribute, value};
   return gth_set(api, resource, &a, 1);
 }
 

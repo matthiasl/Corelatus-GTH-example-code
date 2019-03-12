@@ -148,7 +148,7 @@ int gth_disable(GTH_api *api,
 // Return: 0 on success.
 int gth_enable(GTH_api *api,
 	       const char *resource,
-	       const GTH_attribute *attributes,
+	       const GTH_const_attribute *attributes,
 	       int n_attributes);
 
 // Install.
@@ -447,7 +447,7 @@ void gth_nop(GTH_api *api);
 // Return: 0 on success.
 int gth_set(GTH_api *api,
 	    const char *resource,
-	    const GTH_attribute *attributes,
+	    const GTH_const_attribute *attributes,
 	    int n_attributes);
 
 // Special case of set for just one attribute.

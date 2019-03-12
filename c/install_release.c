@@ -92,7 +92,7 @@ struct Compatibility {
 //
 // The 'desired' column must be in ascending order within the same
 // release type.
-struct Compatibility compatibility[] =
+static struct Compatibility compatibility[] =
   // Hardware  Is_failsafe    desired         minimum_required
   {{ STH_3_0,  0,             {40, 'a'},      {13, 'a'} },
    { STH_3_0,  1,             {15, 'a'},      {38, 'a'} },
@@ -257,7 +257,7 @@ static void extract_version(const char* s, struct Version *v)
   v->minor = to_lower(v->minor);
 }
 
-enum Hardware arch_to_hw(const char* arch)
+static enum Hardware arch_to_hw(const char* arch)
 {
   if (strcmp(arch, "sth3.0") == 0) return STH_3_0;
   if (strcmp(arch, "gth3.0") == 0) return GTH_3_0;

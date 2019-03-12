@@ -74,7 +74,7 @@ int main(int argc, char** argv)
   int result;
   GTH_api api;
   int verbose = 0;
-  GTH_attribute attrs[MAX_ATTRIBUTES];
+  GTH_const_attribute attrs[MAX_ATTRIBUTES];
   int n_attrs = 0;
 
   while (argc > 1 && argv[1][0] == '-') {

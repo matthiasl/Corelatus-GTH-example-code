@@ -97,6 +97,11 @@ typedef struct {
   char *value;
 } GTH_attribute;
 
+typedef struct {
+  const char *key;
+  const char *value;
+} GTH_const_attribute;
+
 struct GTH_resp_struct;
 
 struct GTH_resp_struct {

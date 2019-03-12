@@ -81,8 +81,6 @@ static void query_job(GTH_api *api, const char *id)
 }
 
 
-#define MAX_ATTRIBUTES 100
-
 // Entry point
 int main(int argc, char** argv)
 {

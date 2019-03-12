@@ -57,8 +57,6 @@ static void usage(void)
   exit(-1);
 }
 
-#define MAX_RESOURCE_NAME 100
-
 // Entry point
 int main(int argc, char** argv)
 {

@@ -266,7 +266,7 @@ static struct Options options;
 static GTH_event_handler *default_event_handler;
 
 //----------------------------------------------------------------------
-void
+static void
 usage(void) {
   fprintf(stderr,
 	  "save_to_pcap git_head: %s build_hostname: %s\n\n"
@@ -485,7 +485,7 @@ enable_optical_l1(GTH_api *api,
 {
   int result;
   char source_name[20];
-  GTH_attribute attributes[] = { {"payload", "ATM"} };
+  GTH_const_attribute attributes[] = { {"payload", "ATM"} };
   int n_attributes = 0;
 
   strncpy_s(source_name, 20, source, 19);
@@ -517,9 +517,9 @@ enable_electrical_l1(GTH_api *api,
   char span_name[20];
 
   int n_attributes = (monitoring)?3:2;
-  GTH_attribute attributes[] = { {"status", "enabled"},
-				 {"tx_enabled", "false"},
-				 {"monitoring", "true"}
+  GTH_const_attribute attributes[] = { {"status", "enabled"},
+                                       {"tx_enabled", "false"},
+                                       {"monitoring", "true"}
   };
 
   assert(sizeof(span_name) > (strlen(span) + strlen("pcm")));
@@ -547,7 +547,7 @@ build_sources_list(const Channel_t channels[], const int n_channels,
   *n_sources = 0;
 
   for (channel = 0; channel < n_channels; channel++) {
-    int compare;
+    int compare = 1;
 
     // Find insertion point
     for (source = 0; source < *n_sources; source++) {
@@ -761,7 +761,7 @@ monitor_aal5(GTH_api *api,
 
 
 // Read exactly the requested number of bytes from the given descriptor
-void
+static void
 read_exact(int fd, char* buf, size_t count)
 {
   ssize_t this_time;
@@ -809,9 +809,9 @@ write_pcap_classic_header(HANDLE_OR_FILEPTR file, enum Link_type link_type)
 
 // Must be a multiple of 4 because of padding rules in PCap-ng
 #define MAX_HW_DESCRIPTION 400
-char hw_description[MAX_HW_DESCRIPTION];
+static char hw_description[MAX_HW_DESCRIPTION];
 
-void
+static void
 read_hw_description(GTH_api *api, const char *hostname)
 {
   int result;
@@ -1516,7 +1516,7 @@ arguments_to_channels(int argc,
   int n_sources = 0;
 
   int timeslots[MAX_TIMESLOTS];
-  int n_timeslots;
+  int n_timeslots = 0;
 
   int current_arg = 0;
 
@@ -1770,7 +1770,7 @@ lookup_start_function(enum Protocol protocol)
   return 0;  // not reached
 }
 
-void event_handler(void *data, GTH_resp *resp)
+static void event_handler(void *data, GTH_resp *resp)
 {
   GTH_resp *child;
   GTH_api *api = data;

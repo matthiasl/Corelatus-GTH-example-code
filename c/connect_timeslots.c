@@ -65,10 +65,6 @@ static void usage(void)
   exit(-1);
 }
 
-// Different hardware versions have different maximum connection numbers.
-// 100 works on all of them and is plenty for experiments.
-#define MAX_CONNECTIONS 100
-
 // Entry point
 int main(int argc, char** argv)
 {

@@ -86,7 +86,7 @@ typedef struct {
   char payload[MAX_SIGNAL_UNIT];
 } GTH_lapd_tx_su;
 
-void usage(void) {
+static void usage(void) {
   fprintf(stderr,
 	  "duplex_lapd git_head: %s build_hostname: %s\n\n"
 
@@ -112,8 +112,8 @@ static void enable_l1(GTH_api *api, const char* span)
   char pcm_name[20];
 
   // E1s carring ISDN LAPD normally use multiframe
-  GTH_attribute attributes[] = { {"status", "enabled"},
-				 {"framing", "multiframe"}
+  GTH_const_attribute attributes[] = { {"status", "enabled"},
+                                       {"framing", "multiframe"}
   };
 
   assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
@@ -192,7 +192,7 @@ static int setup_lapd(GTH_api *api,
 }
 
 // Read exactly the requested number of bytes from the given descriptor
-void read_exact(int fd, char *buf, size_t count) {
+static void read_exact(int fd, char *buf, size_t count) {
   ssize_t this_time;
 
   while (count > 0) {

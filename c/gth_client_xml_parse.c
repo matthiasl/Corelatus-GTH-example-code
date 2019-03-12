@@ -119,7 +119,7 @@ static int scan_name(const char* string, GTH_token *token)
 //
 // Returns zero on success
 //
-int gth_scan(const char *string, GTH_token **ret_tokens)
+static int gth_scan(const char *string, GTH_token **ret_tokens)
 {
   size_t len;
   int max_token = 5;
@@ -216,7 +216,7 @@ int gth_scan(const char *string, GTH_token **ret_tokens)
 }
 
 // Free a sequence of tokens.
-void gth_free_tokens(GTH_token *token)
+static void gth_free_tokens(GTH_token *token)
 {
   GTH_token *current = token;
 
@@ -565,7 +565,7 @@ void print_tokens(const GTH_token *token)
   fprintf(stderr, ".\n");
 }
 
-void print_children(GTH_resp *resp) {
+static void print_children(GTH_resp *resp) {
   int x;
 
   for (x = 0; x < resp->n_children; x++)
