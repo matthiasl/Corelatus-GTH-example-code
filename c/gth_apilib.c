@@ -626,6 +626,24 @@ static void format_sources(const char *span,
     }
 }
 
+static void format_sinks(const char *span,
+                         const int timeslots[],
+                         const int n_timeslots,
+                         char *sinks)
+{
+  char *pos = sinks;
+  char *template = "<pcm_sink span='%s' timeslot='%d'/>";
+  int result;
+  int x;
+
+  for (x = 0; x < n_timeslots; x++)
+    {
+      result = snprintf(pos, MAX_COMMAND - (pos - sinks), template,
+			span, timeslots[x]);
+      pos += result;
+      assert(result < (MAX_COMMAND - (pos - sinks)));
+    }
+}
 
 // Internal; used by both gth_enable and gth_set
 static int gth_enable_or_set(const char *command,
@@ -847,6 +865,37 @@ int gth_new_connection(GTH_api *api,
 
   return result;
 }
+
+int gth_new_fr_layer(GTH_api *api,
+                     const char *sink_span,
+                     const int timeslots[],
+                     const int n_timeslots,
+                     char *job_id,
+                     const char *ip,
+                     const int port)
+{
+  char command[MAX_COMMAND];
+  char sources[MAX_COMMAND];
+  char sinks[MAX_COMMAND];
+  int result;
+  const char* template;
+
+  assert(n_timeslots > 0 && n_timeslots < 32);
+
+  template = "<new><fr_layer ip_addr='%s' ip_port='%d'>"
+    "%s%s"
+    "</fr_layer></new>";
+  format_sources(sink_span, timeslots, n_timeslots, 64, sources);
+  format_sinks(sink_span, timeslots, n_timeslots, sources);
+
+  result = snprintf(command, MAX_COMMAND, template, ip, port, sources, sinks);
+  assert(result < MAX_COMMAND);
+  api_write(api, command);
+  result = recv_job_id(api, job_id);
+
+  return result;
+}
+
 
 int gth_new_lapd_layer(GTH_api *api,
 		       const int tag,

@@ -187,6 +187,8 @@ int gth_new_atm_aal0_monitor(GTH_api *api,
 			     const char *ip,
 			     const int port);
 
+// gth_atm_aal0_layer is not implemented; it's experimental
+
 // Start ATM AAL2 monitoring.
 //
 // The TCP port specified by (ip/port) is expected to be in a
@@ -285,6 +287,23 @@ int gth_new_connection(GTH_api *api,
 		       const char *dst_span,
 		       const int   dst_ts,
 		       char *job_id);
+
+// Start transmission of frame relay (or LAPD, or MTP-2) packets
+//
+// The TCP port specified by (ip/port) is expected to be in a
+// listening state before entering this function, e.g. by
+// calling gth_make_listen_socket() first.
+//
+// This function writes the resulting job-id to job_id.
+//
+// Return: 0 on success
+int gth_new_fr_layer(GTH_api *api,
+                     const char *sink_span,
+                     const int timeslots[],
+                     const int n_timeslots,
+                     char *job_id,
+                     const char *ip,
+                     const int port);
 
 // Start a LAPD layer.
 //
