@@ -5,7 +5,7 @@
 //
 // References:
 //
-//  PCap-NG doc: http://www.winpcap.org/ntar/draft/PCAP-DumpFileFormat.html
+//  PCap-NG doc: https://github.com/pcapng/pcapng/
 // classic PCap: http://wiki.wireshark.org/Development/LibpcapFileFormat
 //      GTH API: https://www.corelatus.com/gth/api/
 //
@@ -64,90 +64,10 @@
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
-
-// Types used for fixed-length packets. These typedefs are checked at runtime.
-typedef unsigned int u32;
-typedef unsigned short u16;
-typedef unsigned char u8;
+#include "pcap_structs.h"
 
 #define MAX_FILENAME 100
 #define MAX_TIMESTAMP 20
-
-//--------------------------------------------------
-// PCap classic file format structures.
-#pragma pack(1)
-typedef struct {
-  u32 magic;
-  u16 major_version;
-  u16 minor_version;
-  u32 GMT_to_localtime;
-  u32 sigfigs;
-  u32 snaplen;
-  u32 network;
-} PACK_SUFFIX PCap_classic_global_header;
-
-#pragma pack(1)
-typedef struct {
-  u32 ts_sec;
-  u32 ts_us;
-  u32 incl_len;
-  u32 orig_len;
-} PACK_SUFFIX PCap_classic_packet_header;
-
-//--------------------------------------------------
-// Pcap-NG file format structures
-
-#pragma pack(1)
-typedef struct {
-  u16 code;
-  u16 length;
-} PACK_SUFFIX PCap_NG_option;
-
-
-#pragma pack(1)
-typedef struct {
-  u32 type;
-  u32 block_total_length;
-  u32 byte_order_magic;
-  u16 major_version;
-  u16 minor_version;
-  unsigned long long section_length;
-} PACK_SUFFIX PCap_NG_shb;
-
-typedef struct {
-  u32 type;
-  u32 block_total_length;
-  u16 link_type;
-  u16 reserved;
-  u32 snaplen;
-} PACK_SUFFIX PCap_NG_idb;
-
-#pragma pack(1)
-typedef struct {
-  u32 type;
-  u32 block_total_length;
-  u32 interface_id;
-  u32 timestamp_hi;
-  u32 timestamp_lo;
-  u32 captured_len;
-  u32 packet_len;
-} PACK_SUFFIX PCap_NG_epb;
-
-// The NG40 header is part of reasonably modern (2016) Wireshark versions. It
-// lets us put AAL2 in a wireshark file.
-//
-// http://www.tcpdump.org/linktypes/LINKTYPE_NG40.html
-struct NG40_aal2_header {
-  u32 type;
-  u32 length;
-  u32 protocol;
-  u32 id;
-  u32 flags;
-  u8 direction;
-  u16 vpi;
-  u16 vci;
-  u16 cid;
-};
 
 // Longest possible signal unit is AAL5; limited to 64k by the standard,
 // but GTH limits it to 4k (which is reasonable for signalling)
@@ -168,6 +88,7 @@ struct NG40_aal2_header {
 // the port-2089 API will return a 'refused' error with reason 'capacity.
 #define MAX_CHANNELS 400
 
+#pragma pack(1)
 struct GTH_mtp2_lapd {
   char payload[MAX_SIGNAL_UNIT];
 };
@@ -209,16 +130,6 @@ struct GTH_su {
 enum PCap_format { PCAP_CLASSIC = 0, PCAP_NG };
 
 enum Filename_format { FF_DEFAULT = 0, FF_UTC, FF_LOCALTIME };
-
-// Link types, defined at http://www.tcpdump.org/linktypes.html
-//
-// See also: http://www.tcpdump.org/linktypes/LINKTYPE_NG40.html
-enum Link_type {
-  LINK_TYPE_MTP2   = 140,
-  LINK_TYPE_LAPD   = 203,
-  LINK_TYPE_SUNATM = 123,
-  LINK_TYPE_NG40   = 244
-};
 
 enum Protocol {
   MTP2,
@@ -903,7 +814,7 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
       + sizeof(PCap_NG_option)
       + sizeof(block_total_length);
 
-    idb.type               = 1;
+    idb.type               = PCAPNG_BLOCK_TYPE_IDB;
     idb.block_total_length = block_total_length;
     idb.link_type          = link_type;
     idb.reserved           = 0;
@@ -986,7 +897,7 @@ write_ng_packet_header(HANDLE_OR_FILEPTR file,
 {
   PCap_NG_epb epb;
 
-  epb.type = 6;
+  epb.type = PCAPNG_BLOCK_TYPE_EPB;
   epb.block_total_length = sizeof(epb)
     + round_up_32_bit(length)
     + sizeof(epb.block_total_length);
