@@ -121,6 +121,7 @@ struct NG40_aal2_header {
 // See also: http://www.tcpdump.org/linktypes/LINKTYPE_NG40.html
 enum Link_type {
   LINK_TYPE_MTP2   = 140,
+  LINK_TYPE_MTP3   = 141,
   LINK_TYPE_LAPD   = 203,
   LINK_TYPE_SUNATM = 123,
   LINK_TYPE_NG40   = 244

@@ -17,6 +17,7 @@ target_basenames=\
 	print_broadcast_events \
 	query_set \
 	raw_xml \
+	replay_ss7 \
 	record \
 	save_to_pcap \
 	unmap

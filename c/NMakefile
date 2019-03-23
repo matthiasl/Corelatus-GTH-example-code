@@ -14,6 +14,7 @@ targets=\
 	print_broadcast_events.exe\
 	query_set.exe\
 	record.exe\
+	replay_ss7.exe\
 	save_to_pcap.exe \
 	unmap.exe
 

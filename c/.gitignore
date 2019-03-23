@@ -14,6 +14,7 @@ playback_file
 print_broadcast_events
 raw_xml
 record
+replay_ss7
 save_to_pcap
 unmap
 version.c
