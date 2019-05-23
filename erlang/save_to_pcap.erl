@@ -295,7 +295,7 @@ file_to_file(In, Out, Guess) ->
 
 	{ok, <<Size:16>>} ->
 	    {ok, Packet} = file:read(In, Size),
-            {ok, Pos} = file:position(In, {cur, 0}),
+            {ok, _Pos} = file:position(In, {cur, 0}),
 	    ok = file:write(Out, reformat_packet(Guess, Packet)),
 	    file_to_file(In, Out, Guess);
 
