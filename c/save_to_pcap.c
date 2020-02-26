@@ -89,7 +89,7 @@
 #define MAX_CHANNELS 400
 
 #pragma pack(1)
-struct GTH_mtp2_lapd {
+struct GTH_mtp2_lapd_raw {
   char payload[MAX_SIGNAL_UNIT];
 };
 
@@ -121,9 +121,9 @@ struct GTH_su {
   u32 timestamp_lo;
 
   union {
-    struct GTH_mtp2_lapd ml;
-    struct GTH_aal2      a2;
-    struct GTH_aal5      a5;
+    struct GTH_mtp2_lapd_raw ml;
+    struct GTH_aal2          a2;
+    struct GTH_aal5          a5;
   };
 };
 
@@ -136,7 +136,8 @@ enum Protocol {
   LAPD,
   AAL0,
   AAL2,
-  AAL5
+  AAL5,
+  RAW
 };
 
 typedef struct {
@@ -186,7 +187,7 @@ usage(void) {
 	  "\n\nSave decoded signal units to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
 	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-l] [-m] [-n <rotation>]"
-	  "\n           [-p mtp2|lapd|aal0|aal2|aal5] [-s] [-v]\n"
+	  "\n           [-p mtp2|lapd|aal0|aal2|aal5|raw] [-s] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p aal5)"
           "\n-b 56|48 bandwidth, in kbit/s (used for ANSI/NTT subrate MTP-2)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
@@ -196,7 +197,7 @@ usage(void) {
 	  "\n-m: tells the GTH that you are using a -20dB monitor point"
 	  "\n-n <packets:c>: rotate the output file after <c> packets"
 	  "\n-n <duration:s>: rotate the output file after <s> seconds"
-          "\n-p mtp2|lapd|aal0|aal2|aal5: select the signalling protocol"
+          "\n-p mtp2|lapd|aal0|aal2|aal5|raw: select the signalling protocol"
           "\n-s: stop capturing (terminate) instead of rotating files"
           "\n-t utc=yes: append the UTC time to the filename"
           "\n-t utc=no: append the local time to the filename"
@@ -225,6 +226,7 @@ usage(void) {
 	  "Examples (on hardware with electrical E1/T1 ports):\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 isup_capture.pcapng\n"
           "./save_to_pcap -p lapd 172.16.1.10 1A 2A 16 lapd_capture.pcapng\n"
+          "./save_to_pcap -p raw  172.16.1.10 1A 2A 16 raw_capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 3A 4A 1 2 3 4 isup_capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 2A 16 1B 5 6 7 8 capture.pcapng\n"
 	  "./save_to_pcap 172.16.1.10 1A 1-31 mtp2_annex_a.pcapng\n"
@@ -670,6 +672,26 @@ monitor_aal5(GTH_api *api,
   return;
 }
 
+// Start up RAW monitoring
+static void
+monitor_raw(GTH_api *api,
+            const Channel_t *channel,
+            int tag,
+            int listen_port
+            )
+{
+  int result;
+  char job_id[MAX_JOB_ID];
+
+  result = gth_new_raw_monitor(api, tag,
+                               channel->source,
+                               channel->timeslots[0],
+                               job_id, api->my_ip, listen_port);
+  if (result != 0)
+    die("Setting up raw monitoring failed. (-v gives more information)");
+
+  return;
+}
 
 // Read exactly the requested number of bytes from the given descriptor
 static void
@@ -1133,6 +1155,13 @@ write_aal0(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
   write_mtp2(file, signal_unit, length);
 }
 
+// Raw data. Just dump it.
+static void
+write_raw(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+{
+  write_mtp2(file, signal_unit, length);
+}
+
 static void
 write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 {
@@ -1303,6 +1332,7 @@ convert_to_pcap(GTH_api *api,
 	    case AAL5: write_aal5(file, &signal_unit, length); break;
 	    case MTP2: write_mtp2(file, &signal_unit, length); break;
 	    case LAPD: write_lapd(file, &signal_unit, length); break;
+            case RAW:  write_raw( file, &signal_unit, length); break;
 	    }
 	    su_count++;
 	  }
@@ -1623,6 +1653,11 @@ process_arguments(char **argv,
 	opts->protocol = AAL5;
 	opts->link_type = LINK_TYPE_SUNATM;
       }
+      else if (!strcmp("raw", argv[2])) {
+	opts->protocol = RAW;
+	opts->link_type = LINK_TYPE_UNKNOWN;
+      }
+
       else usage();
       argc--;
       argv++;
@@ -1674,6 +1709,7 @@ lookup_start_function(enum Protocol protocol)
   case AAL5: return &monitor_aal5; break;
   case LAPD: return &monitor_lapd; break;
   case MTP2: return &monitor_mtp2; break;
+  case RAW:  return &monitor_raw;  break;
   }
 
   die("can't find start function for link type");

@@ -124,7 +124,8 @@ enum Link_type {
   LINK_TYPE_MTP3   = 141,
   LINK_TYPE_LAPD   = 203,
   LINK_TYPE_SUNATM = 123,
-  LINK_TYPE_NG40   = 244
+  LINK_TYPE_NG40   = 244,
+  LINK_TYPE_UNKNOWN = 147   // 147 is reserved for "user use"
 };
 
 enum Block_type
