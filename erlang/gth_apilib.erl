@@ -27,7 +27,7 @@
 -export([active_content/3]).
 
 %%% Functions which don't care which sort of socket is passed in
--export([header/2, send/2, send/3, sendv/2]).
+-export([header/2, send/2, send/3, sendv/2, sendv/3]).
 
 %%% Functions for backwards compatibility
 -export([content/2, stream_content/3, stream_content/4]).
@@ -162,6 +162,9 @@ send(Socket, Type, Content) ->
 %% vector version. expects a list: [{Type, Content}] for arg #2
 sendv(Socket, List) ->
     gen_tcp:send(Socket, [ [header(T, C), C] || {T, C} <- List ]).
+
+sendv(Socket, Type, List) ->
+    gen_tcp:send(Socket, [ [header(Type, C), C] || C <- List ]).
 
 send(Socket, Content) when is_list(Content) ->
     send(Socket, "text/xml", Content);
