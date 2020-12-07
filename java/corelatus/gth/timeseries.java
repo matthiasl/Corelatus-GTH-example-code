@@ -82,9 +82,9 @@ public class timeseries {
 	    int i;
 
 	    for (i = 0; i < n_pcms; i++)
-		resource_names += "<resource name='" + pcms[i] + "'/>";
+		resource_names += xml.resource(pcms[i]);
 
-	    c.send_command("<query>" + resource_names + "</query>");
+	    c.send_command(xml.tag("query", xml.make_map(), resource_names));
 
 	    Node child = c.next_non_event().getFirstChild();
 
@@ -141,7 +141,7 @@ public class timeseries {
     private String l2jobs() throws IOException {
 	String alljobs = "";
 
-	c.send_command("<query><resource name='schedule'/></query>");
+	c.send_command(xml.query_resource("schedule"));
 	Node child = c.next_non_event().getFirstChild();
 
 	while (child != null) {
@@ -149,7 +149,7 @@ public class timeseries {
 		NamedNodeMap attrs = child.getAttributes();
 		String id = attrs.getNamedItem("id").getNodeValue();
 		if (id.startsWith("m2mo"))
-		    alljobs += "<job id='" + id + "'/>";
+		    alljobs += xml.job(id);
 	    }
 	    child = child.getNextSibling();
 	}
@@ -179,7 +179,7 @@ public class timeseries {
 	n_pcms = 0;
 
 	try {
-	    c.send_command("<query><resource name='inventory'/></query>");
+	    c.send_command(xml.query_resource("inventory"));
 	    NodeList resources = c.next_non_event().getChildNodes();
 
 	    // reserve at least as many as we need

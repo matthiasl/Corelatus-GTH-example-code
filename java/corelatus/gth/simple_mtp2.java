@@ -48,19 +48,16 @@ public class simple_mtp2 {
 	    api = new Client_conn(hostname);
 
 	    log("Enabling PCM" + span);
-	    api.send_command("<set name='pcm" + span + "'>"
-			   + "<attribute name='status' value='enabled'/>"
-			   + "</set>");
+	    api.send_command(xml.enable("pcm" + span,
+                                        xml.make_map("monitoring", "true")));
 	    Client_conn.assert_name(api.next_non_event(), "ok");
-
 
 	    log("Enabling MTP-2 on timeslot " + timeslot);
 
-	    api.send_command("<new><mtp2_monitor ip_addr='" + local_ip_addr()
-			   + "' ip_port='" + dest_port + "'>" +
-			   "<pcm_source span='" + span + "' timeslot='"
-			   + timeslot + "'/>" +
-			   "</mtp2_monitor></new>");
+            String source = xml.pcm_source(span, timeslot);
+	    api.send_command(xml.new_mtp2_monitor(local_ip(),
+                                                  dest_port,
+                                                  source));
 	    Node reply = api.next_non_event();
 	    Client_conn.assert_name(reply, "job");
 	} catch (IOException e) {
@@ -69,22 +66,23 @@ public class simple_mtp2 {
 	}
     }
 
-    //--------------------
-    // Returns the local machine's IP address as a string
-    private static String local_ip_addr() throws UnknownHostException {
-	InetAddress local = InetAddress.getLocalHost();
-	String ip_addr = "";
-	byte[] b = local.getAddress();
+    // Figure out the IP of this machine, from the GTH's point of view.
+    //
+    // This is a bit tricky. Asking the local machine is unreliable,
+    // especially on multi-homed servers.
+    //
+    // What we do instead is find the job-id of the controller and query it.
+    private String local_ip() throws IOException
+    {
+        api.send_command(xml.query_job("self"));
+        Node qj1 = api.next_non_event().getChildNodes().item(0);
+        String id = qj1.getAttributes().getNamedItem("id").getNodeValue();
+        api.send_command(xml.query_job(id));
+        Node qj2 = api.next_non_event().getChildNodes().item(0);
+        String ip = qj2.getAttributes().getNamedItem("ip_addr").getNodeValue();
 
-	for (int j = 0; j < 4; j++) {
-	    int i = b[j];
-	    if (i < 0) i += 256;
-	    ip_addr += i;
-	    if (j != 3) ip_addr += ".";
-	}
-	return ip_addr;
+        return ip;
     }
-
 
     // The normal read in java.io.inputstream reads _up to_ the
     // number bytes we asked for. We loop to get all we want.

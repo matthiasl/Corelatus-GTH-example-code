@@ -59,11 +59,9 @@ public class reboot {
 	    die("Exiting: '" + how + "' is not a valid boot mode. Try 'normal' or 'failsafe'");
 
 	System.out.println("Rebooting, new mode: " + how);
-	c.send_command("<set name='os'>"
-		       + "<attribute name='boot mode' value='"
-		       + how + "'/></set>");
+	c.send_command(xml.set("os", xml.make_map("boot mode", how)));
 	Client_conn.assert_name(c.next_non_event(), "ok");
-	c.send_command("<reset><resource name='cpu'/></reset>");
+	c.send_command(xml.reset("cpu"));
 	try {
 	    // if the GTH is quick, it might get an ok back. Usually it
 	    // reboots before getting the response out.

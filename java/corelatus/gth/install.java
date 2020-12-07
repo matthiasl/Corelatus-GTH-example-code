@@ -120,11 +120,9 @@ public class install {
     private void reboot(String how) throws IOException
     {
 	System.out.println("Rebooting, new mode: " + how);
-	c.send_command("<set name='os'>"
-				 + "<attribute name='boot mode' value='"
-				 + how + "'/></set>");
+	c.send_command(xml.set("os", xml.make_map("boot mode", how)));
 	Client_conn.assert_name(c.next_non_event(), "ok");
-	c.send_command("<reset><resource name='cpu'/></reset>");
+	c.send_command(xml.reset("cpu"));
 	try {
 	    // if the GTH is quick, it might get an ok back. Usually it
 	    // reboots before getting the response out.
@@ -140,9 +138,7 @@ public class install {
     private void unlock(String which) throws IOException
     {
 	System.out.println("Unlocking " + which);
-	c.send_command("<set name='" + which + "'>"
-		       + "<attribute name='locked' value='false'/>"
-		       + "</set>");
+	c.send_command(xml.set(which, xml.make_map("locked", "false")));
 	Client_conn.assert_name(c.next_non_event(), "ok");
     }
 
@@ -197,7 +193,7 @@ public class install {
 
 	watchdog w = new watchdog(180, true);
 	System.out.println("Installing " + filename + " as " + system);
-	c.send_command("<install name='" + system + "'/>");
+	c.send_command(xml.install(system));
 	c.send_binary("binary/filesystem", image, length);
 
 	wait_for_ok_and_install_done();
@@ -210,14 +206,14 @@ public class install {
     {
 	boolean waiting_for_ok = true;
 	boolean waiting_for_event = true;
-	
+
 	while (waiting_for_ok || waiting_for_event) {
 	    Element e = c.next_reply(true);
-	    
+
 	    if (e == null) die("response was empty");
 
 	    String name = e.getNodeName();
-	    
+
 	    if (name.equals("ok"))
 		waiting_for_ok = false;
 
@@ -227,7 +223,7 @@ public class install {
 		    Node attr = i.getAttributes().item(0);
 		    if (attr != null) {
 			String value = attr.getNodeValue();
-			
+
 			if (value.equals("install_done"))
 			    waiting_for_event = false;
 
@@ -253,7 +249,7 @@ public class install {
 
     private NodeList image_info(String image_name) throws IOException
     {
-	c.send_command("<query><resource name='" + image_name + "'/></query>");
+	c.send_command(xml.query_resource(image_name));
 	Element state = c.next_non_event();
 	Client_conn.assert_name(state, "state");
 	Node resource = state.getChildNodes().item(0);
