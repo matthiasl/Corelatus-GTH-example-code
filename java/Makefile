@@ -10,15 +10,14 @@ classpath=$(CLASSPATH)
 
 javac=javac -classpath $(classpath):./corelatus/gth/
 
-library_classes=$(addprefix corelatus/gth/, Client_conn Resource )
+library_classes=$(addprefix corelatus/gth/, Client_conn Resource xml)
 
 archive_filename=java_16.zip
 
 example_classes=$(addprefix corelatus/gth/, \
 	install \
-	mtp2_api \
-	mtp2_receiver \
 	reboot \
+	simple_mtp2 \
 	timeseries \
 	watchdog \
 	)
