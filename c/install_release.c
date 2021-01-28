@@ -239,22 +239,22 @@ static int case_insensitive_strncmp(const char* s1, const char* s2, int n)
 // s: version string, e.g. gth2_failsafe_15b
 static void extract_version(const char* s, struct Version *v)
 {
+  int result;
+
   *v = VERSION_ZERO;
-
+  // Discard hardare version prefix, e.g. 'gth2_'
   s = strchr(s, '_');
-
   if (!s)
     return;
 
-  s++;
-  s = strchr(s, '_');
+  // skip to first digit
+  while (*s++ && (*s < '0' || *s > '9'))
+    /* do nothing */;
 
-  if (!s)
-    return;
-
-  s++;
-  sscanf(s, "%d%c", &(v->major), &(v->minor));
+  result = sscanf(s, "%d%c", &(v->major), &(v->minor));
   v->minor = to_lower(v->minor);
+  if (result != 2)
+    fprintf(stderr, "Warning: unable to scan version from: %s\n", s);
 }
 
 static enum Hardware arch_to_hw(const char* arch)
@@ -310,7 +310,7 @@ static int are_versions_incompatible(const char *arch,
     }
 
   if (minimum_required.major == 0)
-    die("Release file too old. Dependencies unknown. Consider '-n'");
+    die("Can't detect dependencies. Old release file? Snapshot firmware? Consider '-n'");
 
   if (!version_at_least(installer_v, minimum_required))
     {
