@@ -100,8 +100,8 @@ def isup_iam(_, CIC, sif):
     optional_params_pointer = ord(sif[6])
     bnum = sif[5 + bnum_pointer:]
     anum = find_caller_number(sif[6:], optional_params_pointer)
-    print "IAM called party: %s calling party: %s CIC=%d" \
-        % (isup_number(bnum), anum, CIC)
+    print( "IAM called party: %s calling party: %s CIC=%d" \
+        % (isup_number(bnum), anum, CIC) )
 
 # Decode an ISUP number, as per C 3.7
 def isup_number(num):
@@ -120,7 +120,7 @@ def isup_number(num):
     return "".join(map(str, list))
 
 def isup_rlc(_, CIC, sif):
-    print "RLC on CIC=%d" % CIC
+    print("RLC on CIC=%d" % CIC )
 
 def isup_ignore(type, CIC, rest):
     types = {
@@ -131,7 +131,7 @@ def isup_ignore(type, CIC, rest):
         0x2c: "call progress"
         }
     pretty_type = types.get(type, "message type %d" % type )
-    print "ignoring ISUP %s" % pretty_type
+    print( "ignoring ISUP %s" % pretty_type)
 
 def monitor_mtp2(host, span, timeslot):
     api = gth.apilib.API(host)

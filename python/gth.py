@@ -54,9 +54,9 @@ def main():
     if len(sys.argv) > 0 and "-v" in sys.argv[0]:
         if len(sys.argv[0]) < 3:
             usage()
-	if sys.argv[0][2].isdigit:
-		verbosity = int(sys.argv[0][2])
-	sys.argv.pop(0)
+        if sys.argv[0][2].isdigit:
+                verbosity = int(sys.argv[0][2])
+        sys.argv.pop(0)
 
     if len(sys.argv) < 2:
         usage()
@@ -83,7 +83,7 @@ def main():
         die("unable to connect to host: %s" % host)
 
 def die(why):
-    print why
+    print(why)
     sys.exit(-1)
 
 #--------------------
@@ -108,10 +108,10 @@ def query(api, args):
 
     if name_or_id == "inventory":
         for n in result:
-            print n
+            print(n)
     else:
-        for k, v in result.iteritems():
-            print "%s=%s" % (k, v)
+        for k, v in result.items():
+            print("%s=%s" % (k, v) )
 
 def reset(api, dontcare):
     api.reset()
@@ -127,10 +127,10 @@ def unmap(api, args):
 def zero(api, args):
     name_or_id = args.pop(0)
     if is_resource(api, name_or_id):
-        print "zeroing a resource"
+        print("zeroing a resource")
         api.zero_resource(name_or_id)
     else:
-        print "zeroing a job %s" % name_or_id
+        print("zeroing a job %s" % name_or_id )
         api.zero_job(name_or_id)
 
 #--------------------

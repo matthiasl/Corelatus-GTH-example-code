@@ -48,9 +48,11 @@ class API_socket:
 
   def send(self, data, type="text/xml"):
     s = self._socket
-    s.sendall("Content-type: %s\r\n" % type)
-    s.sendall("Content-length: %d\r\n\r\n" % len(data))
-    s.sendall(data)
+    message = "Content-type: %s\r\n" % type
+    s.sendall(message.encode())
+    message = "Content-length: %d\r\n\r\n" % len(data)
+    s.sendall(message.encode())
+    s.sendall(data.encode())
 
   def send_audio(self, data):
     send(self, data, "binary/audio")
@@ -91,8 +93,8 @@ class API_socket:
     string = self.receive_raw(timeout)
     try:
       return self._parser.parseString(string)
-    except pyparsing.ParseException, detail:
-      raise ParseError, (string, detail)
+    except pyparsing.ParseException:
+      raise (ParseError, string)
 
   # read exactly the number of bytes requested, or fail
   def _definite_read(self, length):

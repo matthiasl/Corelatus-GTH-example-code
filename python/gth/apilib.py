@@ -5,18 +5,18 @@
 import sys
 from sys import stderr
 
-from transport import API_socket
+from gth.transport import API_socket
 import socket
 
 class API:
     def __init__(self, gth_ip_or_hostname, verbosity=0):
-	"""
-	verbosity=0: keep mostly quiet
-	verbosity=1: print event counts
-	verbosity=2: print events
-	verbosity=3: print all commands, responses and events
-	"""
-	self.verbosity = verbosity
+        """
+        verbosity=0: keep mostly quiet
+        verbosity=1: print event counts
+        verbosity=2: print events
+        verbosity=3: print all commands, responses and events
+        """
+        self.verbosity = verbosity
         self.socket = API_socket(gth_ip_or_hostname)
 
     def bye(self):
@@ -50,9 +50,9 @@ class API:
             stderr.write(reply + "\n")
             se = ("should have returned a resource", command, reply)
             raise SemanticError(se)
-        print reply.name
+        print(reply.name)
 
-    def new_atm_aal5_monitor(self, span, timeslot_list, (vpi, vci), opts = {}):
+    def new_atm_aal5_monitor(self, span, timeslot_list, vpi_vci, opts = {}):
         """Returns a (job_id, socket) tuple.
         Monitor ATM AAL5 on a GTH. Socket returned uses the format defined in
         the GTH API manual, under new_atm_aal5_monitor."""
@@ -61,6 +61,7 @@ class API:
         port, ls = tcp_listen()
         opts['ip_addr'] = IP
         opts['ip_port'] = "%d" % port
+        (vpi, vci) = vpi_vci
         opts['vpi'] = "%d" % vpi
         opts['vci'] = "%d" % vci
 
@@ -210,8 +211,8 @@ class API:
     #---- The remaining functions are primarily intended for internal
     #     use. They're also useful for implementing new commands.
     def send(self, XML):
-	if self.verbosity >= 3:
-		stderr.write("C: %s\n" % XML)
+        if self.verbosity >= 3:
+                stderr.write("C: %s\n" % XML)
         self.socket.send(XML)
 
     def next_non_event(self):
@@ -224,14 +225,14 @@ class API:
         while True:
             answer = self.socket.receive()
             if answer[0] == 'event':
-		if self.verbosity >= 2:
-			stderr.write("G: %s\n" % answer)
+                if self.verbosity >= 2:
+                        stderr.write("G: %s\n" % answer)
                 events.append(answer)
             else:
-		if self.verbosity == 1:
-			stderr.write("G: skipping %d events\n" % len(events))
-		if self.verbosity >= 3:
-			stderr.write("G: %s\n" % answer)
+                if self.verbosity == 1:
+                        stderr.write("G: skipping %d events\n" % len(events))
+                if self.verbosity >= 3:
+                        stderr.write("G: %s\n" % answer)
                 return (answer, events)
 
     def next_event(self):
@@ -291,7 +292,8 @@ def udp_listen():
     addr, port = s.getsockname()
     return (port, s)
 
-def format_attribute( (key, value) ):
+def format_attribute( key_value ):
+    (key, value) = key_value
     return "<attribute name='" + key + "' value='" + value + "'/>"
 
 def format_attributes( list):

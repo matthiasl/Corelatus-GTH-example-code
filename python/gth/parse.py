@@ -46,7 +46,7 @@ def _empty_tag(tagname, expect_attrs = 1):
 #
 def _collapse_attributes(string, tokens):
     dict = {}
-    for x in range(0, len(tokens) / 3):
+    for x in range(0, len(tokens) // 3):
         key = tokens[x*3+1][1]
         value =  tokens[x*3+2][1]
         dict[key] = value
@@ -94,4 +94,4 @@ def test():
     gth_out().parseString("<ok/>")
     gth_out().parseString("<error reason='badarg'/>")
     gth_out().parseString("<event><l1_message name='3A' state='ok'/></event>")
-    print "all ok"
+    print("all ok")
