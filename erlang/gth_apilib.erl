@@ -286,8 +286,14 @@ stream_entire_content(_S, _Type, _Typeline, _Length, _Timeout, _Fun) ->
 
 %% Returns ok | {error, Reason}
 
-stream_rest(_, 0, _, Fun) ->                       %% nothing left to stream
-    Fun(eof);
+stream_rest(_, 0, _, Fun) ->    %% nothing left to stream
+    case (catch Fun(eof)) of
+        ok -> ok;
+        Other ->
+            error_logger:error_report({"stream fun eof failed", Other}),
+            {error, fun_failed}
+    end;
+
 stream_rest(S, Bytes, Timeout, Fun) ->
     %% 13216 is an arbitrary number
     Read_now = min(13216, Bytes),
