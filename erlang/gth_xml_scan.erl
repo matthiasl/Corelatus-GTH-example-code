@@ -89,7 +89,7 @@ instring(T, Quote) ->
     [{string, S}|in_tag(string:substr(T, End+1))].
 
 name(T) ->
-    End = string:cspan(T, " =\r\n/><"),
+    End = string:cspan(T, " =\r\n\t/><"),
     case End of
 	0 -> exit("zero-length name");
 	_ -> ok
@@ -155,10 +155,7 @@ parse_tree([open, {name, Name}|Tokens]) ->
 	    [open, slash, {name, Name}, close|Leftover] = Tokens_after_children,
 	    Tree = {Atomic, Attributes, Children, Text},
 	    {Tree, Leftover}
-    end;
-
-parse_tree(Tokens = [open, slash|_]) ->
-    {[], Tokens}.
+    end.
 
 parse_inside_tag([{text, T}|Rest]) ->
     {T, Rest};
