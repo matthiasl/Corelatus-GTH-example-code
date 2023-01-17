@@ -25,6 +25,6 @@
 	  name            :: atom(),             % e.g. 'ok' | 'error' | ...
 	  attributes = [] :: [{Key::string(), Value::string()}],
 	  children   = [] :: [#resp_tuple{}],
-	  clippings  = [] :: [string()]
+	  clippings  = [] :: iolist()
 	}).
 
