@@ -67,7 +67,7 @@
 #include "pcap_structs.h"
 
 #define MAX_FILENAME 100
-#define MAX_TIMESTAMP 20
+#define MAX_TIMESTAMP 40
 
 // Longest possible signal unit is AAL5; limited to 64k by the standard,
 // but GTH limits it to 4k (which is reasonable for signalling)
