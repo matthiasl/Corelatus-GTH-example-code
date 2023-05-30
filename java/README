@@ -16,10 +16,9 @@ Firmware installer
   Here's a typical run of the firmware installer just showing which
   firmware is installed:
 
-     java -classpath gth_upgrade.jar:$CLASSPATH corelatus.gth.install 172.16.2.7
-     System: gth2_system_32c. Failsafe: gth2_failsafe_9
+     java -jar gth_upgrade.jar 172.16.2.7
+     System: gth3_system_44b. Failsafe: gth3_failsafe_16b
      Currently running image: system
-
 
   With an extra argument---a firmware file---it installs new firmware.
 
@@ -34,31 +33,27 @@ A starting point for building Java applications which talk to a GTH
 MTP-2 monitoring demo
 ---------------------
 
-   The best example to get started with is 'simple_mtp2.java'.
+   The best example to get started with is 'simple_mtp2.java'. Typical run:
 
+      >java -classpath . corelatus.gth.simple_mtp2 172.16.1.10 3A 16
+      Enabling PCM3A
+      Enabling MTP-2 on timeslot 16
+      accepted
+      Ready to receive MTP-2 packets
+      packet: 00 00 00 00 01 88 6B 60 0C 54 68 65 6C 6C 6F 20 77 6F 72 6C 64 06 AE
 
 Logging demo
 ------------
 
    'timeseries.java' demonstrates periodically logging L1 and L2 counters.
 
-
-
 Building the code from source
 -----------------------------
 
   You need:
 
-  - GNU make or equivalent
-
-  - A java compiler and VM. We use Oracle's Java 8 (last checked 2018-03)
-
-  - The XERCES parser and support libraries. Included in JDK 1.4 and later.
-    On Debian, it's libxerces2-java.
-
-  - A classpath with xerces in it, e.g.:
-
-     export CLASSPATH=/usr/share/java/xercesImpl.jar:gth_upgrade.jar
+  - GNU make
+  - A java compiler and VM. We used Oracle's OpenJDK 17 (last checked 2023)
 
   Once that's sorted out, build the system with 'make'.
 

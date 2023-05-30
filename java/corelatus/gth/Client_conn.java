@@ -12,7 +12,7 @@ package corelatus.gth;
 
 import java.io.*;
 import java.net.*;
-import org.apache.xerces.parsers.*;
+import javax.xml.parsers.*;
 import org.xml.sax.*;
 import org.w3c.dom.*;
 
@@ -56,18 +56,24 @@ public class Client_conn {
 	if (verbose) System.out.println(content);
 
 	try {
-	    DOMParser parser = new DOMParser();
+	    DocumentBuilderFactory factory
+                = DocumentBuilderFactory.newInstance();
+            DocumentBuilder builder = factory.newDocumentBuilder();
 
 	    ByteArrayInputStream in =
 		new ByteArrayInputStream(content.getBytes());
-	    parser.parse(new InputSource(in));
-	    Document doc = parser.getDocument();
+	    Document doc = builder.parse(new InputSource(in));
 	    return doc.getDocumentElement();
 	}
 	catch (SAXException e) {
 	    System.out.println("unexpected saxexception in next_reply");
 	    System.out.println(e);
 	}
+	catch (ParserConfigurationException e) {
+	    System.out.println("unexpected config exception in next_reply");
+	    System.out.println(e);
+	}
+
 	return null;
     }
 
@@ -219,7 +225,7 @@ public class Client_conn {
     //----------------------------------------------------------------------
     // Given a string with content, return the correct header.
     static private String header(String content) {
-	Integer length = new Integer(content.length());
+	Integer length = Integer.valueOf(content.length());
 
 	String line = "Content-type: text/xml\r\n";
 	line += "Content-length: " + length.toString() + "\r\n\r\n";

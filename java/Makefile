@@ -4,7 +4,7 @@
 # Author: Matthias Lang (matthias@corelatus.com)
 # Created: January 2001
 #
-# Copyright (C) 2001 Corelatus AB Stockholm
+# Copyright (C) 2001--2023 Corelatus AB Stockholm
 
 classpath=$(CLASSPATH)
 
@@ -12,7 +12,7 @@ javac=javac -classpath $(classpath):./corelatus/gth/
 
 library_classes=$(addprefix corelatus/gth/, Client_conn Resource xml)
 
-archive_filename=java_16.zip
+archive_filename=java_17.zip
 
 example_classes=$(addprefix corelatus/gth/, \
 	install \
@@ -26,9 +26,6 @@ ifndef CLASSPATH
 ship:
 	@echo "------------------------------------------------------"
 	@echo "Warning: skipping java tools build because you have no CLASSPATH"
-	@echo "CLASSPATH should include xerces.jar and xalan.jar, "
-	@echo "which are needed for XML parsing."
-	@echo ""
 	@echo "Warning: faking java build."
 	touch gth_upgrade.jar $(archive_filename)
 else
@@ -41,7 +38,7 @@ $(archive_filename):
 
 gth_upgrade.jar: $(addsuffix .java, $(example_classes) $(library_classes))
 	javac $^
-	zip gth_upgrade.jar corelatus/gth/*.class
+	jar cvfm gth_upgrade.jar corelatus/gth/manifest.txt corelatus/gth/*.class
 
 install:
 

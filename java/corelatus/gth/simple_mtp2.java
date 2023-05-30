@@ -151,9 +151,9 @@ public class simple_mtp2 {
 
     public static void main(String[] args) {
 	try {
-	    new simple_mtp2(args[0], args[1], new Integer(args[2]));
+	    new simple_mtp2(args[0], args[1], Integer.valueOf(args[2]));
 	}
-	catch (NumberFormatException e) {
+	catch (Exception e) {
 	    usage();
 	}
     }

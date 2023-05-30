@@ -184,7 +184,7 @@ public class install {
 	    die("Image file is an unreasonable length");
 
 	FileInputStream fis = new FileInputStream(file);
-	int length = (new Long(file.length())).intValue();
+	int length = (int) file.length();
 
 	byte image[] = new byte[length];
 	int result = fis.read(image, 0, length);
