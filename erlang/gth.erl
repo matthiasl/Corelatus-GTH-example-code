@@ -357,7 +357,8 @@ new_cas_r2_linesig_monitor(Pid, Span, Timeslot, Options)
                                'wye' | 'delta') ->
                                       id_or_error().
 new_cas_r2_linesig_merge(Pid, U, DA, DB, L1, Topo) ->
-    gen_server:call(Pid, {new_cas_r2_linesig_merge, U, DA, DB, L1, Topo}).
+    gen_server:call(Pid, {new_cas_r2_linesig_merge, U, DA, DB, L1, Topo}, 13000).
+
 
 -spec new_cas_r2_linesig_transmitter(pid(), string(), integer(), 'E1'|'T1') ->
                                             id_or_error().
@@ -938,7 +939,16 @@ handle_call({new_cas_r2_linesig_merge, U, DB, DC, L1, Topo}, _From, State) ->
                    {"l1_mode", atom_to_list(L1)},
                    {"topology", atom_to_list(Topo)}], []),
     send_xml(State, XML),
-    Reply = receive_job_id(State),
+    %% CAS linesig merge starts a new API and > 100 jobs, so we need
+    %% to increase the timeout to 20 seconds to be safe. Actual execution
+    %% time on a GTH 3.0 in 2023:
+    %%
+    %% 2.5 s: idle system with no CAS signalling (E1/T1 disabled)
+    %% 5.5 s: on a system with CAS signalling going at the same time
+    %% 7.4 s: on a system with CAS signalling going at the same time
+    %%        and a maximum number of other CAS jobs
+    %% 10.7 s: worst case seen for T1 delta merging
+    Reply = receive_job_id(State#state{command_timeout=20000}),
     {reply, Reply, State};
 
 handle_call({new_cas_r2_linesig_transmitter, Span, Ts, Mode}, _From, State) ->
