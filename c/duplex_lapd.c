@@ -39,6 +39,7 @@
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <string.h>
@@ -70,20 +71,20 @@
 #define Q921_MDL_ERROR_IND        0x10
 
 typedef struct {
-  unsigned short tag;
-  unsigned char flags;
-  unsigned char opcode;
-  unsigned short reserved;
+  uint16_t tag;
+  uint8_t  flags;
+  uint8_t  opcode;
+  uint16_t reserved;
   char payload[MAX_SIGNAL_UNIT];
 } GTH_lapd_rx_su;
 
 typedef struct {
-  unsigned short length;
-  unsigned short tag;
-  unsigned char flags;
-  unsigned char opcode;
-  unsigned short reserved;
-  char payload[MAX_SIGNAL_UNIT];
+  uint16_t length;
+  uint16_t tag;
+  uint8_t  flags;
+  uint8_t  opcode;
+  uint16_t reserved;
+  char     payload[MAX_SIGNAL_UNIT];
 } GTH_lapd_tx_su;
 
 static void usage(void) {
@@ -209,7 +210,7 @@ static void read_exact(int fd, char *buf, size_t count) {
 // data and tries to establish a data link.
 static void dump_incoming_lapd(int data_socket)
 {
-  short length;
+  uint16_t length;
   GTH_lapd_rx_su su;
 
   send_dl_establish_req(data_socket);
@@ -296,10 +297,6 @@ int main(int argc, char** argv)
   printf("end is %s\n", end);
 
   win32_specific_startup();
-
-  // Check a couple of assumptions about type size.
-  assert(sizeof(unsigned int) == 4);
-  assert(sizeof(unsigned short) == 2);
 
   result = gth_connect(&api, argv[1], verbose);
   if (result != 0) {

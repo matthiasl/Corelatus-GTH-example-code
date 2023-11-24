@@ -40,6 +40,7 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <string.h>
@@ -77,8 +78,8 @@ static void usage(void)
   exit(-1);
 }
 
-typedef unsigned int   u32;
-typedef unsigned short u16;
+typedef uint32_t u32;
+typedef uint16_t u16;
 
 // The WAV header format, as described in
 //

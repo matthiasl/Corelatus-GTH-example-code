@@ -33,9 +33,9 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-typedef unsigned int u32;
-typedef unsigned short u16;
-typedef unsigned char u8;
+typedef uint32_t u32;
+typedef uint16_t u16;
+typedef uint8_t u8;
 
 //--------------------------------------------------
 // PCap classic file format structures.
@@ -73,7 +73,7 @@ typedef struct {
   u32 byte_order_magic;
   u16 major_version;
   u16 minor_version;
-  unsigned long long section_length;
+  uint64_t section_length;
 } PACK_SUFFIX PCap_NG_shb;
 
 typedef struct {

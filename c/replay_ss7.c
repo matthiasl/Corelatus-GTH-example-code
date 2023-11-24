@@ -49,6 +49,7 @@
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <string.h>
@@ -309,10 +310,6 @@ int main(int argc, char** argv)
     }
 
   win32_specific_startup();
-
-  // Check a couple of assumptions about type size.
-  assert(sizeof(unsigned int) == 4);
-  assert(sizeof(unsigned short) == 2);
 
   result = gth_connect(&api, argv[1], verbose);
   if (result != 0) {

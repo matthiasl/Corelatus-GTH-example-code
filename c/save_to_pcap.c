@@ -47,6 +47,7 @@
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <assert.h>
 #include <string.h>
@@ -886,8 +887,8 @@ static void write_classic_packet_header(HANDLE_OR_FILEPTR file,
 					int length)
 {
   PCap_classic_packet_header pcap_header;
-  unsigned long long ts_sec;
-  unsigned long long ts_us;
+  uint64_t ts_sec;
+  uint64_t ts_us;
   int result;
 
   assert(sizeof ts_sec == 8);
@@ -1243,7 +1244,8 @@ make_file_timestamp(const struct Options *opts, char *string)
     timeinfo = gmtime(&rawtime);  // REVISIT: not threadsafe
     break;
 
-  case FF_LOCALTIME:
+  case FF_LOCALTIME: /* fall through */
+  default:
     timeinfo = localtime(&rawtime);  // REVISIT: not threadsafe
     break;
 
