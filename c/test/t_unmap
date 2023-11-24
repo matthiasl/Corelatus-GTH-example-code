@@ -2,20 +2,13 @@
 
 # Exercise the unmap sample code
 
-export TOP_PID=$$
-trap "exit 2" TERM
+source testlib.sh
 
 usage()
 {
     echo "Usage: $0 <IP>"
     echo ""
     exit 1
-}
-
-die()
-{
-    echo $@ 1>&2
-    kill -s TERM $TOP_PID
 }
 
 unmap_valid()

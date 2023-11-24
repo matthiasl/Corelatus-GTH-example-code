@@ -3,8 +3,7 @@
 # Exercise the install_release sample code. Installs many different
 # releases and checks that the install actually worked.
 
-export TOP_PID=$$
-trap "exit 2" TERM
+source testlib.sh
 
 usage()
 {
@@ -13,26 +12,19 @@ usage()
     exit 1
 }
 
-die()
-{
-    echo $@ 1>&2
-    kill -s TERM $TOP_PID
-}
-
 release_archive=/home/matthias/corelatus_archive/releases/
 
+# We test for a couple of recent releases of each type
 systems()
 {
     local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
+    local r=$release_archive
 
     if [ $arch = "sth3.0" ]; then
-	ls $release_archive/sth3_system_*
+	echo "$r/sth3_system_44c.gth $r/sth3_system_45a.gth"
 
     elif [ $arch = "gth3.0" ]; then
-	ls $release_archive/gth3_system_*
-
-    elif [ $arch = "gth2.1" ]; then
-	echo "$release_archive/gth2_system_36b.gth"
+	echo "$r/gth3_system_43a.gth $r/gth3_system_44b.gth"
 
     else
 	die "Target $IP is an unknown architecture: $arch"
@@ -42,15 +34,13 @@ systems()
 failsafes()
 {
     local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
+    local r=$release_archive
 
     if [ $arch = "sth3.0" ]; then
-	ls $release_archive/sth3_failsafe_*
+        echo "$r/sth3_failsafe_15a.gth $r/sth3_failsafe_15b.gth"
 
     elif [ $arch = "gth3.0" ]; then
-	ls $release_archive/gth3_failsafe_*
-
-    elif [ $arch = "gth2.1" ]; then
-	echo "$release_archive/gth2_failsafe_10c.gth"
+        echo "$r/gth3_failsafe_16a.gth $r/gth3_failsafe_16b.gth"
 
     else
 	die "Target $IP is an unknown architecture: $arch"

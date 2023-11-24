@@ -1,7 +1,6 @@
 #!/bin/bash -eu
 
-export TOP_PID=$$
-trap "exit 2" TERM
+source testlib.sh
 
 usage()
 {
@@ -31,12 +30,6 @@ arch_specific_cleanup()
     esac
 }
 
-die()
-{
-    echo $@ 1>&2
-    kill -s TERM $TOP_PID
-}
-
 invalid_dtmf()
 {
     if ../monitor_dtmf $IP bogus 2>/dev/null
@@ -47,18 +40,18 @@ invalid_dtmf()
 # and we'll bomb out---just like we want
 valid_dtmf()
 {
-    case $arch in
-	gth2.1)
-	    ../query_set $IP pcm$pcm status enabled 2>/dev/null
-	    ../query_set $IP pcm4A status enabled 2>/dev/null
-	    (sleep 1; ../playback_file $IP 4A 1 ../audio/dtmf7 2>/dev/null) &
-	    (sleep 2; ../playback_file $IP 4A 1 ../audio/dtmf6 2>/dev/null) &
-	    (sleep 3; ../playback_file $IP 4A 1 ../audio/dtmf5 2>/dev/null)&
-	    ../monitor_dtmf -n 3 $IP $pcm 1 2>/dev/null;;
-
-	*)
-	    ../monitor_dtmf -n 0 $IP $pcm 1 2>/dev/null
-    esac
+    if [ $(is_duplex_card $IP) -eq 0 ]
+    then
+	../query_set $IP pcm$pcm status enabled 2>/dev/null
+	../query_set $IP pcm4A status enabled 2>/dev/null
+	(sleep 1; ../playback_file $IP 4A 1 ../audio/dtmf7 2>/dev/null) &
+	(sleep 2; ../playback_file $IP 4A 1 ../audio/dtmf6 2>/dev/null) &
+	(sleep 3; ../playback_file $IP 4A 1 ../audio/dtmf5 2>/dev/null)&
+	../monitor_dtmf -n 3 $IP $pcm 1 2>/dev/null
+    else
+        echo "running reduced DTMF test because DUT is not duplex"
+	../monitor_dtmf -n 0 $IP $pcm 1 2>/dev/null
+    fi
 }
 
 if [ $# -lt 1 ]

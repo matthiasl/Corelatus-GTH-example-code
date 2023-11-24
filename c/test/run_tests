@@ -11,7 +11,7 @@ tests="$tests t_install_start_script t_install_release"
 
 for i in $tests
 do
-    echo "--------------"
+    echo "-------------- $i"
     if ./$i $IP
     then echo "Test $i OK"
     else echo "Test $i FAIL"; exit 1
