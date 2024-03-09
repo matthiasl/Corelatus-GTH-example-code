@@ -4,7 +4,7 @@
 # Author: Matthias Lang (matthias@corelatus.com)
 # Created: January 2001
 #
-# Copyright (C) 2001--2023 Corelatus AB Stockholm
+# Copyright (C) 2001--2023 Corelatus AB
 
 classpath=$(CLASSPATH)
 

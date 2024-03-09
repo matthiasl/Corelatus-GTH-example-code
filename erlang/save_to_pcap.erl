@@ -34,7 +34,7 @@
 %%
 %% Program loops forever, you need to kill it to end it.
 %%
-%% Copyright (c) 2009, Corelatus AB Stockholm
+%% Copyright (c) 2009, Corelatus AB
 %%
 %% All rights reserved.
 %%

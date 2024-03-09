@@ -3,7 +3,7 @@
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: December 2020
 //
-// Copyright (c) 2020 Corelatus AB Stockholm
+// Copyright (c) 2020 Corelatus AB
 //
 // This is demonstration code. Use at your own risk.
 //

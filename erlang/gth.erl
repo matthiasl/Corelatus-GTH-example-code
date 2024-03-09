@@ -52,7 +52,7 @@
 %%%
 %%% This code is shipped to customers.
 %%%
-%%% Copyright (c) 2009, Corelatus AB Stockholm
+%%% Copyright (c) 2009, Corelatus AB
 %%%
 %%% Licence: BSD
 %%%

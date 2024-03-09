@@ -2,7 +2,7 @@
 %%% GTH API: Library code for handling the HTTP-like protocol between
 %%%          the GTH and its controllers
 %%%
-%%% (C) 2001 Corelatus AB Stockholm, Sweden
+%%% Copyright (C) 2001, Corelatus AB
 %%%
 %%% This module can be used either with {active, false} or {active, once}
 %%% sockets, but some functions only work with one sort. See the 'export'

@@ -23,7 +23,7 @@ This module requires these other modules and libraries:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2009 by Corelatus AB Stockholm, Sweden
+Copyright (C) 2009, Corelatus AB
 
  All rights reserved.
 
@@ -49,4 +49,3 @@ Copyright (C) 2009 by Corelatus AB Stockholm, Sweden
  WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-

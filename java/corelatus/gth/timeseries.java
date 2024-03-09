@@ -3,7 +3,7 @@
 // Author: Matthias Lang (matthias@corelatus.com)
 // Created: November 2004
 //
-// Copyright (c) 2004 Corelatus AB Stockholm
+// Copyright (c) 2004 Corelatus AB
 //
 // This is demonstration code. Use at your own risk. Permission granted to
 // copy, modify and integrate into other code.

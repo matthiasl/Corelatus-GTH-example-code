@@ -8,7 +8,7 @@
 //
 // Author: Thomas Lange (thomas@corelatus.se)
 //
-// Copyright (c) 2019, Corelatus AB Stockholm
+// Copyright (c) 2019, Corelatus AB
 //
 // All rights reserved.
 //

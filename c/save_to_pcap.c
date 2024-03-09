@@ -18,7 +18,7 @@
 // Author: Matt Lang (matthias@corelatus.se)
 // Contributions from: Arash Dalir
 //
-// Copyright (c) 2009--2016, Corelatus AB Stockholm
+// Copyright (c) 2009--2016, Corelatus AB
 //
 // All rights reserved.
 //

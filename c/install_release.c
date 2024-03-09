@@ -5,7 +5,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2009, Corelatus AB Stockholm
+// Copyright (c) 2009, Corelatus AB
 //
 // All rights reserved.
 //

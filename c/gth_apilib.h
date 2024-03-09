@@ -19,7 +19,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2013, 2009, 2019, Corelatus AB Stockholm
+// Copyright (c) 2013, 2009, 2019, Corelatus AB
 //
 // Licence: BSD
 //

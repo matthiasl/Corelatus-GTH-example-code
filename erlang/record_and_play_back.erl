@@ -18,7 +18,7 @@
 %%
 %%    1> record_and_play_back:record("172.16.2.7", "1A", 1, "ts_dump.raw", 10).
 %%
-%% Copyright (c) 2009, Corelatus AB Stockholm
+%% Copyright (c) 2009, Corelatus AB
 %%
 %% All rights reserved.
 %%
