@@ -125,7 +125,7 @@ xml_tags() ->
      controller,
      fr_layer, fr_monitor, lapd_layer, lapd_monitor, level_detector,
      mtp2_monitor, player, raw_monitor, resource, ss5_linesig_monitor,
-     ss5_registersig_monitor, tone_detector,
+     ss5_registersig_monitor, tone_detector, v110_monitor,
 
      pcm_sink
     ].
