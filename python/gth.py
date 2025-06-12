@@ -24,6 +24,7 @@ Examples:
 
      ./gth.py 172.16.1.10 disable sdh1
      ./gth.py 172.16.1.10 enable  sdh1
+     ./gth.py 172.16.1.10 enable  pcm13
      ./gth.py 172.16.1.10 map     sdh1:hop1_1:lop1_1_1
      ./gth.py 172.16.1.10 query   os
      ./gth.py 172.16.1.10 reset

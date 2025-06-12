@@ -74,6 +74,26 @@ class API:
 
         return (aal5_id, data)
 
+    def new_fr_layer(self, span, timeslots):
+        """Returns a (job_id, socket) tuple. Writing to the returned
+        socket results in signal units (packets) being transmitted
+        on the timeslot. The data format on the socket is described
+        in the GTH API manual, under new fr_layer."""
+
+        IP, _api_port = self.socket._socket.getsockname()
+        port, ls = tcp_listen()
+        self.send("<new><fr_layer ip_addr='%s' ip_port='%s'>"\
+                      "%s %s"\
+                      "</fr_layer></new>"\
+                      % (IP, port, sources(span, timeslots), \
+                         sinks(span, timeslots) ))
+        fr_id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+
+        return (fr_id, data)
+
+
     def new_fr_monitor(self, span, timeslots):
         """Returns a (job_id, socket) tuple.  Monitor Frame Relay on a
         GTH. Socket returned uses the format defined in the GTH API
@@ -264,6 +284,16 @@ def options(dict):
         list += " " + key + "='" + val + "'"
     return list
 
+def sinks(span, timeslots):
+    "Returns a string with an XML representation of the sources"
+
+    list = ""
+    for ts in timeslots:
+        list += "<pcm_sink span='%s' timeslot='%d'/>" % (span, ts)
+
+    return list
+
+# To-do: Hardware and API supports subrate; this code doesn't (yet)
 def sources(span, timeslots):
     "Returns a string with an XML representation of the sources"
 
