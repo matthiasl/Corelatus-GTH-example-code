@@ -18,7 +18,7 @@
 // Author: Matt Lang (matthias@corelatus.se)
 // Contributions from: Arash Dalir
 //
-// Copyright (c) 2009--2016, Corelatus AB
+// Copyright (c) 2009--2025, Corelatus AB
 //
 // All rights reserved.
 //
@@ -151,6 +151,7 @@ typedef struct {
 struct Options {
   int monitoring;
   int skip_l1_setup;
+  int disable_scrambling;
   int verbose;
   int n_sus_per_file;
   int duration_per_file;
@@ -187,11 +188,13 @@ usage(void) {
 	  "save_to_pcap <options> <GTH-IP> <channels> [<channels>...] <filename>"
 	  "\n\nSave decoded signal units to a file in libpcap format, suitable for"
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
-	  "\n<options>: [-a vpi:vci] [-c] [-f <option>] [-l] [-m] [-n <rotation>]"
-	  "\n           [-p mtp2|lapd|aal0|aal2|aal5|raw] [-s] [-v]\n"
+	  "\n<options>: [-a vpi:vci] [-b <bw>] [-c] [-d] [-f <option>] [-l] [-m]" \
+          "\n           [-n <rotation>]"
+	  "\n           [-p mtp2|lapd|aal0|aal2|aal5|raw] [-s] [t <option>] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p aal5)"
           "\n-b 56|48 bandwidth, in kbit/s (used for ANSI/NTT subrate MTP-2)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
+          "\n-d disable ATM scrambling (for aal0/aal2/aal5)"
 	  "\n-f fisu=no: remove all MTP-2 FISUs"
 	  "\n-f esnf=yes: use MTP-2 extended sequence numbers"
 	  "\n-l skip layer 1 setup; assume it is already done"
@@ -595,6 +598,7 @@ monitor_aal0(GTH_api *api,
                                     channel->source,
                                     channel->timeslots,
                                     channel->n_timeslots,
+                                    !(options.disable_scrambling),
                                     job_id, api->my_ip, listen_port);
 
   if (result != 0)
@@ -629,6 +633,7 @@ monitor_aal2(GTH_api *api,
 				      channel->n_timeslots,
 				      options.vpi,
 				      options.vci,
+                                      !(options.disable_scrambling),
 				      job_id, api->my_ip, listen_port);
   }
 
@@ -664,6 +669,7 @@ monitor_aal5(GTH_api *api,
 				      channel->n_timeslots,
 				      options.vpi,
 				      options.vci,
+                                      !(options.disable_scrambling),
 				      job_id, api->my_ip, listen_port);
   }
 
@@ -1586,6 +1592,8 @@ process_arguments(char **argv,
       break;
 
     case 'c': opts->format = PCAP_CLASSIC; break;
+
+    case 'd': opts->disable_scrambling = 1; break;
 
     case 'f':
       if (argc < 3) {

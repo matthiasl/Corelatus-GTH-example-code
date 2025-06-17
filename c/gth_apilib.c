@@ -170,6 +170,7 @@ static int new_atm_aal_monitor(GTH_api *api,
                                const int n_timeslots,
                                const int vpi,
                                const int vci,
+                               const int scrambling,
                                char *job_id,
                                const char *ip,
                                const int port,
@@ -595,6 +596,13 @@ static int kv_to_attributes(char *buffer,
   return used;
 }
 
+static char *format_yes_no(const int yes_no) {
+  if (yes_no)
+    return "yes";
+  else
+    return "no";
+}
+
 static void format_sources(const char *span,
 			   const int timeslots[],
 			   const int n_timeslots,
@@ -714,23 +722,27 @@ int gth_new_atm_aal0_monitor(GTH_api *api,
 			     const char *span,
 			     const int timeslots[],
 			     const int n_timeslots,
+                             const int scrambling,
                              char *job_id,
 			     const char *ip,
 			     const int port)
 {
   char command[MAX_COMMAND];
   char sources[MAX_COMMAND];
+  char *a_scrambling;
   int result;
   const char* template;
 
   assert(n_timeslots < 32 && n_timeslots > 0);
 
-  template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+  template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d' scrambling='%s'>"
     "%s</atm_aal0_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, 64, sources);
+  a_scrambling = format_yes_no(scrambling);
 
-  result = snprintf(command, MAX_COMMAND, template, ip, port, tag, sources);
+  result = snprintf(command, MAX_COMMAND, template, ip, port, tag,
+                    a_scrambling, sources);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
@@ -746,12 +758,13 @@ int gth_new_atm_aal2_monitor(GTH_api *api,
 			     const int n_timeslots,
 			     const int vpi,
 			     const int vci,
+                             const int scrambling,
 			     char *job_id,
 			     const char *ip,
 			     const int port)
 {
   return new_atm_aal_monitor(api, tag, span, timeslots, n_timeslots,
-                             vpi, vci, job_id, ip, port, 2);
+                             vpi, vci, scrambling, job_id, ip, port, 2);
 }
 
 int gth_new_sdh_atm_aal2_monitor(GTH_api *api,
@@ -774,12 +787,13 @@ int gth_new_atm_aal5_monitor(GTH_api *api,
 			     const int n_timeslots,
 			     const int vpi,
 			     const int vci,
+                             const int scrambling,
 			     char *job_id,
 			     const char *ip,
 			     const int port)
 {
   return new_atm_aal_monitor(api, tag, span, timeslots, n_timeslots,
-                             vpi, vci, job_id, ip, port, 5);
+                             vpi, vci, scrambling, job_id, ip, port, 5);
 }
 
 int gth_new_sdh_atm_aal5_monitor(GTH_api *api,
@@ -2178,6 +2192,7 @@ static int new_atm_aal_monitor(GTH_api *api,
                                const int n_timeslots,
                                const int vpi,
                                const int vci,
+                               const int scrambling,
                                char *job_id,
                                const char *ip,
                                const int port,
@@ -2187,17 +2202,19 @@ static int new_atm_aal_monitor(GTH_api *api,
   char sources[MAX_COMMAND];
   int result;
   const char* template;
+  char *a_scrambling;
 
   assert(n_timeslots < 32 && n_timeslots > 0);
 
   template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
-    "vpi='%d' vci='%d'>"
+    "vpi='%d' vci='%d' scrambling=%s>"
     "%s</atm_aal%d_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, 64, sources);
+  a_scrambling = format_yes_no(scrambling);
 
   result = snprintf(command, MAX_COMMAND, template,
-		    aal, ip, port, tag, vpi, vci, sources, aal);
+		    aal, ip, port, tag, vpi, vci, a_scrambling, sources, aal);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
