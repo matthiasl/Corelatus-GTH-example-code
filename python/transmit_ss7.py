@@ -3,7 +3,12 @@
 # Title: Demonstrate how to transmit SS7 on 64 kbit/s MTP-2,
 #        1536 kbit/s MTP-2 Annex A and 1536 kbit/s ATM AAL0.
 #
-# Author: Matthias Lang (matthias@corelatus.se)
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
+#
 #
 # MTP-2 Underlying operation
 # --------------------------

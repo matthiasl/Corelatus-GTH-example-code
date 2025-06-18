@@ -2,11 +2,15 @@
 #
 # Title: Run commands on the GTH from python
 #
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
+#
 # (Everything you can do with this Python example can also be done
 # using the GTH's in-built SSH CLI; the point of this example is to
 # show how to use 'apilib.py')
-#
-# Author: Matthias Lang (matthias@corelatus.se)
 
 import sys
 from sys import argv, stderr

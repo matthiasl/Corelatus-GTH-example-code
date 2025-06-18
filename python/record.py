@@ -1,7 +1,13 @@
 #!/usr/bin/python3
 #
 # Title: Record E1/T1 timeslot data from a Corelatus GTH
-# Author: Matthias Lang (matthias@corelatus.se)
+#
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
+#
 
 import sys
 from sys import argv, stderr

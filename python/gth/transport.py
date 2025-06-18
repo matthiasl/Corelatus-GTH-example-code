@@ -1,9 +1,14 @@
 # Python version of the transport layer of the GTH API.
 #
-# Author: Matthias Lang (matthias@corelatus.se)
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
 #
 # This is blocking code. The GTH can send asynchronous information at any
-# time, so blocking isn't so great. Options:
+# time, so a more sophisticated application might want to relax this
+# restriction. Options:
 #
 #    0. Ignore/delay the asynchronous information. Fine for
 #       lab use and testing. Not an option for a robust application.

@@ -1,10 +1,16 @@
 # Title: A parser for the responses which can come out of a Corelatus GTH.
 #
-# Author: Matthias Lang (matthias@corelatus.se)
-#
 # The GTH uses a text protocol which is a cut-down XML. It can be parsed
 # using an XML parser (probably a DOM one), but that would be overkill.
 #
+#
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
+#
+
 from pyparsing import Word, quotedString, removeQuotes, ZeroOrMore, Or
 from pyparsing import alphas, Dict, dictOf, Suppress, Forward, Literal
 

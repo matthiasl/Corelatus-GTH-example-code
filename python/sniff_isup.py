@@ -1,7 +1,13 @@
 #!/usr/bin/python3
 #
 # Title: Sniff SS7 ISUP call setup/teardown from an E1/T1 timeslot
-# Author: Matthias Lang (matthias@corelatus.se)
+#
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
+#
 #
 # Reference: ISUP decoding is in ITU-T Q.767 Annex C
 #            MTP-2 is in ITU-T Q.703

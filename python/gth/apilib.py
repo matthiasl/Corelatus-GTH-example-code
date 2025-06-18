@@ -1,6 +1,13 @@
-# Title: Utilities for talking to a Corelatus GTH from python
-# Author: Matthias Lang (matthias@corelatus.se)
+# Title: Python interface for controlling a Corelatus GTH
 #
+# Copyright (c) 2020–2025, Corelatus AB
+# All rights reserved.
+#
+# Licensed under the BSD 3-Clause License. See the LICENSE file
+# in the project root for full license information.
+#
+# See the examples, e.g. 'sniff_isup.py', to understand how to use this.
+
 
 import sys
 from sys import stderr
