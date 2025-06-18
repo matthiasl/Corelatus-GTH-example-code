@@ -76,7 +76,7 @@ def main():
     if (argv[5] == "-"):
         file = sys.stdout
     else:
-        file = open(argv[5], "w")
+        file = open(argv[5], "wb")
 
     record(argv[1], argv[2], int(argv[3]), int(argv[4]), file)
 

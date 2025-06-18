@@ -51,9 +51,10 @@ def play(host, span, timeslot, file):
 
     # Stream out the message
     while True:
+        print(octets_sent)
         buffer = file.read(1000)
         octets_sent += len(buffer)
-        if (buffer == ""):
+        if (len(buffer) == 0):
             break
         data.sendall(buffer)
 
@@ -76,7 +77,7 @@ def main():
     if (argv[4] == "-"):
         file = sys.stdin
     else:
-        file = open(argv[4], "r")
+        file = open(argv[4], "rb")
 
     play(argv[1], argv[2], int(argv[3]), file)
 
