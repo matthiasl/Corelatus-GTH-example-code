@@ -25,28 +25,6 @@ sniff_isup.py <hostname> <span> <timeslot>
 Typical invocation: ./sniff_isup.py 172.16.1.10 1A 16
 """)
 
-# Check that a given PCM is in a state where it could give useful data.
-# That means in 'OK' or 'RAI' status.
-def warn_if_l1_dead(api, span):
-    attributes = api.query_resource("pcm" + span);
-
-    if attributes['status'] == "OK":
-        pass
-    elif attributes['status'] == "RAI":
-        pass
-    elif attributes['status'] == "disabled":
-        stderr.write("""
-Warning: pcm%s is disabled. The GTH won't actually emit any data.
-         Hint: enable L1 with enable_l1.py
-""" % span)
-    else:
-        stderr.write("""
-Warning: pcm%s status is %s
-
-Chances are the other end of your E1 isn't plugged in (or enabled)
-
-""" % (span, attributes['status']))
-
 def _definite_read(socket, n):
     data = socket.recv(n)
     if (len(data) != n):
@@ -135,7 +113,7 @@ def isup_ignore(type, CIC, rest):
 
 def monitor_mtp2(host, span, timeslot):
     api = gth.apilib.API(host)
-    warn_if_l1_dead(api, span)
+    api.warn_if_l1_dead(span)
 
     mtp2_id, data = api.new_mtp2_monitor(span, timeslot)
 

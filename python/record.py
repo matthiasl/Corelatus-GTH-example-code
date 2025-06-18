@@ -22,29 +22,9 @@ record.py <hostname> <span> <timeslot> <octets> <filename>
 Typical invocation: ./record.py 172.16.1.10 1A 16 16000 signalling.raw
 """)
 
-# Check that a given PCM is in a state where it could give useful data.
-# That means in 'OK' or 'RAI' status.
-def warn_if_l1_dead(api, span):
-    attrs = api.query_resource("pcm" + span)
-    if attrs['status'] in ["OK", "RAI"]:
-        return
-    else:
-        if attrs['status'] == "disabled":
-            stderr.write("""
-Warning: pcm%s is disabled. Your recording won't have any useful data in it.
-         Hint: enable L1 with 'gth.py'
-""" % span)
-        else:
-            stderr.write("""
-Warning: pcm%s status is %s
-
-Your recording won't have any useful data in it. Is there really a signal
- on pcm%s?
-""" % (span, attrs['status'], span))
-
 def record(host, span, timeslot, octets_wanted, file):
     api = gth.apilib.API(host)
-    warn_if_l1_dead(api, span)
+    api.warn_if_l1_dead(span, "Your recording file won't have useful data.")
 
     recorder_id, data = api.new_recorder(span, timeslot)
     octets_received = 0

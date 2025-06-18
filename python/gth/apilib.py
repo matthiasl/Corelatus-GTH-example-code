@@ -23,195 +23,120 @@ class API:
         self.send("<bye/>")
         self.check_ok("bye")
 
-    def delete(self, ID):
-        "Delete the given job"
-        self.send("<delete id='%s'/>" % ID)
+    def delete(self, id):
+        """Delete the given job"""
+        self.send(xml_tag("delete", {'id': id}))
         self.check_ok("delete")
 
     def disable(self, name):
-        "Disable an E1/T1 or SDH/SONET interface"
-        self.send("<disable name='%s'/>" % name)
+        """Disable an E1/T1 or SDH/SONET interface"""
+        self.send(xml_tag("disable", {'name': name}))
         self.check_ok("disable")
 
     def enable(self, name, attributes):
-        "Enable an E1/T1 or SDH/SONET interface"
-        self.send("<enable name='%s'>%s</enable>"
-                         % (name, format_attributes(attributes)))
+        """Enable an E1/T1 or SDH/SONET interface"""
+        self.send(xml_tag("enable", {'name': name}, xml_attributes(attributes)))
         self.check_ok("enable")
 
-    def map(self, Type, Name):
-        "Map (assign a name) an E1/T1 carried on an SDH/SONET interface"
-        if Type != "pcm_source":
+    def map(self, type, name):
+        """Map (assign a name) an E1/T1 carried on an SDH/SONET interface"""
+        if type != "pcm_source":
             raise SemanticError("tried to map something other than a pcm_source")
-        self.send("<map target_type='pcm_source'>" \
-                             "<sdh_source name='%s'/></map>" % Name)
+        SDH = xml_tag("sdh_source", {'name': name})
+        self.send(xml_tag("map", {'target_type': 'pcm_source'}, SDH))
+
         reply, _events = self.next_non_event()
         if reply[0] != "resource":
-            stderr.write(reply + "\n")
-            se = ("should have returned a resource", command, reply)
+            stderr.write(str(reply) + "\n")
+            se = ("should have returned a resource", "map", reply)
             raise SemanticError(se)
         print(reply.name)
 
     def new_atm_aal0_layer(self, span, timeslots, opts = {}):
-        """Returns a (job_id, socket) tuple. Writing to the returned
+        """Return a (job_id, socket) tuple. Writing to the returned
         socket results in AAL0 cells (packets) being transmitted.
         The data format on the socket is described
         in the GTH API manual, under 'new atm_aal0_layer'."""
 
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-
-        opts['ip_addr'] = IP
-        opts['ip_port'] = "%d" % port
-        self.send("<new><atm_aal0_layer %s>"\
-                      "%s %s"\
-                      "</atm_aal0_layer></new>"\
-                      % (options(opts), sources(span, timeslots), \
-                         sinks(span, timeslots) ))
-        aal0_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (aal0_id, data)
-
+        opts, ls = self._tcp_listen()
+        AAL0 = xml_tag("atm_aal0_layer", opts, sources_sinks(span, timeslots))
+        return self._new_data(ls, AAL0)
 
     def new_atm_aal5_monitor(self, span, timeslot_list, vpi_vci, opts = {}):
-        """Returns a (job_id, socket) tuple.
+        """Return a (job_id, socket) tuple.
         Monitor ATM AAL5 on a GTH. Socket returned uses the format defined in
         the GTH API manual, under new_atm_aal5_monitor."""
 
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-        opts['ip_addr'] = IP
-        opts['ip_port'] = "%d" % port
+        opts, ls = self._tcp_listen()
         (vpi, vci) = vpi_vci
         opts['vpi'] = "%d" % vpi
         opts['vci'] = "%d" % vci
 
-        self.send("<new><atm_aal5_monitor %s>%s" \
-                  "</atm_aal5_monitor></new>"\
-                  % (options(opts), sources(span, timeslot_list)))
-        aal5_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (aal5_id, data)
+        AAL5 = xml_tag("atm_aal5_monitor", opts, sources(span, timeslot_list))
+        return self._new_data(ls, AAL5)
 
     def new_fr_layer(self, span, timeslots):
-        """Returns a (job_id, socket) tuple. Writing to the returned
+        """Return a (job_id, socket) tuple. Writing to the returned
         socket results in signal units (packets) being transmitted
         on the timeslot. The data format on the socket is described
         in the GTH API manual, under 'new fr_layer'."""
 
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-
-        self.send("<new><fr_layer ip_addr='%s' ip_port='%s'>"\
-                      "%s %s"\
-                      "</fr_layer></new>"\
-                      % (IP, port, sources(span, timeslots), \
-                         sinks(span, timeslots) ))
-
-        fr_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (fr_id, data)
-
+        opts, ls = self._tcp_listen()
+        FR = xml_tag("fr_layer", opts, sources_sinks(span, timeslots))
+        return self._new_data(ls, FR)
 
     def new_fr_monitor(self, span, timeslots):
-        """Returns a (job_id, socket) tuple.  Monitor Frame Relay on a
+        """Return a (job_id, socket) tuple.  Monitor Frame Relay on a
         GTH. Socket returned uses the format defined in the GTH API
         manual, under new_fr_monitor."""
 
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-        self.send("<new><fr_monitor ip_addr='%s' ip_port='%s'>"\
-                      "%s"\
-                      "</fr_monitor></new>"\
-                      % (IP, port, sources(span, timeslots)) )
-        fr_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (fr_id, data)
+        opts, ls = self._tcp_listen()
+        FR = xml_tag("fr_monitor", opts, sources(span, timeslots))
+        return self._new_data(ls, FR)
 
     def new_mtp2_monitor(self, span, timeslot):
-        """Returns a (job_id, socket) tuple.
+        """Return a (job_id, socket) tuple.
         Monitor MTP-2 on a GTH. Socket returned uses the format defined in
         the GTH API manual, under new_mtp2_monitor."""
 
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-        self.send("<new><mtp2_monitor ip_addr='%s' ip_port='%s'>"\
-                                "<pcm_source span='%s' timeslot='%d'/>"\
-                                "</mtp2_monitor></new>"\
-                                % (IP, port, span, timeslot) )
-        mtp2_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (mtp2_id, data)
+        opts, ls = self._tcp_listen()
+        mtp2 = xml_tag("mtp2_monitor", opts, sources(span, [timeslot]))
+        return self._new_data(ls, mtp2)
 
     def new_player(self, span, timeslot):
-        """Returns a (job_id, socket) tuple.
-        Create a timeslot player on a GTH."""
+        """Return a (job_id, socket) tuple. Create a timeslot player."""
 
-        IP, _api_port = self.socket._socket.getsockname()
+        opts, ls = self._tcp_listen()
 
-        port, ls = tcp_listen()
-        self.send("<new><player>" \
-                                "<tcp_source ip_addr='%s' ip_port='%d'/>"\
-                                "<pcm_sink span='%s' timeslot='%d'/>" \
-                                "</player></new>"\
-                                % (IP, port, span, timeslot) )
-        player_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (player_id, data)
+        player = xml_tag("player", {}, \
+                         xml_tag("tcp_source", opts) + sinks(span, [timeslot]))
+        return self._new_data(ls, player)
 
     def new_recorder(self, span, timeslot):
-        """Returns a (job_id, socket) tuple.
-        Create a timeslot recorder on a GTH."""
+        """Return a (job_id, socket) tuple. Create a timeslot recorder."""
 
-        IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-        self.send("<new><recorder>"\
-                                "<pcm_source span='%s' timeslot='%d'/>"\
-                                "<tcp_sink ip_addr='%s' ip_port='%d'/>"\
-                                "</recorder></new>"\
-                                % (span, timeslot, IP, port) )
-        recorder_id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
-
-        return (recorder_id, data)
+        opts, ls = self._tcp_listen()
+        recorder = xml_tag("recorder", {}, sources(span, [timeslot]) + xml_tag("tcp_sink", opts))
+        return self._new_data(ls, recorder)
 
     def new_v110_monitor(self, span, timeslot, first_bit, n_bits, ra0="no"):
-        """Returns a (job_id, socket) tuple.
+        """Return a (job_id, socket) tuple.
         Monitor V.110. Socket returned uses the format defined in
         the GTH API manual, under new_v110_monitor."""
 
         IP, _api_port = self.socket._socket.getsockname()
-        port, ls = tcp_listen()
-        self.send("<new>"\
-                  "<v110_monitor ip_addr='%s' ip_port='%s' rate='%d' ra0='%s'>"\
-                  "<pcm_source span='%s' timeslot='%d'"\
-                  " first_bit='%d' bandwidth='%d'/>"\
-                  "</v110_monitor></new>"\
-                  % (IP, port, 4800 * n_bits, ra0,\
-                     span, timeslot, first_bit, n_bits * 8) )
-        id, _ignored_events = self.receive_job_id()
-        data, _remote_address = ls.accept()
-        ls.close()
+        opts, ls = self._tcp_listen()
+        opts['rate'] = 4800 * n_bits
+        opts['ra0'] = ra0
 
-        return (id, data)
+        source = sources(span, timeslot, first_bit, n_bits)
+        v110 = xml_tag("v110_monitor", opts, source)
+        return self._new_data(ls, v110)
 
     def query_resource(self, name):
-        """Returns a dict of attributes
-        Query a GTH resource"""
-        self.send("<query><resource name='%s'/></query>" % name)
+        """Return a dict of attributes. Query a GTH resource"""
+
+        self.send(xml_tag("query", {}, xml_tag("resource", {'name': name})))
         reply, _events = self.next_non_event()
         if reply[0] != "state":
             raise SemanticError( ("query failed", reply) )
@@ -228,29 +153,29 @@ class API:
             return reply[3]
 
     def reset(self):
-        "Reset (reboot) the GTH"
-        self.send("<reset><resource name='cpu'/></reset>")
-        self.check_ok("reset");
+        """Reset (reboot) the GTH"""
+
+        self.send(xml_tag("reset", {}, xml_tag("resource", {'name': 'cpu'})))
+        self.check_ok("reset")
 
     def set(self, name, attributes):
         "Set attributes on a resource"
-        self.send("<set name='%s'>%s</set>"
-                         % (name, format_attributes(attributes)))
-        self.check_ok("set");
+        self.send(xml_tag("set", {'name': name}, xml_attributes(attributes)))
+        self.check_ok("set")
 
-    def unmap(self, Name):
+    def unmap(self, name):
         "Unmap a resource"
-        self.send("<unmap name='%s'/>" % Name)
+        self.send(xml_tag("unmap", {'name': name}))
         self.check_ok("unmap")
 
     def zero_job(self, id):
         "Clear the counters on a job"
-        self.send("<zero><job id='%s'/></zero>" % id)
+        self.send(xml_tag("zero", {}, xml_tag("job", {'id': id})))
         self.check_ok("zero")
 
     def zero_resource(self, name):
         "Clear the counters on a resource"
-        self.send("<zero><resource name='%s'/></zero>" % name)
+        self.send(xml_tag("zero", {}, xml_tag("resource", {'name': name})))
         self.check_ok("zero")
 
     #---- The remaining functions are primarily intended for internal
@@ -281,8 +206,7 @@ class API:
                 return (answer, events)
 
     def next_event(self):
-        """Block, waiting for an event
-        Return that event"""
+        """Block, waiting for an event. Return that event"""
         return self.socket.receive()
 
     def check_ok(self, command):
@@ -293,69 +217,103 @@ class API:
             raise SemanticError(se)
 
     def receive_job_id(self):
-        """Return a tuple (ID, events)
-        If the next reply from the GTH is not a jobId, we raise SemanticError"""
+        """Return a tuple (id, events)
+        If the next reply from the GTH is not a job-id, raise SemanticError"""
+
         answer, events = self.next_non_event()
         if answer[0] == 'job':
             return (answer[1][1], events)
         else:
             raise SemanticError(answer)
 
-def options(dict):
-    "Returns a string with an XML representation of a list of key/value opts"
+    def _new_data(self, ls, xml):
+        """Given a listen-socket and an XML command, start a job and
+        accept the socket it creates."""
 
-    list = ""
-    for key,val in dict.items():
-        list += " " + key + "='" + val + "'"
-    return list
+        self.send(xml_tag("new", {}, xml))
+        id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+        return (id, data)
+
+    def _tcp_listen(self):
+        """Create a server socket, i.e. one which listens. Return
+        the port and IP in an 'opts' dictionary, plus the socket itself."""
+
+        s = socket.socket(socket.AF_INET)
+        s.bind(("", 0))
+        s.listen(1)
+        addr, port = s.getsockname()
+
+        IP, _api_port = self.socket._socket.getsockname()
+
+        opts = {}
+        opts['ip_addr'] = IP
+        opts['ip_port'] = "%d" % port
+
+        return (opts, s)
+
+    def warn_if_l1_dead(self, span, message = ""):
+        attrs = self.query_resource("pcm" + span)
+        if attrs['status'] in ["OK", "RAI"]:
+            return
+        else:
+            if attrs['status'] == "disabled":
+                stderr.write("""
+Warning: pcm%s is disabled. No data will go in or out.
+         %s
+         Hint: enable L1 with 'gth.py'
+""" % (span, message))
+            else:
+                stderr.write("""
+Warning: pcm%s status is %s
+
+Is there really a signal on pcm%s? %s
+""" % (span, attrs['status'], span, message))
+
+#--------------------
+# Rest of the file is just functions, i.e. not part of the class
 
 def sinks(span, timeslots):
-    "Returns a string with an XML representation of the sources"
+    "Return a string with an XML representation of the sinks"
 
-    list = ""
+    sinks = ""
     for ts in timeslots:
-        list += "<pcm_sink span='%s' timeslot='%d'/>" % (span, ts)
+        sinks += xml_tag("pcm_sink", {'span': span, 'timeslot': ts})
 
-    return list
+    return sinks
 
-# To-do: Hardware and API supports subrate; this code doesn't (yet)
-def sources(span, timeslots):
-    "Returns a string with an XML representation of the sources"
+def sources(span, timeslots, first_bit = 0, n_bits = 8):
+    "Return a string with an XML representation of the sources"
 
-    list = ""
+    sources = ""
     for ts in timeslots:
-        list += "<pcm_source span='%s' timeslot='%d'/>" % (span, ts)
+        sources += xml_tag("pcm_source", {'span': span, 'timeslot': ts})
 
-    return list
+    return sources
 
+def sources_sinks(span, timeslots):
+    return sources(span, timeslots) + sinks(span, timeslots)
 
-def tcp_listen():
-    """Create a server socket, i.e. one which listens.
-    Returns (port_number, socket)"""
+def xml_tag(name, attributes, children = []):
+    if (children == []):
+        return "<%s %s/>" % (name, xml_tag_attributes(attributes))
+    else:
+        return "<%s %s>%s</%s>" \
+            % (name, xml_tag_attributes(attributes), children, name)
 
-    s = socket.socket(socket.AF_INET)
-    s.bind(("", 0))
-    s.listen(1)
-    addr, port = s.getsockname()
-    return (port, s)
+def xml_tag_attributes(opts):
+    return ' '.join(f'{k}="{v}"' for k, v in opts.items())
 
-def udp_listen():
-    "Returns (port_number, socket)"
-
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    s.bind(("", 0))
-    addr, port = s.getsockname()
-    return (port, s)
-
-def format_attribute( key_value ):
+def xml_attribute( key_value ):
     (key, value) = key_value
-    return "<attribute name='" + key + "' value='" + value + "'/>"
+    return xml_tag("attribute", {'name': key, 'value': value})
 
-def format_attributes( list):
+def xml_attributes(attrs):
     result = ""
-    for x in list:
-        result += format_attribute(x)
-    return result
+    for x in attrs:
+        result += xml_attribute(x)
+        return result
 
 class SemanticError(Exception):
     def __init__(self, clue):

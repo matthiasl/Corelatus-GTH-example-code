@@ -50,35 +50,12 @@ transmit_ss7.py <hostname> <span>
 Typical invocation: ./transmit_ss7.py 172.16.1.10 1A
 """)
 
-# Check that a given PCM is in a state where it could give useful data.
-# That means in 'OK' or 'RAI' status.
-def warn_if_l1_dead(api, span):
-    attributes = api.query_resource("pcm" + span);
-
-    if attributes['status'] == "OK":
-        pass
-    elif attributes['status'] == "RAI":
-        pass
-    elif attributes['status'] == "disabled":
-        stderr.write("""
-Warning: pcm%s is disabled. The GTH won't actually emit any data.
-         Hint: enable L1 with enable_l1.py
-""" % span)
-    else:
-        stderr.write("""
-Warning: pcm%s status is %s
-
-Chances are the other end of your E1/T1 isn't plugged in (or enabled)
-
-""" % (span, attributes['status']))
-
 def fisu(fsn, fib, bsn, bib):
     li = 0
     fsn_fib = ((fsn & 0x7F) << 1) | (fib & 0x01)
     bsn_bib = ((bsn & 0x7F) << 1) | (bib & 0x01)
 
     return bytes([bsn_bib, fsn_fib, li])
-
 
 # common sf values:  (Q.703: 11.1.3, 7.2)
 #    0: SIO
@@ -110,7 +87,7 @@ def mtp2_send(socket, su):
 
 def transmit_mtp2(host, span, timeslots):
     api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
-    warn_if_l1_dead(api, span)
+    api.warn_if_l1_dead(span)
 
     fr_id, data = api.new_fr_layer(span, timeslots)
 
@@ -134,13 +111,13 @@ def aal0_send(socket, su):
 
 def transmit_aal0(host, span, timeslots):
     api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
-    warn_if_l1_dead(api, span)
+    api.warn_if_l1_dead(span)
 
     # On E1, scrambling is used
     # On T1, scrambling is not used
     # (ref: ITU-T I.432.3 6.2.4.5 and 7.2.4.5)
     l1_settings = api.query_resource("pcm" + span)
-    if (l1_settings['mode'] == "E1"):
+    if (l1_settings['status'] != 'disabled' and l1_settings['mode'] == "E1"):
         scrambling = "yes"
     else:
         scrambling = "no"
