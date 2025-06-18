@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #
-# Title: Demonstrate how to transmit SS7 on 64 kbit/s MTP-2 and
-#        1536 kbit/s MTP-2 Annex A
+# Title: Demonstrate how to transmit SS7 on 64 kbit/s MTP-2,
+#        1536 kbit/s MTP-2 Annex A and 1536 kbit/s ATM AAL0.
 #
 # Author: Matthias Lang (matthias@corelatus.se)
 #
@@ -19,6 +19,18 @@
 # an <fr_layer> and using opcode 3 when transmitting signal units.
 #
 # Reference: API manual, 3.16 <new_fr_layer>
+#
+#
+# ATM AAL0 Underlying operation
+# -----------------------------
+#
+# The Corelatus hardware takes care of
+#
+#    1. HEC (CRC) generation
+#    2. Scrambling
+#    3. Idle cell transmission
+#
+# Reference: API manual, 3.9 <new atm_aal0_layer>
 
 import sys
 import time
@@ -114,6 +126,39 @@ def transmit_mtp2(host, span, timeslots):
 
     api.bye()
 
+def aal0_send(socket, su):
+    length = 52
+    opcode = 3
+    packed = struct.pack('!H', length) + su
+    result = socket.sendall(packed)
+
+def transmit_aal0(host, span, timeslots):
+    api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
+    warn_if_l1_dead(api, span)
+
+    # On E1, scrambling is used
+    # On T1, scrambling is not used
+    # (ref: ITU-T I.432.3 6.2.4.5 and 7.2.4.5)
+    l1_settings = api.query_resource("pcm" + span)
+    if (l1_settings['mode'] == "E1"):
+        scrambling = "yes"
+    else:
+        scrambling = "no"
+
+    aal0_id, data = api.new_atm_aal0_layer(span, timeslots, \
+                                           {'scrambling': scrambling})
+
+    payload = b'Corelatus AB Stockholm this is exactly 48 octets'
+    aal0_send(data, bytes([1,2,3,4]) + payload)
+
+    time.sleep(2)
+
+    api.delete(aal0_id)
+    data.close()
+
+    api.bye()
+
+
 def main():
     if len(sys.argv) != 3:
         usage()
@@ -124,5 +169,8 @@ def main():
 
     # 1536 kbit/s MTP-2 (i.e. Q.703 Annex A, high speed)
     transmit_mtp2(argv[1], argv[2], list(range(1, 25)))
+
+    # 1536 kbit/s ATM AAL0
+    transmit_aal0(argv[1], argv[2], list(range(1, 25)))
 
 main()

@@ -52,6 +52,29 @@ class API:
             raise SemanticError(se)
         print(reply.name)
 
+    def new_atm_aal0_layer(self, span, timeslots, opts = {}):
+        """Returns a (job_id, socket) tuple. Writing to the returned
+        socket results in AAL0 cells (packets) being transmitted.
+        The data format on the socket is described
+        in the GTH API manual, under 'new atm_aal0_layer'."""
+
+        IP, _api_port = self.socket._socket.getsockname()
+        port, ls = tcp_listen()
+
+        opts['ip_addr'] = IP
+        opts['ip_port'] = "%d" % port
+        self.send("<new><atm_aal0_layer %s>"\
+                      "%s %s"\
+                      "</atm_aal0_layer></new>"\
+                      % (options(opts), sources(span, timeslots), \
+                         sinks(span, timeslots) ))
+        aal0_id, _ignored_events = self.receive_job_id()
+        data, _remote_address = ls.accept()
+        ls.close()
+
+        return (aal0_id, data)
+
+
     def new_atm_aal5_monitor(self, span, timeslot_list, vpi_vci, opts = {}):
         """Returns a (job_id, socket) tuple.
         Monitor ATM AAL5 on a GTH. Socket returned uses the format defined in
@@ -78,15 +101,17 @@ class API:
         """Returns a (job_id, socket) tuple. Writing to the returned
         socket results in signal units (packets) being transmitted
         on the timeslot. The data format on the socket is described
-        in the GTH API manual, under new fr_layer."""
+        in the GTH API manual, under 'new fr_layer'."""
 
         IP, _api_port = self.socket._socket.getsockname()
         port, ls = tcp_listen()
+
         self.send("<new><fr_layer ip_addr='%s' ip_port='%s'>"\
                       "%s %s"\
                       "</fr_layer></new>"\
                       % (IP, port, sources(span, timeslots), \
                          sinks(span, timeslots) ))
+
         fr_id, _ignored_events = self.receive_job_id()
         data, _remote_address = ls.accept()
         ls.close()
@@ -166,7 +191,7 @@ class API:
     def new_v110_monitor(self, span, timeslot, first_bit, n_bits, ra0="no"):
         """Returns a (job_id, socket) tuple.
         Monitor V.110. Socket returned uses the format defined in
-        the GTH API manual, under new_fr_monitor."""
+        the GTH API manual, under new_v110_monitor."""
 
         IP, _api_port = self.socket._socket.getsockname()
         port, ls = tcp_listen()
