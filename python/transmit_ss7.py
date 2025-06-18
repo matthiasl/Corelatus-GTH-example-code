@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Title: Demonstrate how to transmit SS7 on 64 kbit/s MTP-2,
 #        1536 kbit/s MTP-2 Annex A and 1536 kbit/s ATM AAL0.

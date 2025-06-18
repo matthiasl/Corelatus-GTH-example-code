@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Title: Play a file to an E1/T1 timeslot using a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)

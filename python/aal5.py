@@ -1,4 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/python3
+#
+# Title: Set up ATM AAL5 monitoring
+# Author: Matthias Lang (matthias@corelatus.se)
 #
 
 import sys
@@ -40,6 +43,10 @@ Warning: pcm%s status is %s
 Chances are the other end of your E1 isn't plugged in (or enabled)
 
 """ % (span, attributes['status']))
+
+def die(why):
+    print(why)
+    sys.exit(-1)
 
 def monitor_aal5(host, span, n_timeslots, vpi_vci):
     api = gth.apilib.API(host, 3)

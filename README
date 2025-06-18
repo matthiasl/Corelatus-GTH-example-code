@@ -2,9 +2,9 @@ Title: Example code for the GTH API
 Author: Matthias (matthias@corelatus.com)
 ----------------------------------------------------------------------
 
-A Corelatus GTH is a standalone piece of hardware which connects to
-the telephone network through the E1/T1 interface. People build voicemail
-systems, billing systems and network monitoring systems on top of GTHs.
+A Corelatus GTH is a standalone unit which connects to the telephone
+network through the E1/T1 or SDH interface. People build voicemail systems,
+billing systems and network monitoring systems on top of GTHs.
 
 This code is only really of interest to people using GTHs to build something.
 

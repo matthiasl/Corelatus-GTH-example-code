@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Title: Record E1/T1 timeslot data from a Corelatus GTH
 # Author: Matthias Lang (matthias@corelatus.se)

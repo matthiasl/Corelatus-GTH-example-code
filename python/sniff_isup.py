@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 #
 # Title: Sniff SS7 ISUP call setup/teardown from an E1/T1 timeslot
 # Author: Matthias Lang (matthias@corelatus.se)
