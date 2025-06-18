@@ -53,7 +53,7 @@ def monitor_aal5(host, span, n_timeslots, vpi_vci):
     warn_if_l1_dead(api, span)
 
     if (n_timeslots == 30):
-        timeslots = range(1,15) + range(17,31)
+        timeslots = list(range(1,15)) + list(range(17,31))
     elif (n_timeslots == 31):
         timeslots = range(1,31)
     else:
