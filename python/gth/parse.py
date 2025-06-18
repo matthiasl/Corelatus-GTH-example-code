@@ -13,6 +13,7 @@
 
 from pyparsing import Word, quotedString, removeQuotes, ZeroOrMore, Or
 from pyparsing import alphas, Dict, dictOf, Suppress, Forward, Literal
+from pyparsing import CharsNotIn
 
 quotedString.setParseAction(removeQuotes)
 
@@ -76,7 +77,7 @@ def gth_out():
 
         ok      = _empty_tag("ok", 0)
         job     = _empty_tag("job")
-        error   = _empty_tag("error") | _tag("error", Word(alphas + " "))
+        error   = _empty_tag("error") | _tag("error", CharsNotIn("<"))
 
         event_child = open \
             + Word(alphas + "_0123456789").setResultsName("type") \
