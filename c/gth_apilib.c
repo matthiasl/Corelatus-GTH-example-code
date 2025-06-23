@@ -2207,7 +2207,7 @@ static int new_atm_aal_monitor(GTH_api *api,
   assert(n_timeslots < 32 && n_timeslots > 0);
 
   template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
-    "vpi='%d' vci='%d' scrambling=%s>"
+    "vpi='%d' vci='%d' scrambling='%s'>"
     "%s</atm_aal%d_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, 64, sources);
