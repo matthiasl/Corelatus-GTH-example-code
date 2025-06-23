@@ -99,7 +99,9 @@ def transmit_mtp2(host, span, timeslots):
     mtp2_send(data, lssu(0, 0, 0, 0, 0))   # SIO
     mtp2_send(data, lssu(0, 0, 0, 0, 1))   # SIN
     mtp2_send(data,  msu(0, 0, 0, 0, 1, b'Corelatus Stockholm'))
-    mtp2_send(data, fisu(0, 0, 1, 0))
+    mtp3 = [2,64,0,144,14,0,1,17,0,0,10,3,2,9,7,3,144,64,56,9,130,153,10,6,3,19,23,115,69,8,0,121,137]
+    mtp2_send(data,  msu(1, 0, 0, 0, 85, bytes(mtp3)))  # 85 = National ISUP
+    mtp2_send(data, fisu(1, 0, 1, 0))
 
     time.sleep(2)
 
@@ -110,7 +112,6 @@ def transmit_mtp2(host, span, timeslots):
 
 def aal0_send(socket, su):
     length = 52
-    opcode = 3
     packed = struct.pack('!H', length) + su
     result = socket.sendall(packed)
 
@@ -130,8 +131,11 @@ def transmit_aal0(host, span, timeslots):
     aal0_id, data = api.new_atm_aal0_layer(span, timeslots, \
                                            {'scrambling': scrambling})
 
-    payload = b'Corelatus AB Stockholm this is exactly 48 octets'
-    aal0_send(data, bytes([1,2,3,4]) + payload)
+    payload = [133,2,64,0,0,53,0,1,0,33,0,10,2,2,8,6,1,16,18,82,85,33,10,6,7,1,17,19,83,85,0,110,0,80,80,80,80,80,80,80,0,0,0,33,44,187,215,80]
+
+    cell_header = [0, 0, 0, 82]  # VCI = 0, VPI = 5, last cell in AAL5
+
+    aal0_send(data, bytes(cell_header) + bytes(payload))
 
     time.sleep(2)
 
