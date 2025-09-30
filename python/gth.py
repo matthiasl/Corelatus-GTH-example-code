@@ -1,26 +1,26 @@
-#!/usr/bin/python3
-#
-# Title: Run commands on the GTH from python
-#
+#!/usr/bin/env python3
+
+"""Run commands on the GTH from python.
+
+This module provides access to the same functions the SSH CLI
+provides, except from python.
+"""
+
 # Copyright (c) 2020–2025, Corelatus AB
 # All rights reserved.
 #
 # Licensed under the BSD 3-Clause License. See the LICENSE file
 # in the project root for full license information.
-#
-# (Everything you can do with this Python example can also be done
-# using the GTH's in-built SSH CLI; the point of this example is to
-# show how to use 'apilib.py')
 
 import sys
-from sys import argv, stderr
+from sys import stderr
 import gth.apilib
 
-def usage():
+def _usage():
     stderr.write("""
 gth.py [-vN] <hostname> <command> [<argument> [<argument> ...]]
 
-   <command>: disable | enable | query | reset | set
+   <command>: disable | enable | map | query | reset | set | unmap | zero
   <hostname>: the hostname or IP address of a GTH
   <argument>: the arguments depend on the command. See 'examples' below
 
@@ -41,40 +41,41 @@ Examples:
     sys.exit(-1)
 
 def main():
+    """entry point"""
     # Table of commands. The number is the expected argument count. Negative
     # means that the count is a minimum.
-    commands = {"disable": (disable, 1),
-                "enable":  (enable, -1),
-                "map":     (map, 1),
-                "query":   (query, 1),
-                "reset":   (reset, 0),
-                "set":     (set, -3),
-                "unmap":   (unmap, 1),
-                "zero":    (zero, 1)
-                };
+    commands = {"disable": (_disable, 1),
+                "enable":  (_enable, -1),
+                "map":     (_map, 1),
+                "query":   (_query, 1),
+                "reset":   (_reset, 0),
+                "set":     (_set, -3),
+                "unmap":   (_unmap, 1),
+                "zero":    (_zero, 1)
+                }
 
     sys.argv.pop(0)
 
     verbosity = 0
     if len(sys.argv) > 0 and "-v" in sys.argv[0]:
         if len(sys.argv[0]) < 3:
-            usage()
+            _usage()
         if sys.argv[0][2].isdigit:
-                verbosity = int(sys.argv[0][2])
+            verbosity = int(sys.argv[0][2])
         sys.argv.pop(0)
 
     if len(sys.argv) < 2:
-        usage()
+        _usage()
 
-    bad_command = (usage, len(sys.argv))
+    bad_command = (_usage, len(sys.argv))
     host = sys.argv.pop(0)
     f, expected_args = commands.get(sys.argv.pop(0), bad_command)
 
     if len(sys.argv) < abs(expected_args):
-        usage()
+        _usage()
 
     if expected_args >= 0 and len(sys.argv) > expected_args:
-        usage()
+        _usage()
 
     try:
         api = gth.apilib.API(host, verbosity)
@@ -82,31 +83,31 @@ def main():
         api.bye()
 
     except gth.apilib.SemanticError:
-        die("bad argument")
+        _die("bad argument")
 
     except gth.transport.TransportError:
-        die("unable to connect to host: %s" % host)
+        _die(f"unable to connect to host: {host}")
 
-def die(why):
+def _die(why):
     print(why)
     sys.exit(-1)
 
 #--------------------
 # Commands
 
-def disable(api, args):
+def _disable(api, args):
     api.disable(args.pop(0))
 
-def enable(api, args):
+def _enable(api, args):
     name = args.pop(0)
-    api.enable(name, list_to_kvs(args))
+    api.enable(name, _list_to_pairs(args))
 
-def map(api, args):
+def _map(api, args):
     api.map("pcm_source", args.pop(0))
 
-def query(api, args):
+def _query(api, args):
     name_or_id = args.pop(0)
-    if not is_resource(api, name_or_id):
+    if not _is_resource(api, name_or_id):
         raise gth.apilib.SemanticError("no such resource")
 
     result = api.query_resource(name_or_id)
@@ -116,43 +117,37 @@ def query(api, args):
             print(n)
     else:
         for k, v in result.items():
-            print("%s=%s" % (k, v) )
+            print(f"{k}={v}")
 
-def reset(api, dontcare):
+def _reset(api, _dontcare):
     api.reset()
-    die("Reset command sent OK, terminating.")
+    _die("Reset command sent OK, terminating.")
 
-def set(api, args):
+def _set(api, args):
     name = args.pop(0)
-    api.set(name, list_to_kvs(args))
+    api.set(name, _list_to_pairs(args))
 
-def unmap(api, args):
+def _unmap(api, args):
     api.unmap(args.pop(0))
 
-def zero(api, args):
+def _zero(api, args):
     name_or_id = args.pop(0)
-    if is_resource(api, name_or_id):
+    if _is_resource(api, name_or_id):
         print("zeroing a resource")
         api.zero_resource(name_or_id)
     else:
-        print("zeroing a job %s" % name_or_id )
+        print(f"zeroing a job {name_or_id}")
         api.zero_job(name_or_id)
 
 #--------------------
 
-def is_resource(api, name):
+def _is_resource(api, name):
     return name == "inventory" or name in api.query_resource("inventory")
 
-def list_to_kvs(list):
-    result = []
-    length = len(list)
+def _list_to_pairs(seq):
+    "Turn a list of alternating keys and values into list of pairs"
 
-    while (length >= 2):
-        key = list.pop(0)
-        value = list.pop(0)
-        result.append( (key, value) )
-        length -= 2
-
-    return result
+    it = iter(seq)
+    return list(zip(it, it))
 
 main()

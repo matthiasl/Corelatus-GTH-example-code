@@ -1,21 +1,20 @@
-#!/usr/bin/python3
-#
-# Title: Record E1/T1 timeslot data from a Corelatus GTH
-#
+#!/usr/bin/env python3
+
+"""
+Record E1/T1 timeslot data from a Corelatus GTH
+"""
+
 # Copyright (c) 2020–2025, Corelatus AB
 # All rights reserved.
 #
 # Licensed under the BSD 3-Clause License. See the LICENSE file
 # in the project root for full license information.
-#
 
 import sys
 from sys import argv, stderr
 import gth.apilib
 
-import socket
-
-def usage():
+def _usage():
     stderr.write("""
 record.py <hostname> <span> <timeslot> <octets> <filename>
 
@@ -28,9 +27,10 @@ record.py <hostname> <span> <timeslot> <octets> <filename>
 Typical invocation: ./record.py 172.16.1.10 1A 16 16000 signalling.raw
 """)
 
-def record(host, span, timeslot, octets_wanted, file):
+
+def _record(host, span, timeslot, octets_wanted, file):
     api = gth.apilib.API(host)
-    api.warn_if_l1_dead(span, "Your recording file won't have useful data.")
+    api.warn_if_l1_dead(span)
 
     recorder_id, data = api.new_recorder(span, timeslot)
     octets_received = 0
@@ -38,13 +38,13 @@ def record(host, span, timeslot, octets_wanted, file):
     while octets_received < octets_wanted:
         buffer = data.recv(octets_wanted - octets_received)
         if len(buffer) == 0:
-            raise Exception("unexpected eof on data socket")
+            raise EOFError("unexpected EOF on data socket")
         file.write(buffer)
         octets_received += len(buffer)
 
-    if (file != sys.stdout):
+    if file != sys.stdout:
         file.close()
-    stderr.write("All done, wrote %d octets\n" % octets_received)
+    stderr.write(f"All done, wrote {octets_received} octets\n")
 
     api.delete(recorder_id)
     data.close()
@@ -52,19 +52,19 @@ def record(host, span, timeslot, octets_wanted, file):
     api.bye()
 
 def main():
+    """entry point"""
+
     if len(sys.argv) != 6:
-        usage()
+        _usage()
         sys.exit(-1)
 
     # We only check the number of arguments. If the GTH doesn't like
     # the contents, it'll say so.
 
-    if (argv[5] == "-"):
-        file = sys.stdout
+    if argv[5] == "-":
+        _record(argv[1], argv[2], int(argv[3]), int(argv[4]), sys.stdout.buffer)
     else:
-        file = open(argv[5], "wb")
-
-    record(argv[1], argv[2], int(argv[3]), int(argv[4]), file)
-
+        with open(argv[5], "wb") as f:
+            _record(argv[1], argv[2], int(argv[3]), int(argv[4]), f)
 
 main()

@@ -1,11 +1,14 @@
-# Python version of the transport layer of the GTH API.
-#
 # Copyright (c) 2020–2025, Corelatus AB
 # All rights reserved.
 #
 # Licensed under the BSD 3-Clause License. See the LICENSE file
 # in the project root for full license information.
 #
+
+"""
+Python version of the transport layer of the GTH API.
+"""
+
 # This is blocking code. The GTH can send asynchronous information at any
 # time, so a more sophisticated application might want to relax this
 # restriction. Options:
@@ -24,103 +27,131 @@
 #       which are readable.
 #
 
-import sys
 from sys import stderr
 import socket
 import select
-import gth.parse
 import pyparsing
+import gth.parse
 
-server_port = 2089
+
+SERVER_PORT = 2089
+SOCKET_TIMEOUT = 5.0   # seconds
 
 class API_socket:
-  "handle port 2089 socket transport to a Corelatus GTH module"
+    "handle port 2089 socket transport to a Corelatus GTH module"
 
-  def __init__(self, gth_ip_or_hostname):
-    self.remotehost = gth_ip_or_hostname
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(5.0)
+    def __init__(self, gth_ip_or_hostname):
+        self.remotehost = gth_ip_or_hostname
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(SOCKET_TIMEOUT)
 
-    try:
-      s.connect((self.remotehost, server_port))
-    except socket.error:
-      raise TransportError(("unable to connect to", \
-                            self.remotehost, server_port))
+        try:
+            s.connect((self.remotehost, SERVER_PORT))
+        except socket.error as exc:
+            raise TransportError(("unable to connect to", \
+                                  self.remotehost, SERVER_PORT)
+                                 ) from exc
 
-    self._parser = gth.parse.gth_out()
-    self._socket = s
-    self._file = s.makefile()
+        self._parser = gth.parse.gth_out()
+        self._socket = s
+        self._file = s.makefile()
 
-  def send(self, data, type="text/xml"):
-    s = self._socket
-    message = "Content-type: %s\r\n" % type
-    s.sendall(message.encode())
-    message = "Content-length: %d\r\n\r\n" % len(data)
-    s.sendall(message.encode())
-    s.sendall(data.encode())
+    def __enter__(self):
+        return self
 
-  def send_audio(self, data):
-    send(self, data, "binary/audio")
+    def __exit__(self, _exception_type, _exception, _traceback):
+        self.close()
 
-  def send_fs_image(self, data):
-    send(self, data, "binary/filesystem")
+    def close(self):
+        "Close the command socket to the GTH"
 
-  def check_is_readable(self, timeout):
-    readable, writable, exceptional = select.select([self._file], [], [self._file], timeout)
-    if readable == []:
-      raise TransportError("timeout")
+        self._file.close()
+        self._socket.close()  # probably superfluous. Better safe than sorry.
 
-  def receive_raw(self, timeout = 5000):
-    """Return the next block from the API socket"""
+    def my_ip(self):
+        "Return this machine's IP, as seen from the GTH"
 
-    self.check_is_readable(timeout)
+        (ip, _api_port) = self._socket.getsockname()
+        return ip
 
-    try:
-      first = self._file.readline(100)
-      second = self._file.readline(100)
-      blank = self._file.readline(100)
+    def send(self, data, c_type="text/xml"):
+        "Send an XML command to the GTH"
 
-      length = int(second.strip().split(":")[1])
+        s = self._socket
+        message = f"Content-type: {c_type}\r\n"
+        s.sendall(message.encode())
+        message = f"Content-length: {len(data)}\r\n\r\n"
+        s.sendall(message.encode())
+        s.sendall(data.encode())
 
-    except socket.error:
-      raise TransportError("didn't get all three header lines")
+    def send_audio(self, data):
+        "Send an audio clip to the GTH"
 
-    except IndexError:
-      raise TransportError("corrupt length header")
+        self.send(data, "binary/audio")
 
-    except ValueError:
-      raise TransportError("corrupt length header")
+    def send_fs_image(self, data):
+        "Send a firmware image to the GTH"
 
-    return self._definite_read(length)
+        self.send(data, "binary/filesystem")
 
-  def receive(self, timeout = 5000):
-    """Return the next block from the API socket, parsed"""
-    string = self.receive_raw(timeout)
-    try:
-      return self._parser.parseString(string)
-    except pyparsing.ParseException:
-      raise (ParseError, string)
+    def _check_is_readable(self, timeout):
+        readable, _writable, _exceptional = select.select([self._file], [], [self._file], timeout)
+        if readable == []:
+            raise TransportError("timeout")
 
-  # read exactly the number of bytes requested, or fail
-  def _definite_read(self, length):
-    data = self._file.read(length)
+    def receive_raw(self, timeout):
+        """Return the next block from the API socket"""
 
-    # Python seems to guarantee that we get the requested number of
-    # octets from the file descriptor above, as long as we're in
-    # blocking IO mode. So the code below is a placeholder.
-    if len(data) != length:
-      data.extend(_definite_read(self, length - len(data)))
+        self._check_is_readable(timeout)
 
-    return data
+        try:
+            _first = self._file.readline(100)
+            second = self._file.readline(100)
+            _blank = self._file.readline(100)
+
+            length = int(second.strip().split(":")[1])
+
+        except socket.error as exc:
+            raise TransportError("didn't get all three header lines") from exc
+
+        except IndexError as exc:
+            raise TransportError("corrupt length header") from exc
+
+        except ValueError as exc:
+            raise TransportError("corrupt length header") from exc
+
+        return self._definite_read(length)
+
+    def receive(self, timeout = SOCKET_TIMEOUT):
+        """Return the next block from the API socket, parsed"""
+        string = self.receive_raw(timeout)
+        try:
+            return self._parser.parseString(string)
+        except pyparsing.ParseException as exc:
+            raise ParseError(f"unable to parse {string}") from exc
+
+    # Read exactly the number of bytes requested, or fail.
+    def _definite_read(self, length):
+        data = self._file.read(length)
+
+        if len(data) != length:                # PEP 3116: impossible in the
+            raise TransportError("short read") # absense of failure.
+
+        return data
 
 class TransportError(Exception):
-  def __init__(self, clue):
-    self._clue = clue
+    "Exception raised on transport problems"
+
+    def __init__(self, clue):
+        super().__init__(clue)
+        self._clue = clue
 
 class ParseError(Exception):
-  def __init__(self, text, exception):
-    self._text = text
-    self._exception = exception
-    stderr.write("Unexpected and unparseable GTH reply:\n")
-    stderr.write(text)
-    stderr.write("\n")
+    "Exception raised on transport problems"
+
+    def __init__(self, text):
+        self._text = text
+        super().__init__(text)
+        stderr.write("Unexpected and unparseable GTH reply:\n")
+        stderr.write(text)
+        stderr.write("\n")

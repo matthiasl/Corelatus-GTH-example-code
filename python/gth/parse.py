@@ -1,9 +1,3 @@
-# Title: A parser for the responses which can come out of a Corelatus GTH.
-#
-# The GTH uses a text protocol which is a cut-down XML. It can be parsed
-# using an XML parser (probably a DOM one), but that would be overkill.
-#
-#
 # Copyright (c) 2020–2025, Corelatus AB
 # All rights reserved.
 #
@@ -11,36 +5,44 @@
 # in the project root for full license information.
 #
 
-from pyparsing import Word, quotedString, removeQuotes, ZeroOrMore, Or
-from pyparsing import alphas, Dict, dictOf, Suppress, Forward, Literal
-from pyparsing import CharsNotIn
+"""A parser for the responses which can come out of a Corelatus GTH.
+"""
+
+# The GTH uses a text protocol which is a cut-down XML. It can be parsed
+# using an XML parser (probably a DOM one), but that would be overkill.
+
+from pyparsing import Word, quotedString, removeQuotes, ZeroOrMore
+from pyparsing import alphas, dictOf, Suppress, Literal
 
 quotedString.setParseAction(removeQuotes)
 
-gth_out_grammar = None
+gth_out_grammar = None   # pylint: disable=invalid-name
+
+# Literals
+OPEN  = Suppress("<")
+ENDOPEN = Suppress("</")
+CLOSE = Suppress(">")
+EMCLOSE = Suppress("/>")
+
 
 def _attlist():
-    dict = dictOf(Word(alphas), Suppress("=") + quotedString)
-    return dict
+    p_dict = dictOf(Word(alphas), Suppress("=") + quotedString)
+    return p_dict
 
 def _tag(tagname, children, expect_attrs = 1):
-    # revisit: can we get rid of this repetition? How?
+
     if expect_attrs == 0:
-        return Suppress("<") + Literal(tagname) + Suppress(">") \
-            + children \
-            + Suppress("</") + Suppress(tagname) + Suppress(">")
+        return OPEN + Literal(tagname) + CLOSE \
+            + children + ENDOPEN + Suppress(tagname) + CLOSE
 
-    else:
-        return Suppress("<") + Literal(tagname) + _attlist() + Suppress(">") \
-            + children \
-            + Suppress("</") + Suppress(tagname) + Suppress(">")
-
+    return OPEN + Literal(tagname) + _attlist() + CLOSE \
+        + children + ENDOPEN + Suppress(tagname) + CLOSE
 
 def _empty_tag(tagname, expect_attrs = 1):
     if expect_attrs == 0:
-        return Suppress("<") + Literal(tagname) + Suppress("/>")
-    else:
-        return Suppress("<") + Literal(tagname) + _attlist() + Suppress("/>")
+        return OPEN + Literal(tagname) + EMCLOSE
+
+    return OPEN + Literal(tagname) + _attlist() + EMCLOSE
 
 # This is ugly but works. There must be a better way. In Erlang, I'd
 # do this
@@ -51,13 +53,13 @@ def _empty_tag(tagname, expect_attrs = 1):
 #
 # I can't see how to do that in python because there's no pattern matching.
 #
-def _collapse_attributes(string, tokens):
-    dict = {}
+def _collapse_attributes(_string, tokens):
+    p_dict = {}
     for x in range(0, len(tokens) // 3):
         key = tokens[x*3+1][1]
         value =  tokens[x*3+2][1]
-        dict[key] = value
-    return dict
+        p_dict[key] = value
+    return p_dict
 
 def gth_out():
     """
@@ -66,22 +68,15 @@ def gth_out():
     More information about the GTH API at https://www.corelatus.com/gth/api/
     """
 
-    global gth_out_grammar
+    global gth_out_grammar    # pylint: disable=global-statement
     if not gth_out_grammar:
-        # Literals
-        open    = Suppress("<")
-        close   = Suppress(">")
-        emclose = Suppress("/>")
-
-        tagattr = Word(alphas) + Suppress("=") + quotedString
-
         ok      = _empty_tag("ok", 0)
         job     = _empty_tag("job")
-        error   = _empty_tag("error") | _tag("error", CharsNotIn("<"))
+        error   = _empty_tag("error") | _tag("error", Word(alphas + " "))
 
-        event_child = open \
+        event_child = OPEN \
             + Word(alphas + "_0123456789").setResultsName("type") \
-            + _attlist() + emclose
+            + _attlist() + EMCLOSE
         event   = _tag("event", event_child, 0)
 
         attributes = ZeroOrMore(_empty_tag("attribute"))
@@ -96,7 +91,7 @@ def gth_out():
 
     return gth_out_grammar
 
-def test():
+def _test():
     gth_out().parseString("<job id=\"m2mo9\"/>")
     gth_out().parseString("<ok/>")
     gth_out().parseString("<error reason='badarg'/>")

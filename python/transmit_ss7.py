@@ -1,8 +1,9 @@
 #!/usr/bin/python3
-#
-# Title: Demonstrate how to transmit SS7 on 64 kbit/s MTP-2,
-#        1536 kbit/s MTP-2 Annex A and 1536 kbit/s ATM AAL0.
-#
+"""
+Demonstrate how to transmit SS7 on 64 kbit/s MTP-2,
+1536 kbit/s MTP-2 Annex A and 1536 kbit/s ATM AAL0.
+"""
+
 # Copyright (c) 2020–2025, Corelatus AB
 # All rights reserved.
 #
@@ -40,12 +41,12 @@
 import sys
 import time
 from sys import argv, stderr
-import gth.apilib
 
-import socket
 import struct
 
-def usage():
+import gth.apilib
+
+def _usage():
     stderr.write("""
 transmit_ss7.py <hostname> <span>
 
@@ -55,7 +56,7 @@ transmit_ss7.py <hostname> <span>
 Typical invocation: ./transmit_ss7.py 172.16.1.10 1A
 """)
 
-def fisu(fsn, fib, bsn, bib):
+def _fisu(fsn, fib, bsn, bib):
     li = 0
     fsn_fib = ((fsn & 0x7F) << 1) | (fib & 0x01)
     bsn_bib = ((bsn & 0x7F) << 1) | (bib & 0x01)
@@ -65,7 +66,7 @@ def fisu(fsn, fib, bsn, bib):
 # common sf values:  (Q.703: 11.1.3, 7.2)
 #    0: SIO
 #    1: SIN
-def lssu(fsn, fib, bsn, bib, sf):
+def _lssu(fsn, fib, bsn, bib, sf):
 
     li = 1
     fsn_fib = ((fsn & 0x7F) << 1) | (fib & 0x01)
@@ -73,7 +74,7 @@ def lssu(fsn, fib, bsn, bib, sf):
 
     return bytes([bsn_bib, fsn_fib, li, sf])
 
-def msu(fsn, fib, bsn, bib, sio, sif):
+def _msu(fsn, fib, bsn, bib, sio, sif):
     if not isinstance(sif, bytes) or len(sif) > 63:
         raise TypeError("invalid SIF")
 
@@ -84,24 +85,25 @@ def msu(fsn, fib, bsn, bib, sio, sif):
 
     return bytes([bsn_bib, fsn_fib, li, sio]) + sif
 
-def mtp2_send(socket, su):
+def _mtp2_send(sock, su):
     length = len(su) + 4   # 16 bit opcode, 16 bit reserved
     opcode = 3
     packed = struct.pack('!HHH', length, opcode, 0) + su
-    result = socket.sendall(packed)
+    _result = sock.sendall(packed)
 
-def transmit_mtp2(host, span, timeslots):
+def _transmit_mtp2(host, span, timeslots):
     api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
     api.warn_if_l1_dead(span)
 
     fr_id, data = api.new_fr_layer(span, timeslots)
 
-    mtp2_send(data, lssu(0, 0, 0, 0, 0))   # SIO
-    mtp2_send(data, lssu(0, 0, 0, 0, 1))   # SIN
-    mtp2_send(data,  msu(0, 0, 0, 0, 1, b'Corelatus Stockholm'))
-    mtp3 = [2,64,0,144,14,0,1,17,0,0,10,3,2,9,7,3,144,64,56,9,130,153,10,6,3,19,23,115,69,8,0,121,137]
-    mtp2_send(data,  msu(1, 0, 0, 0, 85, bytes(mtp3)))  # 85 = National ISUP
-    mtp2_send(data, fisu(1, 0, 1, 0))
+    _mtp2_send(data, _lssu(0, 0, 0, 0, 0))   # SIO
+    _mtp2_send(data, _lssu(0, 0, 0, 0, 1))   # SIN
+    _mtp2_send(data,  _msu(0, 0, 0, 0, 1, b'Corelatus Stockholm'))
+    mtp3 = [2,64,0,144,14,0,1,17,0,0,10,3,2,9,7,3,
+            144,64,56,9,130,153,10,6,3,19,23,115,69,8,0,121,137]
+    _mtp2_send(data,  _msu(1, 0, 0, 0, 85, bytes(mtp3)))  # 85 = National ISUP
+    _mtp2_send(data, _fisu(1, 0, 1, 0))
 
     time.sleep(2)
 
@@ -110,12 +112,12 @@ def transmit_mtp2(host, span, timeslots):
 
     api.bye()
 
-def aal0_send(socket, su):
+def _aal0_send(sock, su):
     length = 52
     packed = struct.pack('!H', length) + su
-    result = socket.sendall(packed)
+    _result = sock.sendall(packed)
 
-def transmit_aal0(host, span, timeslots):
+def _transmit_aal0(host, span, timeslots):
     api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
     api.warn_if_l1_dead(span)
 
@@ -131,11 +133,14 @@ def transmit_aal0(host, span, timeslots):
     aal0_id, data = api.new_atm_aal0_layer(span, timeslots, \
                                            {'scrambling': scrambling})
 
-    payload = [133,2,64,0,0,53,0,1,0,33,0,10,2,2,8,6,1,16,18,82,85,33,10,6,7,1,17,19,83,85,0,110,0,80,80,80,80,80,80,80,0,0,0,33,44,187,215,80]
+    payload = [133,2,64,0,0,53,0,1,0,33,0,10,
+               2,2,8,6,1,16,18,82,85,33,10,6,
+               7,1,17,19,83,85,0,110,0,80,80,
+               80,80,80,80,80,0,0,0,33,44,187,215,80]
 
     cell_header = [0, 0, 0, 82]  # VCI = 0, VPI = 5, last cell in AAL5
 
-    aal0_send(data, bytes(cell_header) + bytes(payload))
+    _aal0_send(data, bytes(cell_header) + bytes(payload))
 
     time.sleep(2)
 
@@ -144,19 +149,31 @@ def transmit_aal0(host, span, timeslots):
 
     api.bye()
 
+def _check_for_duplex_firmware(host):
+    api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
+
+    try:
+        api.enable("pcm1A", {})
+    except gth.apilib.SemanticError:
+        print("Enable failed. Is this hardware capable of transmit? Aborting.")
+        sys.exit(1)
 
 def main():
+    """Entry point"""
+
     if len(sys.argv) != 3:
-        usage()
+        _usage()
         sys.exit(-1)
 
+    _check_for_duplex_firmware(argv[1])
+
     # 64 kbit/s MTP-2
-    transmit_mtp2(argv[1], argv[2], [1])
+    _transmit_mtp2(argv[1], argv[2], [1])
 
     # 1536 kbit/s MTP-2 (i.e. Q.703 Annex A, high speed)
-    transmit_mtp2(argv[1], argv[2], list(range(1, 25)))
+    _transmit_mtp2(argv[1], argv[2], list(range(1, 25)))
 
     # 1536 kbit/s ATM AAL0
-    transmit_aal0(argv[1], argv[2], list(range(1, 25)))
+    _transmit_aal0(argv[1], argv[2], list(range(1, 25)))
 
 main()
