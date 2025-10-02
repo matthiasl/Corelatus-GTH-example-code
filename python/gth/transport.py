@@ -54,7 +54,7 @@ class API_socket:
 
         self._parser = gth.parse.gth_out()
         self._socket = s
-        self._file = s.makefile()
+        self._file = s.makefile("rb")
 
     def __enter__(self):
         return self
@@ -100,16 +100,19 @@ class API_socket:
             raise TransportError("timeout")
 
     def receive_raw(self, timeout):
-        """Return the next block from the API socket"""
+        """Return the next block from the API socket, (ct, body)"""
 
         self._check_is_readable(timeout)
 
         try:
-            _first = self._file.readline(100)
+            first = self._file.readline(100)
             second = self._file.readline(100)
             _blank = self._file.readline(100)
 
+            first = first.decode("utf-8")
+            second = second.decode("utf-8")
             length = int(second.strip().split(":")[1])
+            content_type = first.strip().split(":")[1].strip()
 
         except socket.error as exc:
             raise TransportError("didn't get all three header lines") from exc
@@ -120,11 +123,17 @@ class API_socket:
         except ValueError as exc:
             raise TransportError("corrupt length header") from exc
 
-        return self._definite_read(length)
+        content = self._definite_read(length)
+
+        return (content_type, content.decode("utf-8"))
 
     def receive(self, timeout = SOCKET_TIMEOUT):
         """Return the next block from the API socket, parsed"""
-        string = self.receive_raw(timeout)
+
+        (content_type, string) = self.receive_raw(timeout)
+        if (content_type != "text/xml"):
+            raise ParseError(f"unexpected content-type {content_type}")
+
         try:
             return self._parser.parseString(string)
         except pyparsing.ParseException as exc:

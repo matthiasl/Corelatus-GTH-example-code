@@ -84,8 +84,7 @@ def gth_out():
         resource = _empty_tag("resource") ^ _tag("resource", attributes)
         resources = ZeroOrMore(resource) ^ error
 
-        # REVISIT: state grammar below is incomplete
-        state   = _tag("state", resources, 0)
+        state  = _tag("state", resources, 0) | _tag("state", resource, 0)
 
         gth_out_grammar = ok ^ job ^ event ^ state ^ resource ^ error
 
@@ -96,4 +95,5 @@ def _test():
     gth_out().parseString("<ok/>")
     gth_out().parseString("<error reason='badarg'/>")
     gth_out().parseString("<event><l1_message name='3A' state='ok'/></event>")
+    gth_out().parseString("<state><resource name=\"system_log\"/></state>")
     print("all ok")

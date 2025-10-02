@@ -5,9 +5,10 @@ The methods in this class follow the naming scheme in the API manual:
 
 https://corelatus.se/gth/api/gth_api.pdf
 """
-# Copyright (c) 2020–2025, Corelatus AB
+
 # All rights reserved.
 #
+# Copyright 2010--2025 Corelatus AB. See top-level LICENSE file for details.
 # Licensed under the BSD 3-Clause License. See the LICENSE file
 # in the project root for full license information.
 #
@@ -175,8 +176,9 @@ class API:
         return self._new_data(ls, v110)
 
     def query_resource(self, name):
-        """Return a dict of attributes
+        """Return a dict of attributes (most resources) or a list of resources
         Query a GTH resource"""
+
         self.send( xmlc.query_resource(name) )
         reply, _events = self.next_non_event()
         if reply[0] != "state":
@@ -189,6 +191,15 @@ class API:
                 reply.pop(0)
                 result.append(reply.pop(0)[1])
             return result
+
+        # Consume the logfile returned for log queries
+        # We could extend this function so that it returns them.
+        if name == "application_log" or name == "system_log":
+            (_content_type, _body) = self.socket.receive_raw(10.0)
+
+        # A <resource> with no children, e.g. an "application_log" query.
+        if len(reply) < 4:
+            return {}
 
         return reply[3]
 
