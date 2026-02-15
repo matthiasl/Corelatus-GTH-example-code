@@ -15,6 +15,7 @@ provides, except from python.
 import sys
 from sys import stderr
 import gth.apilib
+from gth.transport import TransportError
 
 def _usage():
     stderr.write("""
@@ -38,7 +39,7 @@ Examples:
 
 
 """)
-    sys.exit(-1)
+    sys.exit(1)
 
 def main():
     """entry point"""
@@ -60,7 +61,7 @@ def main():
     if len(sys.argv) > 0 and "-v" in sys.argv[0]:
         if len(sys.argv[0]) < 3:
             _usage()
-        if sys.argv[0][2].isdigit:
+        if sys.argv[0][2].isdigit():
             verbosity = int(sys.argv[0][2])
         sys.argv.pop(0)
 
@@ -83,14 +84,10 @@ def main():
         api.bye()
 
     except gth.apilib.SemanticError:
-        _die("bad argument")
+        gth.apilib.die("bad argument")
 
-    except gth.transport.TransportError:
-        _die(f"unable to connect to host: {host}")
-
-def _die(why):
-    print(why)
-    sys.exit(-1)
+    except TransportError:
+        gth.apilib.die(f"unable to connect to host: {host}")
 
 #--------------------
 # Commands
@@ -121,7 +118,7 @@ def _query(api, args):
 
 def _reset(api, _dontcare):
     api.reset()
-    _die("Reset command sent OK, terminating.")
+    gth.apilib.die("Reset command sent OK, terminating.")
 
 def _set(api, args):
     name = args.pop(0)

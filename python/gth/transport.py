@@ -75,14 +75,17 @@ class API_socket:
         return ip
 
     def send(self, data, c_type="text/xml"):
-        "Send an XML command to the GTH"
+        "Send a command or block of data to the GTH"
+
+        if isinstance(data, str):
+            data = data.encode()
 
         s = self._socket
         message = f"Content-type: {c_type}\r\n"
         s.sendall(message.encode())
         message = f"Content-length: {len(data)}\r\n\r\n"
         s.sendall(message.encode())
-        s.sendall(data.encode())
+        s.sendall(data)
 
     def send_audio(self, data):
         "Send an audio clip to the GTH"
@@ -111,8 +114,15 @@ class API_socket:
 
             first = first.decode("utf-8")
             second = second.decode("utf-8")
-            length = int(second.strip().split(":")[1])
-            content_type = first.strip().split(":")[1].strip()
+
+            first_k, content_type = first.strip().split(":")
+            second_k, content_length = second.strip().split(":")
+
+            if first_k != "Content-type" or second_k != "Content-length":
+                raise TransportError("unexpected header")
+
+            length = int(content_length)
+            content_type = content_type.strip()
 
         except socket.error as exc:
             raise TransportError("didn't get all three header lines") from exc

@@ -38,7 +38,7 @@ def _monitor_aal5(host, span, n_timeslots, vpi_vci):
         timeslots = list(range(1,31))
     else:
         timeslots = [] # silence the linter; variable is not used
-        _die("can only do 30 or 31 timeslot wide channels")
+        gth.apilib.die("can only do 30 or 31 timeslot wide channels")
 
     aal5_id, data = api.new_atm_aal5_monitor(span, timeslots, vpi_vci)
 
@@ -51,13 +51,9 @@ def main():
     """entry point"""
     if len(sys.argv) != 6:
         _usage()
-        sys.exit(-1)
+        sys.exit(1)
 
     vpi_vci = (int(argv[4]), int(argv[5]))
     _monitor_aal5(argv[1], argv[2], int(argv[3]), vpi_vci)
-
-def _die(why):
-    print(why)
-    sys.exit(-1)
 
 main()

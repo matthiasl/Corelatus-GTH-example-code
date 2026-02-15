@@ -153,17 +153,19 @@ def _check_for_duplex_firmware(host):
     api = gth.apilib.API(host, 0)    # 0=quiet, 3=verbose debugging
 
     try:
-        api.enable("pcm1A", {})
+        api.enable("pcm1A")
     except gth.apilib.SemanticError:
         print("Enable failed. Is this hardware capable of transmit? Aborting.")
         sys.exit(1)
+    finally:
+        api.bye()
 
 def main():
     """Entry point"""
 
     if len(sys.argv) != 3:
         _usage()
-        sys.exit(-1)
+        sys.exit(1)
 
     _check_for_duplex_firmware(argv[1])
 

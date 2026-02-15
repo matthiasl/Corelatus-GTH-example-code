@@ -15,6 +15,7 @@ https://corelatus.se/gth/api/gth_api.pdf
 # See the examples, e.g. 'sniff_isup.py', to understand how to use this.
 
 from sys import stderr, version_info
+import sys
 import socket
 
 from gth.transport import API_socket
@@ -31,8 +32,8 @@ class API:
         verbosity=3: print all commands, responses and events
         """
 
-	# We don't run Python 2 any more. The code might work on Python 2
-  	# but we don't test it.
+        # We don't run Python 2 any more. The code might work on Python 2
+        # but we don't test it.
         if version_info < (3, 8):
             raise RuntimeError("Python 3.8 or higher is required")
         self.verbosity = verbosity
@@ -64,7 +65,7 @@ class API:
         self.send(xmlc.tag("disable", {"name": name}))
         self.check_ok("disable")
 
-    def enable(self, name, attributes):
+    def enable(self, name, attributes = () ):
         "Enable an E1/T1 or SDH/SONET interface"
 
         children = xmlc.attributes(attributes)
@@ -212,6 +213,7 @@ class API:
 
         self.send( xmlc.query_job(name) )
         reply, _events = self.next_non_event()
+
         if reply[0] != "state":
             raise SemanticError( ("query failed", reply) )
 
@@ -219,7 +221,7 @@ class API:
 
     def reset(self):
         "Reset (reboot) the GTH"
-        self.send(xmlc.tag("reset", [], xmlc.resource('cpu')))
+        self.send(xmlc.tag("reset", {}, xmlc.resource('cpu')))
         self.check_ok("reset")
 
     def set(self, name, attributes):
@@ -321,6 +323,7 @@ class API:
         s.bind(("", 0))
         s.listen(1)
         _addr, port = s.getsockname()
+        s.settimeout(5)
 
         opts = {'ip_addr': self.my_ip, 'ip_port': port}
         return (opts, s)
@@ -338,6 +341,10 @@ class API:
 
 #--------------------
 # Rest of the file is just functions, i.e. not part of the class
+
+def die(why):
+    print(why)
+    sys.exit(1)
 
 def _sinks(span, timeslots):
     "Return a string with an XML representation of the sinks"
@@ -364,4 +371,5 @@ def _sources_sinks(span, timeslots):
 class SemanticError(Exception):
     """Exception raised when command processing fails"""
     def __init__(self, clue):
+        super().__init__(clue)
         self.clue = clue

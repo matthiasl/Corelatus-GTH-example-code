@@ -32,9 +32,14 @@ Typical invocation: ./sniff_isup.py 172.16.1.10 1A 16
 """)
 
 def _definite_read(socket, n):
-    data = socket.recv(n)
-    if len(data) != n:
-        data += _definite_read(socket, n - len(data))
+    data = b""
+
+    while n > 0:
+        chunk = socket.recv(n)
+        if len(chunk) == 0:
+            raise gth.transport.TransportError("zero read")
+        data += chunk
+        n -= len(chunk)
 
     return data
 
@@ -113,7 +118,7 @@ def _isup_ignore(p_type, _cic, _rest):
         0x0c: "release",
         0x2c: "call progress"
         }
-    pretty_type = types.get(type, f"message type {p_type}" )
+    pretty_type = types.get(p_type, f"message type {p_type}")
     print( f"ignoring ISUP {pretty_type}")
 
 def _monitor_mtp2(host, span, timeslot):
@@ -128,6 +133,8 @@ def _monitor_mtp2(host, span, timeslot):
         packet = _definite_read(data, length)
         _decode_mtp2(packet)
 
+    # Placeholder cleanup code; currently it's unreacheable because the
+    # code above loops forever.
     api.delete(mtp2_id)
     data.close()
 
@@ -138,7 +145,7 @@ def main():
 
     if len(sys.argv) != 4:
         _usage()
-        sys.exit(-1)
+        sys.exit(1)
 
     sys.stdout = os.fdopen(sys.stdout.fileno(), "w", buffering=1)
 

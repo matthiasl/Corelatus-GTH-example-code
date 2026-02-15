@@ -42,8 +42,6 @@ def _record(host, span, timeslot, octets_wanted, file):
         file.write(buffer)
         octets_received += len(buffer)
 
-    if file != sys.stdout:
-        file.close()
     stderr.write(f"All done, wrote {octets_received} octets\n")
 
     api.delete(recorder_id)
@@ -56,7 +54,7 @@ def main():
 
     if len(sys.argv) != 6:
         _usage()
-        sys.exit(-1)
+        sys.exit(1)
 
     # We only check the number of arguments. If the GTH doesn't like
     # the contents, it'll say so.

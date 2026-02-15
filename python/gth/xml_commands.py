@@ -21,7 +21,7 @@ def attributes(attrs):
 def job(job_id):
     "Return a job tag"
 
-    tag("job", {'id': job_id})
+    return tag("job", {'id': job_id})
 
 def new(children):
     "Return a string with an XML representation of a <new> command"
