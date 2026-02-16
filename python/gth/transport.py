@@ -29,7 +29,6 @@ Python version of the transport layer of the GTH API.
 
 from sys import stderr
 import socket
-import select
 import pyparsing
 import gth.parse
 
@@ -98,8 +97,15 @@ class API_socket:
         self.send(data, "binary/filesystem")
 
     def _check_is_readable(self, timeout):
-        readable, _writable, _exceptional = select.select([self._file], [], [self._file], timeout)
-        if readable == []:
+        "Block until the API socket is readable (or raise at timeout)"
+
+        self._socket.settimeout(timeout)
+        try:
+            data = self._file.peek(1)
+            if len(data) > 0:
+                self._socket.settimeout(SOCKET_TIMEOUT)
+                return
+        except (socket.timeout, BlockingIOError):
             raise TransportError("timeout")
 
     def receive_raw(self, timeout):
@@ -154,7 +160,7 @@ class API_socket:
         data = self._file.read(length)
 
         if len(data) != length:                # PEP 3116: impossible in the
-            raise TransportError("short read") # absense of failure.
+            raise TransportError("short read") # absence of failure.
 
         return data
 
