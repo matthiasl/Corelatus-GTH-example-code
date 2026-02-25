@@ -1236,7 +1236,7 @@ static void
 make_file_timestamp(const struct Options *opts, char *string)
 {
   time_t rawtime;
-  struct tm * timeinfo;
+  struct tm timeinfo;
 
   time(&rawtime);
 
@@ -1247,23 +1247,23 @@ make_file_timestamp(const struct Options *opts, char *string)
     break;
 
   case FF_UTC:
-    timeinfo = gmtime(&rawtime);  // REVISIT: not threadsafe
+    gmtime_r(&rawtime, &timeinfo);
     break;
 
   case FF_LOCALTIME: /* fall through */
   default:
-    timeinfo = localtime(&rawtime);  // REVISIT: not threadsafe
+    localtime_r(&rawtime, &timeinfo);
     break;
 
   }
 
   snprintf(string, MAX_TIMESTAMP, "_%04d%02d%02d%02d%02d%02d",
-           timeinfo->tm_year + 1900,
-           timeinfo->tm_mon + 1,
-           timeinfo->tm_mday,
-           timeinfo->tm_hour,
-           timeinfo->tm_min,
-           timeinfo->tm_sec);
+           timeinfo.tm_year + 1900,
+           timeinfo.tm_mon + 1,
+           timeinfo.tm_mday,
+           timeinfo.tm_hour,
+           timeinfo.tm_min,
+           timeinfo.tm_sec);
 }
 
 static HANDLE_OR_FILEPTR

@@ -65,7 +65,7 @@ typedef int socklen_t;
 #define MAX_RESPONSE 10000
 #define MAX_LOGFILE 20000000
 
-static const int GTH_API_PORT = 2089;   // TCP port a Corelatus GTH listens on
+static char GTH_API_PORT[] = "2089";   // TCP port a Corelatus GTH listens on
 
 #ifndef WIN32   // i.e. unix.
 
@@ -254,10 +254,12 @@ gth_print_timestamp(void)
   char timestring[50];  // manpage promises max 26 bytes
   char *nl;
   time_t timestamp;
+  struct tm tm_time;
   int result;
 
   timestamp = time(0);
-  result = asctime_s(timestring, sizeof timestring, gmtime(&timestamp));
+  result = asctime_s(timestring, sizeof timestring,
+                     gmtime_r(&timestamp, &tm_time));
   if (result != 0) die("asctime failed");
   nl = strrchr(timestring, '\n');
   if (nl) *nl = ' ';
@@ -326,8 +328,12 @@ void gth_silent_event_handler(void *data, GTH_resp *resp)
 
 int gth_connect(GTH_api *api, const char *address, const int verbose)
 {
-  struct sockaddr_in gth_addr;
-  struct hostent* host;
+  struct addrinfo hints = {0};   // zero the entire structure
+  struct addrinfo *result;
+  int err;
+
+  hints.ai_family = AF_INET;
+  hints.ai_socktype = SOCK_STREAM;
 
   assert(api);
   api->is_failsafe = 0;
@@ -336,31 +342,25 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
   api->event_handler = &gth_silent_event_handler;
   api->tone_handler = 0;
 
-  host = gethostbyname(address);
-
-  if (host == 0) {
+  err = getaddrinfo(address, GTH_API_PORT, &hints, &result);
+  if (err != 0) {
     return -ENETUNREACH;
   }
 
-  if (host->h_addr_list[0] == 0) {
-    return -ENETUNREACH;
-  }
-
-  gth_addr.sin_family = AF_INET;
-  gth_addr.sin_port = htons(GTH_API_PORT);
-  memcpy(&gth_addr.sin_addr, host->h_addr_list[0], host->h_length);
-
-  api->fd = socket(PF_INET, SOCK_STREAM, 0);
+  api->fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
   if (api->fd < 0) {
+    freeaddrinfo(result);
     return -ENOTSOCK;
   }
 
-  if (connect(api->fd, (struct sockaddr *)&gth_addr, sizeof(gth_addr))) {
+  if (connect(api->fd, result->ai_addr, result->ai_addrlen)) {
     // On *nix, errno tells us why the connect failed.
     // On Win32, you have to call some WSA function.
+    freeaddrinfo(result);
     return -1;
   }
 
+  freeaddrinfo(result);
   my_ip_address(api);
 
   // Now that we're all set up, install the verbose event handler
