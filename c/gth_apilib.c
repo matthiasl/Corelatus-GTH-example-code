@@ -10,7 +10,7 @@
 //
 // Author: Matt Lang (matthias@corelatus.se)
 //
-// Copyright (c) 2013, 2009, Corelatus AB
+// Copyright (c) 2026, 2013, 2009, Corelatus AB
 //
 // All rights reserved.
 //
@@ -50,7 +50,6 @@
 typedef int socklen_t;
 #else
 #include <unistd.h>
-#include <time.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netdb.h>
@@ -118,8 +117,9 @@ static int asctime_s(char *dest, size_t dest_size, const struct tm *time)
 
 static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
 {
-  int flags = on_or_off?O_NONBLOCK:0;
-  int result = fcntl(s, F_SETFL, flags);
+  int nonblock = on_or_off?O_NONBLOCK:0;
+  int existing_flags = fcntl(s, F_GETFL) & ~O_NONBLOCK;
+  int result = fcntl(s, F_SETFL, nonblock | existing_flags);
   assert(result == 0);
 }
 #else
@@ -279,6 +279,7 @@ static int common_event_handler(void *data, GTH_resp *resp) {
 
   if (child->type == GTH_RESP_INFO) {
     const char *reason = gth_attribute_value(child, "reason");
+    assert(reason);
 
     if (!strcmp(reason, "failsafe_mode")) {
       api->is_failsafe = 1;
@@ -289,6 +290,8 @@ static int common_event_handler(void *data, GTH_resp *resp) {
   if (child->type == GTH_RESP_TONE && api->tone_handler) {
     const char *name = gth_attribute_value(child, "name");
     const char *length = gth_attribute_value(child, "length");
+    assert(name);
+    assert(length);
     api->tone_handler(name, atoi(length));
     return 1;
   }
@@ -296,6 +299,8 @@ static int common_event_handler(void *data, GTH_resp *resp) {
   if (child->type == GTH_RESP_LEVEL && api->tone_handler) {
     const char *id = gth_attribute_value(child, "detector");
     const char *state = gth_attribute_value(child, "state");
+    assert(id);
+    assert(state);
     api->tone_handler(id, strcmp(state, "noisy") == 0);
     return 1;
   }
@@ -366,16 +371,16 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
 
 // Helper for simple commands.
 static int single_arg_ok_response(GTH_api *api,
-				  const char *template,
+				  const char *cmd_template,
 				  const char *arg)
 {
   char buffer[MAX_COMMAND];
 
   assert(api);
-  assert(template);
+  assert(cmd_template);
   assert(arg);
 
-  snprintf(buffer, MAX_COMMAND, template, arg);
+  snprintf(buffer, MAX_COMMAND, cmd_template, arg);
   api_write(api, buffer);
 
   if (check_api_response(api, GTH_RESP_OK, 0)) {
@@ -518,7 +523,7 @@ static int gth_wait_for_install_complete(GTH_api *api, int need_install_done)
 
   assert(api);
 
-  for (;;) {
+  while (looking_for_ok || looking_for_install_done) {
     result = next_api_response(api, buffer, sizeof(buffer));
     if (result != 0) {
       return -1;
@@ -548,9 +553,6 @@ static int gth_wait_for_install_complete(GTH_api *api, int need_install_done)
       }
 
     gth_free_resp(resp);
-
-    if (!looking_for_install_done && !looking_for_ok)
-      return 0;
   }
 
   return 0;
@@ -610,16 +612,16 @@ static void format_sources(const char *span,
 			   char *sources)
 {
   char *pos = sources;
-  char *template;
+  char *cmd_template;
   int result;
   int x;
 
   switch (bandwidth) {
-  case 64: template = "<pcm_source span='%s' timeslot='%d'/>";
+  case 64: cmd_template = "<pcm_source span='%s' timeslot='%d'/>";
     break;
-  case 56: template = "<pcm_source span='%s' timeslot='%d' bandwidth='56'/>";
+  case 56: cmd_template = "<pcm_source span='%s' timeslot='%d' bandwidth='56'/>";
     break;
-  case 48: template = "<pcm_source span='%s' timeslot='%d' bandwidth='48' first_bit='1'/>";
+  case 48: cmd_template = "<pcm_source span='%s' timeslot='%d' bandwidth='48' first_bit='1'/>";
     break;
   default: die("invalid bandwidth, must be 48, 56 or 64");
   }
@@ -627,10 +629,10 @@ static void format_sources(const char *span,
 
   for (x = 0; x < n_timeslots; x++)
     {
-      result = snprintf(pos, MAX_COMMAND - (pos - sources), template,
+      result = snprintf(pos, MAX_COMMAND - (pos - sources), cmd_template,
 			span, timeslots[x]);
-      pos += result;
       assert(result < (MAX_COMMAND - (pos - sources)));
+      pos += result;
     }
 }
 
@@ -640,16 +642,16 @@ static void format_sinks(const char *span,
                          char *sinks)
 {
   char *pos = sinks;
-  char *template = "<pcm_sink span='%s' timeslot='%d'/>";
+  char *cmd_template = "<pcm_sink span='%s' timeslot='%d'/>";
   int result;
   int x;
 
   for (x = 0; x < n_timeslots; x++)
     {
-      result = snprintf(pos, MAX_COMMAND - (pos - sinks), template,
+      result = snprintf(pos, MAX_COMMAND - (pos - sinks), cmd_template,
 			span, timeslots[x]);
-      pos += result;
       assert(result < (MAX_COMMAND - (pos - sinks)));
+      pos += result;
     }
 }
 
@@ -731,17 +733,17 @@ int gth_new_atm_aal0_monitor(GTH_api *api,
   char sources[MAX_COMMAND];
   char *a_scrambling;
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(n_timeslots < 32 && n_timeslots > 0);
 
-  template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d' scrambling='%s'>"
+  cmd_template = "<new><atm_aal0_monitor ip_addr='%s' ip_port='%d' tag='%d' scrambling='%s'>"
     "%s</atm_aal0_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, 64, sources);
   a_scrambling = format_yes_no(scrambling);
 
-  result = snprintf(command, MAX_COMMAND, template, ip, port, tag,
+  result = snprintf(command, MAX_COMMAND, cmd_template, ip, port, tag,
                     a_scrambling, sources);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -881,7 +883,7 @@ int gth_new_connection(GTH_api *api,
 }
 
 int gth_new_fr_layer(GTH_api *api,
-                     const char *sink_span,
+                     const char *span,
                      const int timeslots[],
                      const int n_timeslots,
                      char *job_id,
@@ -892,17 +894,17 @@ int gth_new_fr_layer(GTH_api *api,
   char sources[MAX_COMMAND];
   char sinks[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(n_timeslots > 0 && n_timeslots < 32);
 
-  template = "<new><fr_layer ip_addr='%s' ip_port='%d'>"
+  cmd_template = "<new><fr_layer ip_addr='%s' ip_port='%d'>"
     "%s%s"
     "</fr_layer></new>";
-  format_sources(sink_span, timeslots, n_timeslots, 64, sources);
-  format_sinks(sink_span, timeslots, n_timeslots, sources);
+  format_sources(span, timeslots, n_timeslots, 64, sources);
+  format_sinks(span, timeslots, n_timeslots, sinks);
 
-  result = snprintf(command, MAX_COMMAND, template, ip, port, sources, sinks);
+  result = snprintf(command, MAX_COMMAND, cmd_template, ip, port, sources, sinks);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
@@ -924,17 +926,17 @@ int gth_new_lapd_layer(GTH_api *api,
 {
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(ts > 0 && ts < 32);
   assert(!strcmp("network", side) || !strcmp("user", side));
 
-  template = "<new><lapd_layer side='%s' sapi='%d' tei='%d' ip_addr='%s' ip_port='%d' tag='%d'>"
+  cmd_template = "<new><lapd_layer side='%s' sapi='%d' tei='%d' ip_addr='%s' ip_port='%d' tag='%d'>"
     "<pcm_source span='%s' timeslot='%d'/>"
     "<pcm_sink span='%s' timeslot='%d'/>"
     "</lapd_layer></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, side, sapi,
+  result = snprintf(command, MAX_COMMAND, cmd_template, side, sapi,
 		    tei, ip, port, tag, span, ts, span, ts);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -972,7 +974,7 @@ int gth_new_lapd_monitor_opt(GTH_api *api,
   char attributes[MAX_COMMAND];
   char source[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(ts > 0 && ts < 32);
 
@@ -981,11 +983,11 @@ int gth_new_lapd_monitor_opt(GTH_api *api,
   snprintf(source, MAX_COMMAND, "timeslot='%d' bandwidth='%d' first_bit='%d'",
            ts, bandwidth, first_bit);
 
-  template = "<new><lapd_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
+  cmd_template = "<new><lapd_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
     "<pcm_source span='%s' %s />"
     "</lapd_monitor></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, attributes, ip, port,
+  result = snprintf(command, MAX_COMMAND, cmd_template, attributes, ip, port,
                     tag, span, source);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -1003,15 +1005,15 @@ int gth_new_level_detector(GTH_api *api,
 {
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(ts > 0 && ts < 32);
 
-  template = "<new><level_detector threshold='%d'>"
+  cmd_template = "<new><level_detector threshold='%d'>"
     "<pcm_source span='%s' timeslot='%d'/>"
     "</level_detector></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, threshold, span, ts);
+  result = snprintf(command, MAX_COMMAND, cmd_template, threshold, span, ts);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
@@ -1033,8 +1035,8 @@ int gth_new_mtp2_monitor(GTH_api *api,
 			 const char *ip,
 			 const int port)
 {
-  return gth_new_mtp2_monitor_opt(api, tag, span, timeslots, 64,
-				  n_timeslots, job_id, ip, port, 0, 0);
+  return gth_new_mtp2_monitor_opt(api, tag, span, timeslots,
+				  n_timeslots, 64, job_id, ip, port, 0, 0);
 }
 
 
@@ -1054,18 +1056,18 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
   char sources[MAX_COMMAND];
   char attributes[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(n_timeslots < 32 && n_timeslots > 0);
 
   result = kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
 
-  template = "<new><mtp2_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
+  cmd_template = "<new><mtp2_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
     "%s</mtp2_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, bandwidth, sources);
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
 		    attributes, ip, port, tag, sources);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -1085,17 +1087,17 @@ int gth_new_player(GTH_api *api,
   int data_socket = -1;
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(api);
   assert(span);
   assert(job_id);
   assert(timeslot > 0 && timeslot < 32);
 
-  template = "<new><player><tcp_source ip_addr='%s' ip_port='%d'/>"
+  cmd_template = "<new><player><tcp_source ip_addr='%s' ip_port='%d'/>"
     "<pcm_sink span='%s' timeslot='%d'/></player></new>";
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
 		    api->my_ip, listen_port, span, timeslot);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -1119,12 +1121,12 @@ int gth_new_raw_monitor(GTH_api *api,
 {
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
-  template = "<new><raw_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
+  cmd_template = "<new><raw_monitor ip_addr='%s' ip_port='%d' tag='%d'>"
     "<pcm_source span='%s' timeslot='%d'/></raw_monitor></new>";
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
                     ip, port, tag, span, timeslot);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -1144,18 +1146,18 @@ int gth_new_recorder(GTH_api *api,
   int data_socket = -1;
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(api);
   assert(span);
   assert(timeslot > 0 && timeslot < 32);
   assert(job_id);
 
-  template = "<new><recorder><pcm_source span='%s' timeslot='%d'/>"
+  cmd_template = "<new><recorder><pcm_source span='%s' timeslot='%d'/>"
     "<tcp_sink ip_addr='%s' ip_port='%d'/>"
     "</recorder></new>";
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
 		    span, timeslot, api->my_ip, listen_port);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -1174,14 +1176,14 @@ int gth_new_tone_detector(GTH_api *api,
 			  char *job_id,
 			  GTH_tone_handler* handler)
 {
-  const char *template;
+  const char *cmd_template;
   int result;
   char command[MAX_COMMAND];
 
-  template = "<new><tone_detector><pcm_source span='%s' timeslot='%d'/>"
+  cmd_template = "<new><tone_detector><pcm_source span='%s' timeslot='%d'/>"
     "</tone_detector></new>";
 
-  result = snprintf(command, MAX_COMMAND, template, span, timeslot);
+  result = snprintf(command, MAX_COMMAND, cmd_template, span, timeslot);
   assert(result < MAX_COMMAND);
   api_write(api, command);
   result = recv_job_id(api, job_id);
@@ -1217,17 +1219,17 @@ int gth_new_wide_recorder(GTH_api *api,
   int data_socket = gth_make_udp_socket(&portno);
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
   assert(api);
   assert(span);
   assert(job_id);
 
-  template = "<new><wide_recorder span='%s'>"
+  cmd_template = "<new><wide_recorder span='%s'>"
     "<udp_sink ip_addr='%s' ip_port='%d'/>"
     "</wide_recorder></new>";
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
 		    span, api->my_ip, portno);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -1257,7 +1259,7 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
 
     result = next_api_response(api, buffer, sizeof(buffer));
     if (result != 0) {
-      return 0;
+      return -1;
     }
     resp = gth_parse(buffer);
 
@@ -1271,7 +1273,7 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
       event_job_id = gth_attribute_value(child, "id");
       if (!strcmp(event_job_id, job_id)) {
 	gth_free_resp(resp);
-	return 0;
+	break;
       }
     }
 
@@ -1381,6 +1383,8 @@ static int definite_read(int fd,
     return 0;
   }
 
+  // Something went wrong. Read the rest of the input to a temporary
+  // buffer to discard it.
   while (length > 0) {
     char internal_buffer[4000];
     to_read = length;
@@ -1388,7 +1392,11 @@ static int definite_read(int fd,
       to_read = sizeof(internal_buffer);
     }
     result = recv(fd, internal_buffer, to_read, 0);
-    length -= to_read;
+    if (result <= 0) {
+      closesocket(fd);
+      return -9;
+    }
+    length -= result;
   }
 
   return -10;
@@ -1447,6 +1455,9 @@ static int next_api_response(GTH_api *api,
   }
 
   result2 = definite_read(api->fd, length, response, max_response_length);
+  if (result2 < 0) {
+    return -5;
+  }
 
   if (api->print_responses) {
     fprintf(stderr, "GTH response: %s\n", response);
@@ -1467,7 +1478,7 @@ static int check_api_response(GTH_api *api, GTH_resp_type expected,
 
   if (!resp) {
     if (actual) {
-      actual = 0;
+      *actual = 0;
     }
     return -1;
   }
@@ -1556,7 +1567,7 @@ static void api_write_non_xml(int s,
 			      int len)
 {
   char CL[GTH_HEADER_BUFFER_LEN];
-  int result;
+  ssize_t result;
 
   assert(type);
   assert(data);
@@ -1568,7 +1579,9 @@ static void api_write_non_xml(int s,
   string_write(s, "\r\n");
   string_write(s, CL);
   result = send(s, data, len, 0);
-  assert(result == len);
+  if (result != len) {
+    die("unexpected failure writing to the GTH");
+  }
 }
 
 const char *gth_attribute_value(const GTH_resp *resp, const char *key) {
@@ -1699,6 +1712,7 @@ int gth_query_job(GTH_api *api,
       job = resp->children;
 
       owner_copy = gth_attribute_value(job, "owner");
+      assert(owner_copy);
       strncpy_s(owner, MAX_JOB_ID, owner_copy, MAX_JOB_ID - 1);
 
       *n_attributes = job->n_children;
@@ -1780,6 +1794,12 @@ static int query_single_resource(GTH_api *api,
 	  int result;
 	  char *text_buffer = checked_malloc(MAX_LOGFILE);
 
+          // Create an on-heap label so that it can be freed later
+          // by gth_free_attributes()
+          const char log_body_label[] = "log_body";
+	  char *key_buffer = checked_malloc(strlen(log_body_label) + 1);
+          strcpy(key_buffer, log_body_label);
+
 	  result = next_api_response(api, text_buffer, MAX_LOGFILE);
 	  if (result != 0)
 	    {
@@ -1790,7 +1810,7 @@ static int query_single_resource(GTH_api *api,
 
 	  (*n_attributes)++;
 	  *attributes = checked_malloc(sizeof(GTH_attribute) * *n_attributes);
-	  (*attributes)[*n_attributes - 1].key = "log_body";
+	  (*attributes)[*n_attributes - 1].key = key_buffer;
 	  (*attributes)[*n_attributes - 1].value = text_buffer;
 	}
       else
@@ -2165,7 +2185,7 @@ int gth_map(GTH_api *api,
 
   if (resp == 0) return -9;
 
-  if (resp->type == GTH_RESP_RESOURCE)
+  if (resp->type == GTH_RESP_RESOURCE && resp->n_attributes > 0)
     {
       strncpy_s(name, max_name, resp->attributes[0].value, max_name - 1);
     }
@@ -2201,19 +2221,19 @@ static int new_atm_aal_monitor(GTH_api *api,
   char command[MAX_COMMAND];
   char sources[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
   char *a_scrambling;
 
   assert(n_timeslots < 32 && n_timeslots > 0);
 
-  template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
+  cmd_template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
     "vpi='%d' vci='%d' scrambling='%s'>"
     "%s</atm_aal%d_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, 64, sources);
   a_scrambling = format_yes_no(scrambling);
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
 		    aal, ip, port, tag, vpi, vci, a_scrambling, sources, aal);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -2234,13 +2254,13 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
 {
   char command[MAX_COMMAND];
   int result;
-  const char* template;
+  const char* cmd_template;
 
-  template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
+  cmd_template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
     "vpi='%d' vci='%d'>"
     "<sdh_source name='%s'/></atm_aal%d_monitor></new>";
 
-  result = snprintf(command, MAX_COMMAND, template,
+  result = snprintf(command, MAX_COMMAND, cmd_template,
 		    aal, ip, port, tag, vpi, vci, source, aal);
   assert(result < MAX_COMMAND);
   api_write(api, command);
@@ -2288,7 +2308,7 @@ int checked_atoi(const char *s)
 int fopen_s(FILE **file, const char *filename, const char *mode)
 {
   *file = fopen(filename, mode);
-  if (!file)
+  if (! (*file) )
     return errno;
   else
     return 0;

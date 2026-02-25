@@ -40,7 +40,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#include <malloc.h>
+#include <stdlib.h>
 
 #include "gth_client_xml_parse.h"
 #include "gth_win32_compat.h"
@@ -336,7 +336,6 @@ static GTH_token *attributes(GTH_token *token, GTH_resp *resp);
 static GTH_token *parse_inside_tag(GTH_token *token, char **text);
 static GTH_resp_type name_to_token_type(const char* name);
 
-void gth_free_resp(GTH_resp *resp);
 static int can_lookahead(const GTH_token *token, int n);
 
 void print_tokens(const GTH_token *token);

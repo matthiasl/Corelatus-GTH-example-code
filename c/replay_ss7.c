@@ -319,8 +319,9 @@ int main(int argc, char** argv)
   data_socket = setup_transmitter(&api, argv[3], checked_atoi(argv[4]));
   open_pcap_file(argv[2]);
   copy_packets(data_socket);
+  fclose(pcap);
 
-  return 0; // not reached
+  return 0;
 }
 
 // eof

@@ -107,6 +107,8 @@ static void query_resource(GTH_api *api, const char *name, const char *key)
             fprintf(stderr, "Warning: resource %s does not have an attribute called %s\n", name, key);
          }
     }
+
+  gth_free_attributes(attrs, n_attributes);
 }
 
 #define MAX_ATTRIBUTES 100

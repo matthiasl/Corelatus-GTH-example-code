@@ -1437,7 +1437,7 @@ check_for_overlapping_channels(Channel_t *channels, int n_channels)
   for (i = 0; i < n_channels; i++)
     for (j = i+1; j < n_channels; j++)
       {
-	if (channels[i].source == channels[j].source)
+	if ( !strcmp(channels[i].source, channels[j].source) )
 	  {
 	    for (k = 0; k < channels[i].n_timeslots; k++)
 	      for (l = 0; l < channels[j].n_timeslots; l++)

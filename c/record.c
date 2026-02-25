@@ -194,6 +194,9 @@ static void record_a_file(GTH_api *api,
   fprintf(stderr, "started recording. Press ^C to end.\n");
 
   while ( (octet_count = recv(data_socket, buffer, sizeof buffer, 0)) ) {
+    if (octet_count < 0) {
+      die("error while reading from the socket. Giving up.");
+    }
     result = fwrite(buffer, octet_count, 1, file);
     if (result != 1) {
       die("Writing to the output file failed. Giving up.");

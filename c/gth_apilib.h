@@ -56,7 +56,7 @@
 
 typedef void(GTH_event_handler)(void *data, GTH_resp *resp);
 
-typedef void(GTH_tone_handler)(const char *name, const int length);
+typedef void(GTH_tone_handler)(const char *name, const int arg);
 
 // GTH_api is a structure used by all calls to this API code, it's initially
 // filled in by gth_connect().
@@ -301,7 +301,7 @@ int gth_new_connection(GTH_api *api,
 //
 // Return: 0 on success
 int gth_new_fr_layer(GTH_api *api,
-                     const char *sink_span,
+                     const char *span,
                      const int timeslots[],
                      const int n_timeslots,
                      char *job_id,
@@ -485,7 +485,7 @@ int gth_reset(GTH_api *api, const char *resource);
 
 // Query a job
 //
-// 'owner' must point to an array of at least MAX_JOB bytes
+// 'owner' must point to an array of at least MAX_JOB_ID bytes
 //
 // This function creates an array of **attributes on the heap; the caller
 // is responsible for calling gth_free_attributes() to free them.
