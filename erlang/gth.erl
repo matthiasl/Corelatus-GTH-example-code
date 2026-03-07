@@ -1285,7 +1285,8 @@ handle_call(socket_ready, _From, State = #state{socket = S}) ->
 			    [], xml:tag("controller",
 					[{"timeout", ?KICK_INTERVAL *2}]))),
 
-    %% In failsafe, we get an error for sending the above command.
+    %% Accept that the <update> command might fail. It was not supported
+    %% in 'failsafe' firmware before 2017.
     _ = expect_ok(State),
 
     {reply, ok, State};
