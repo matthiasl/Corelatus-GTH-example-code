@@ -39,9 +39,6 @@
 -export([string/1, job_state/2]).
 -include("gth_xml.hrl").
 
-%% for debugging
--export([step/0, trace/0, tracer/0]).
-
 %%----------------------------------------------------------------------
 %% Normal entry point.
 
@@ -190,29 +187,3 @@ job_state_split_rt(RT = #resp_tuple{children = C}) ->
 
 job_state_id_and_owner([{"id", I}, {"owner", O}|T]) -> {I, O, T};
 job_state_id_and_owner([{"id", I}|T]) -> {I, "", T}.
-
-%%----------------------------------------------------------------------
-%% For debugging.
-
-trace() ->
-    %% Trace everything
-    erlang:trace_pattern({?MODULE, '_', '_'}, true, [local]),
-
-    %% Except, don't trace the scanner and the tracer
-    erlang:trace_pattern({?MODULE, 'tracer', '_'}, false, [local]),
-
-    Pid = spawn(?MODULE, tracer, []),
-    erlang:trace(all, true, [call, return_to, {tracer, Pid}]).
-
-tracer() ->
-    receive
-	X ->
-	     io:fwrite("~p\n", [X])
-    end,
-    tracer().
-
-%% Single stepping. On the parser by default.
-step() ->
-    debugger:start(),
-    int:i(xml_parse, [{i, "../include"}]),
-    int:break_in(?MODULE, parse, 1).

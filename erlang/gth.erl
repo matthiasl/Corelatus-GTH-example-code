@@ -110,7 +110,7 @@
 	 new_cas_r2_linesig_monitor/3, new_cas_r2_linesig_monitor/4,
 	 new_cas_r2_linesig_merge/6,
 	 new_cas_r2_linesig_transmitter/4,
-	 new_connection/5, new_connection/6,
+	 new_connection/5,
 	 new_fr_monitor/3, new_fr_monitor/4,
 	 new_fr_layer/3,
 	 new_lapd_layer/6, new_lapd_layer/7,
@@ -379,10 +379,6 @@ new_clip(Pid, Name, List)
 new_connection(Pid, S_span, S_ts, D_span, D_ts)
   when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
     gen_server:call(Pid, {new_connection, S_span, S_ts, D_span, D_ts}).
-
-new_connection(Pid, S_span, S_ts, D_IP, D_span, D_ts)
-  when is_pid(Pid), is_integer(S_ts), is_integer(D_ts) ->
-    gen_server:call(Pid, {new_connection, S_span, S_ts, D_IP, D_span, D_ts}).
 
 -spec new_lapd_layer(pid(),
 		     Span::string(),
