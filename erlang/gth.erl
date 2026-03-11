@@ -1150,7 +1150,7 @@ handle_call({new_recorder, Span, Ts, Options},
 			    {error, Reason};
 
 			{ok, Id} ->
-			    ok = gen_tcp:controlling_process(U, Pid),
+			    ok = gen_udp:controlling_process(U, Pid),
 			    {ok, Id, U}
 		    end,
 	    {reply, Reply, State}
@@ -1177,7 +1177,7 @@ handle_call({new_wide_recorder, Span, Options},
 	      undefined ->
 		  {ok, UDP} = gen_udp:open(0, [{active, false}, binary,
 					       {recbuf, 120000}]),
-		  ok = gen_tcp:controlling_process(UDP, Pid),
+		  ok = gen_udp:controlling_process(UDP, Pid),
 		  {ok, Portno} = inet:port(UDP),
 		  {Hostname, Portno, UDP}
 	  end,
