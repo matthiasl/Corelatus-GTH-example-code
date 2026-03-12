@@ -946,7 +946,7 @@ handle_call({new_cas_r2_linesig_merge, U, DB, DC, L1, Topo}, _From, State) ->
 handle_call({new_cas_r2_linesig_transmitter, Span, Ts, Mode}, _From, State) ->
     Frame = case Mode of
                 'E1' -> "11, 85,85,85,85, 85,85,85,85, 85,85,85,85, 85,85,85";
-                _ -> "15" % normally 'T1'; but used as a catch-all
+                'T1' -> "15"
             end,
     XML = xml:new("cas_r2_linesig_transmitter",
 		  [{"l1_mode", atom_to_list(Mode)}, {"frame", Frame}],

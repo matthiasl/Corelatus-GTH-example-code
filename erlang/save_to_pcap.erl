@@ -223,7 +223,7 @@ pcap_packet_header(Timestamp_ms, Payload_len) ->
 %%
 from_file(In_filename, Out_filename) ->
     {ok, In} = file:open(In_filename, [read, binary]),
-    {ok, Out} = file:open(Out_filename, [write]),
+    {ok, Out} = file:open(Out_filename, [raw, write]),
     Protocol = guess_file_protocol(In),
     ok = file:write(Out, pcap_file_header(Protocol)),
     file_to_file(In, Out, Protocol),
