@@ -97,7 +97,7 @@
 	 delete/2,
 	 disable/2,
 	 enable/2, enable/3,
-	 get_ip/1, get_gth_ip/1, get_my_ip/1,
+	 get_gth_ip/1, get_my_ip/1,
 	 install/3,
 	 map/3, map/5,
          new_bare_api/1,
@@ -290,10 +290,6 @@ get_gth_ip(Pid)
 get_my_ip(Pid)
   when is_pid(Pid) ->
     gen_server:call(Pid, get_my_ip).
-
-%% Deprecated; included for backwards compatibility.
-get_ip(Pid) ->
-    get_gth_ip(Pid).
 
 -type install_fun() :: fun(() -> {binary(), fun() | eof}).
 %% If called with a fun() as the third argument, the install process
