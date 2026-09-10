@@ -78,6 +78,8 @@ enum Hardware {
   GTH_2_1,
   GTH_3_0,
   STH_3_0,
+  GTH_4_0,
+  STH_4_0,
   HW_UNKNOWN
 };
 
@@ -90,12 +92,19 @@ struct Compatibility {
 
 // All the version dependencies we know about.
 //
-// The 'desired' column must be in ascending order within the same
+// The 'desired' column must have newer releases first, within the same
 // release type.
 static struct Compatibility compatibility[] =
   // Hardware  Is_failsafe    desired         minimum_required
-  {{ STH_3_0,  0,             {40, 'a'},      {13, 'a'} },
+  {{ GTH_4_0,  0,             {46, 'a'},      {18, 'a'} },
+   { GTH_4_0,  1,             {18, 'a'},      {46, 'a'} },
+
+   { STH_4_0,  0,             {46, 'a'},      {18, 'a'} },
+   { STH_4_0,  1,             {18, 'a'},      {46, 'a'} },
+
+   { STH_3_0,  0,             {40, 'a'},      {13, 'a'} },
    { STH_3_0,  1,             {15, 'a'},      {38, 'a'} },
+
 
    { GTH_3_0,  0,             {40, 'a'},      {13, 'a'} },
    { GTH_3_0,  1,             {15, 'a'},      {38, 'a'} },
@@ -259,6 +268,8 @@ static void extract_version(const char* s, struct Version *v)
 
 static enum Hardware arch_to_hw(const char* arch)
 {
+  if (strcmp(arch, "sth4.0") == 0) return STH_4_0;
+  if (strcmp(arch, "gth4.0") == 0) return STH_4_0;
   if (strcmp(arch, "sth3.0") == 0) return STH_3_0;
   if (strcmp(arch, "gth3.0") == 0) return GTH_3_0;
   if (strcmp(arch, "gth2.1") == 0) return GTH_2_1;

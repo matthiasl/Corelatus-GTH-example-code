@@ -77,11 +77,12 @@
 // There are 31 useable timeslots in an E1
 #define MAX_TIMESLOTS 31
 
+// E1/T1 Monitor 3.0 and 4.0 have 64 E1/T1 inputs
 // E1/T1 Monitor 2.x has 16 E1/T1 inputs
-// E1/T1 Monitor 3.0 has 64
-// SDH Monitor 3.0 has 128 E1/T1 inputs
+// SDH Monitor 4.0 has up to 256 E1/T1 inputs
+// SDH Monitor 3.0 has up to 128 E1/T1 inputs
 // SDH Monitor 3.0 has 2 VC-4 (for ATM)
-#define MAX_SOURCES 128
+#define MAX_SOURCES 256
 
 // How many channels can we run at the same time?
 //
