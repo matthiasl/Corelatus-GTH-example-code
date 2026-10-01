@@ -36,6 +36,7 @@
 //----------------------------------------------------------------------
 #include <stdio.h>
 #include <stdlib.h>
+#include <time.h>
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"

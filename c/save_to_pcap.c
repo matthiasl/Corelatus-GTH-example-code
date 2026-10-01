@@ -54,7 +54,7 @@
 #include <signal.h>
 #include <time.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #include <windows.h>
 #else
@@ -267,7 +267,7 @@ usage(void) {
 //
 // (Win32 has fwrite, fclose and friends, but they can't be used to write
 // to a named pipe, hence these wrappers).
-#ifdef WIN32
+#ifdef _WIN32
 // Return 1 on success
 #define fwrite write_to_handle_or_file
 static int
@@ -303,7 +303,7 @@ stdout_handle_or_file(void)
 
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 static HANDLE_OR_FILEPTR
 open_windows_pipe(const char *filename)
 {
@@ -343,7 +343,7 @@ open_windows_pipe(const char *filename)
 static void
 flush_file(HANDLE_OR_FILEPTR hf)
 {
-#ifdef WIN32
+#ifdef _WIN32
   FlushFileBuffers(hf);
 #else
   fflush(hf);
@@ -354,7 +354,7 @@ static void
 open_file_for_writing(HANDLE_OR_FILEPTR *hf, const char *filename)
 {
   int result = 0;
-#ifdef WIN32
+#ifdef _WIN32
   *hf = CreateFile(filename,
 		   GENERIC_WRITE,
 		   0,
@@ -1031,7 +1031,7 @@ wait_for_packet(GTH_api *api, int data_socket)
 
 // Timers are totally different on Windows and the Unixes. We just
 // write the code twice to handle that.
-#ifdef WIN32
+#ifdef _WIN32
 static HANDLE timer;
 
 static void

@@ -40,7 +40,7 @@
 #include <assert.h>
 #include <string.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <unistd.h>

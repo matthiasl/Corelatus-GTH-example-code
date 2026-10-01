@@ -43,7 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <sys/select.h>

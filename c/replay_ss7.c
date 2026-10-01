@@ -54,7 +54,7 @@
 #include <assert.h>
 #include <string.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
 #else
 #include <sys/socket.h>
@@ -236,7 +236,7 @@ static int read_packet_from_pcap(char *packet)
   for (;;) {
     result = fread(&block, sizeof block, 1, pcap);
     if (result != 1) return 0;
-    result = fseek(pcap, -sizeof(block), SEEK_CUR);
+    result = fseek(pcap, -(long)sizeof(block), SEEK_CUR);
       if (result != 0) return 0;
 
     switch (block.type) {

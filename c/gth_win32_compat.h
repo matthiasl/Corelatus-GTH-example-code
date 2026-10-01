@@ -32,6 +32,9 @@
 //
 //    F. Microsoft don't have ssize_t
 //
+//    G. GNU and Microsoft have different functions for the
+//       thread-safe version of gmtime(), with different argument orders.
+//
 //
 //
 #ifndef GTH_WIN32_COMPAT_H
@@ -55,10 +58,7 @@
 // solution.
 
 #define strncat(A,B,C) strncat_s(A,C,B,C)
-#define snprintf sprintf_s
 
-// Microsoft VS 2013 does not support C99 'inline'
-#define inline
 #define POSSIBLY_EXTERN
 
 #define HANDLE_OR_FILEPTR HANDLE
@@ -90,12 +90,12 @@ typedef SSIZE_T ssize_t;
 
 //----------------------------------------------------------------------
 // Case 2
-#if ( !defined(_MSC_VER) && defined(WIN32))
+#if ( !defined(_MSC_VER) && defined(_WIN32))
 #define HANDLE_OR_FILEPTR HANDLE
 #endif
 //----------------------------------------------------------------------
 // Case 1
-#ifndef WIN32
+#ifndef _WIN32
 #define closesocket close
 #define HANDLE_OR_FILEPTR  FILE*
 // Workalike for Microsoft's variant of fopen()
@@ -109,8 +109,11 @@ int strncpy_s(char *dest,
 
 #define SIZE_T_FORMAT "%zu"
 #else
+//----------------------------------------------------------------------
 // Cases 2 and 3
-#define SIZE_T_FORMAT "%Iu"
+#define SIZE_T_FORMAT "%zu"
+struct tm *gmtime_r(const time_t *t, struct tm *out);
+struct tm *localtime_r(const time_t *t, struct tm *out);
 #endif
 
 

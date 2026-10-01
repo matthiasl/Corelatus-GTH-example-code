@@ -45,8 +45,9 @@
 #include <assert.h>
 #include <time.h>
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <winsock2.h>
+#include <ws2tcpip.h>
 typedef int socklen_t;
 #else
 #include <unistd.h>
@@ -67,7 +68,29 @@ typedef int socklen_t;
 
 static char GTH_API_PORT[] = "2089";   // TCP port a Corelatus GTH listens on
 
-#ifndef WIN32   // i.e. unix.
+#ifdef _WIN32
+
+struct tm *gmtime_r(const time_t *t, struct tm *out)
+{
+  return gmtime_s(out, t) ? NULL : out;
+}
+
+struct tm *localtime_r(const time_t *t, struct tm *out)
+{
+  return localtime_s(out, t) ? NULL : out;
+}
+
+static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+{
+  int result;
+  u_long mode = on_or_off;
+
+  result = ioctlsocket(s, FIONBIO, &mode);
+  assert(result == 0);
+}
+
+#else // unix
+
 
 // strncpy_s is provided by Microsoft, but not GNU.
 // This implementation is meant to do the same as Microsoft's, except
@@ -120,15 +143,6 @@ static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
   int nonblock = on_or_off?O_NONBLOCK:0;
   int existing_flags = fcntl(s, F_GETFL) & ~O_NONBLOCK;
   int result = fcntl(s, F_SETFL, nonblock | existing_flags);
-  assert(result == 0);
-}
-#else
-static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
-{
-  int result;
-  u_long mode = on_or_off;
-
-  result = ioctlsocket(s, FIONBIO, &mode);
   assert(result == 0);
 }
 #endif
@@ -217,7 +231,7 @@ void die(const char* message)
   // UAC on Windows 7 (and possibly other variants) may run the
   // program in a new window. This makes errors disappear if
   // we exit immediately. So delay.
-  #ifdef WIN32
+  #ifdef _WIN32
   fprintf(stderr, "Press ^c (or wait 30 seconds)\n");
   sleep_seconds(30);
   #endif
@@ -2031,7 +2045,7 @@ void gth_free_attributes(GTH_attribute *attributes, int n_attributes)
 // Windows has its own version of sleep(), which is called Sleep() and
 // it sleeps for milliseconds instead of seconds. So we wrap it.
 void sleep_seconds(int seconds) {
-  #ifdef WIN32
+  #ifdef _WIN32
   Sleep(seconds * 1000);
   #else
   sleep(seconds);
@@ -2272,7 +2286,7 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
 // Win32 requires an initialisation call to its socket library at program
 // startup.
 void win32_specific_startup(void) {
-#ifdef WIN32
+#ifdef _WIN32
   WSADATA wsa_data;
 
   int result;
@@ -2302,7 +2316,7 @@ int checked_atoi(const char *s)
   return result;
 }
 
-#ifndef WIN32
+#ifndef _WIN32
 // Microsoft use a "more secure" variant of fopen(). So, if we're using
 // gcc for a non-windows target, provide a workalike:
 int fopen_s(FILE **file, const char *filename, const char *mode)
