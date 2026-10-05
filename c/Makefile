@@ -1,78 +1,41 @@
-# This Makefile builds all the example code for both native (e.g. linux)
-# and Win32 targets (by cross-compiling with the mingw tools).
+# Thin wrapper around CMake; the build itself is described in CMakeLists.txt.
 #
-# The win32 executables get a .exe suffix
+#   make              native build            -> build/unix/
+#   make win32        32-bit Windows (MinGW)  -> build/mingw-win32/*.exe
+#   make win64        64-bit Windows (MinGW)  -> build/mingw-win64/*.exe
+#   make gcc_build    GCC with extra warnings -> build/unix-gcc/
+#   make clang_build  Clang with extra warnings -> build/unix-clang/
+#   make ship         all of the above checks, then gth_c_examples.zip
+#
+# Needs cmake 3.21 or later. The Windows targets need the Debian
+# packages gcc-mingw-w64-i686 / gcc-mingw-w64-x86-64.
 
-target_basenames=\
-	connect_timeslots \
-	duplex_lapd \
-	disable \
-	enable \
-	install_release \
-	install_start_script \
-	job_query \
-	map \
-	monitor_dtmf \
-	playback_file \
-	print_broadcast_events \
-	query_set \
-	raw_xml \
-	replay_ss7 \
-	record \
-	save_to_pcap \
-	unmap
+BUILD = cmake --preset $(1) && cmake --build --preset $(1) --parallel
 
-headers=gth_apilib.h gth_client_xml_parse.h
+.PHONY: win64 gcc_build clang_build clean ship
 
-# For windows, we need a .exe suffix on all executables
-win_targets=$(addsuffix .exe, $(target_basenames))
-common_c_files=gth_apilib.c gth_client_xml_parse.c
-example_c_files=$(addsuffix .c, $(target_basenames))
+unix:
+	$(call BUILD,unix-gcc)
 
-# We only support cross-compiling to Windows on 64-bit debian systems,
-# which is pretty much every debian box since about 2012.
-CC_WIN32=i686-w64-mingw32-gcc
-LIBS_WIN32=-lws2_32
+win32:
+	$(call BUILD,mingw-win32)
 
-LIBS=-lrt
-CFLAGS=-Wall -g $(PEDANTIC)
-PEDANTIC_CFLAGS=-Wextra -Wshadow -Wstrict-prototypes
-
-repo_head=$(shell git describe --abbrev=8 --dirty --always)
-
-unix: $(target_basenames)
-
-win32: $(win_targets)
-
-clang_build:
-	CC=clang PEDANTIC="$(PEDANTIC_CFLAGS)" make
+win64:
+	$(call BUILD,mingw-win64)
 
 gcc_build:
-	CC=gcc PEDANTIC="$(PEDANTIC_CFLAGS)" make
+	$(call BUILD,unix-gcc)
+
+clang_build:
+	$(call BUILD,unix-clang)
 
 clean:
-	rm -f $(win_targets) $(target_basenames) *~ *.zip README.dos version.c
+	rm -rf build *~ *.zip version.c
 
-ship: version.c
-	make clean
-	make gcc_build
-	make clean
-	make clang_build
-	make win32
+ship:
+	$(MAKE) clean
+	$(MAKE) gcc_build
+	$(MAKE) clang_build
+	$(MAKE) win32
 	sed -e 's/$$/\r/g' < README.unix > README.txt
-	zip gth_c_examples *.c *.h Corelatus-GTH-example-code.sln Build_all.vcxproj NMakefile Makefile audio/* README.* *.exe
-
-version.c:
-	@echo "#include \"gth_apilib.h\"" > $@
-	@echo "const char git_head[] = \""$(repo_head)"\";" >> $@
-	@echo "const char build_hostname[] = \""$(shell hostname)"\";" >> $@
-
-%: %.c $(headers)
-
-%: %.c $(common_c_files) version.c
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-%.exe: %.c $(headers)
-
-%.exe: %.c $(common_c_files) version.c
-	$(CC_WIN32) -Wall -Wextra -o $@ $^ $(LIBS_WIN32)
+	zip gth_c_examples *.c *.h CMakeLists.txt CMakePresets.json cmake/*.cmake Makefile audio/* README.* build/mingw-win64/*.exe

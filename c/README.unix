@@ -6,9 +6,10 @@ a BSD licence. It includes:
 
   A complete parser for the XML a GTH emits. (see gth_client_xml_parse.h)
 
-  A C API for some, but not all, GTH features. (see gth_apilib.h)
+  A C API for most, but not all, GTH features. (see gth_apilib.h)
 
   Examples which use the C API:
+
     - an SS7 sniffer
     - a DTMF sniffer
     - a timeslot recorder
@@ -21,18 +22,21 @@ a BSD licence. It includes:
     - map and unmap E1/T1 links carried on SDH/SONET
     - replay SS7 packets from a .pcap file
 
-As a convenience for windows users, the distribution at
+As a convenience for Windows users, the distribution at
 www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.
 
 How to build this code
 ----------------------
 
   * If you're using a unix-like operating system with a GCC toolchain,
-    you should just be able to type 'make'. We tested with gcc 4.4.4 on linux.
+    just type 'make'. We use this in-house, on Linux.
 
-  * If you're using Microsoft Windows and Visual Studio, there's a
-    ready VC Solution. This works out of the box for us (most recently
-    tested on VS Express 2015).
+  * If you're using Microsoft Windows and Visual Studio 2019 or later,
+    open the top-level folder with File -> Open -> Folder.  Visual
+    Studio reads CMakeLists.txt directly; pick the 'windows-x64-debug'
+    or 'windows-x64-release' preset from the toolbar and build. The
+    programs end up in build/<preset>/.  You need the "Desktop
+    development with C++" workload, which includes CMake support.
 
   It's also possible to cross-compile from a Linux build system to a
   win32 target. That's not documented, though.
@@ -337,5 +341,3 @@ Parser for GTH XML
 
   Normally, controlling the GTH through gth_apilib.h is preferable to
   using the parser directly.
-
-Questions, comments? Send mail to Matt Lang (matthias@corelatus.se)
