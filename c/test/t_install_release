@@ -5,6 +5,24 @@
 
 source testlib.sh
 
+LATEST_STH3_SYSTEM="sth3_system_46a.gth"
+LATEST_GTH3_SYSTEM="gth3_system_46a.gth"
+LATEST_STH4_SYSTEM="sth4_system_46a.gth"
+
+LATEST_STH3_FAILSAFE="sth3_failsafe_18a.gth"
+LATEST_GTH3_FAILSAFE="gth3_failsafe_18a.gth"
+LATEST_STH4_FAILSAFE="sth4_failsafe_18a.gth"
+
+PREVIOUS_STH3_SYSTEM="sth3_system_45a.gth"
+PREVIOUS_GTH3_SYSTEM="gth3_system_44b.gth"
+PREVIOUS_STH4_SYSTEM="sth4_system_46a.gth"
+
+PREVIOUS_STH3_FAILSAFE="sth3_failsafe_17a.gth"
+PREVIOUS_GTH3_FAILSAFE="gth3_failsafe_16b.gth"
+PREVIOUS_STH4_FAILSAFE="sth4_failsafe_18a.gth"
+
+
+
 usage()
 {
     echo "Usage: $0 <IP>"
@@ -20,11 +38,14 @@ systems()
     local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
     local r=$release_archive
 
-    if [ $arch = "sth3.0" ]; then
-	echo "$r/sth3_system_44c.gth $r/sth3_system_45a.gth"
+    if [ $arch = "sth4.0" ]; then
+	echo "$r/$PREVIOUS_STH4_SYSTEM $r/$LATEST_STH4_SYSTEM"
+
+    elif [ $arch = "sth3.0" ]; then
+	echo "$r/$PREVIOUS_STH3_SYSTEM $r/$LATEST_STH3_SYSTEM"
 
     elif [ $arch = "gth3.0" ]; then
-	echo "$r/gth3_system_43a.gth $r/gth3_system_44b.gth"
+	echo "$r/$PREVIOUS_GTH3_SYSTEM $r/$LATEST_GTH3_SYSTEM"
 
     else
 	die "Target $IP is an unknown architecture: $arch"
@@ -36,11 +57,14 @@ failsafes()
     local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
     local r=$release_archive
 
-    if [ $arch = "sth3.0" ]; then
-        echo "$r/sth3_failsafe_15a.gth $r/sth3_failsafe_15b.gth"
+    if [ $arch = "sth4.0" ]; then
+        echo "$r/$PREVIOUS_STH4_FAILSAFE $r/$LATEST_STH4_FAILSAFE"
+
+    elif [ $arch = "sth3.0" ]; then
+        echo "$r/$PREVIOUS_STH3_FAILSAFE $r/$LATEST_STH3_FAILSAFE"
 
     elif [ $arch = "gth3.0" ]; then
-        echo "$r/gth3_failsafe_16a.gth $r/gth3_failsafe_16b.gth"
+        echo "$r/$PREVIOUS_GTH3_FAILSAFE $r/$LATEST_GTH3_FAILSAFE"
 
     else
 	die "Target $IP is an unknown architecture: $arch"
