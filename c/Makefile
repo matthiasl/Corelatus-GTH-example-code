@@ -1,7 +1,6 @@
 # Thin wrapper around CMake; the build itself is described in CMakeLists.txt.
 #
 #   make              native build            -> build/unix/
-#   make win32        32-bit Windows (MinGW)  -> build/mingw-win32/*.exe
 #   make win64        64-bit Windows (MinGW)  -> build/mingw-win64/*.exe
 #   make gcc_build    GCC with extra warnings -> build/unix-gcc/
 #   make clang_build  Clang with extra warnings -> build/unix-clang/
@@ -12,13 +11,10 @@
 
 BUILD = cmake --preset $(1) && cmake --build --preset $(1) --parallel
 
-.PHONY: win64 gcc_build clang_build clean ship
+.PHONY: unix win64 gcc_build clang_build clean ship
 
 unix:
 	$(call BUILD,unix-gcc)
-
-win32:
-	$(call BUILD,mingw-win32)
 
 win64:
 	$(call BUILD,mingw-win64)
@@ -36,6 +32,6 @@ ship:
 	$(MAKE) clean
 	$(MAKE) gcc_build
 	$(MAKE) clang_build
-	$(MAKE) win32
+	$(MAKE) win64
 	sed -e 's/$$/\r/g' < README.unix > README.txt
 	zip gth_c_examples *.c *.h CMakeLists.txt CMakePresets.json cmake/*.cmake Makefile audio/* README.* build/mingw-win64/*.exe

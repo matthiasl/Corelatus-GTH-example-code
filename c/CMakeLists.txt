@@ -2,7 +2,7 @@
 #
 # Linux/unix:      make            (or: cmake --preset linux && cmake --build --preset linux)
 # Visual Studio:   File -> Open -> Folder, then pick a preset
-# Cross to win32:  make win32      (needs the Debian mingw-w64 packages)
+# Cross to win64:  make win64      (needs the Debian mingw-w64 packages)
 #
 # See CMakePresets.json for the list of presets.
 
