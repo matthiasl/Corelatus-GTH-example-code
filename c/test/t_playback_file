@@ -11,13 +11,13 @@ usage()
 
 invalid_playback()
 {
-    if ../playback_file $IP bogus 2>/dev/null
+    if $BUILD_DIR/playback_file $IP bogus 2>/dev/null
     then die "unexpected success on bad command"; fi
 }
 
 valid_playback()
 {
-    ../playback_file $IP 3A 1 ../audio/dtmf5 2>/dev/null
+    $BUILD_DIR/playback_file $IP 3A 1 ../audio/dtmf5 2>/dev/null
 }
 
 if [ $# -lt 1 ]
@@ -33,3 +33,5 @@ then
 else
     echo "skipping connect_timeslots test because DUT isn't TX-capable"
 fi
+
+echo "test completed successfully"

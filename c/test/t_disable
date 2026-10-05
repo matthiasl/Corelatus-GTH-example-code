@@ -11,13 +11,13 @@ usage()
 
 valid_disable()
 {
-    ../enable $IP $@ 2>/dev/null
-    ../disable $IP $1 2>/dev/null
+    $BUILD_DIR/enable $IP $@ 2>/dev/null
+    $BUILD_DIR/disable $IP $1 2>/dev/null
 }
 
 invalid_disable()
 {
-    if ../disable $IP bogus 2>/dev/null
+    if $BUILD_DIR/disable $IP bogus 2>/dev/null
     then echo "invalid disable 1 succeeded"; exit 1; fi
 }
 
@@ -26,14 +26,14 @@ then usage
 fi
 
 IP=$1
-version=`../query_set $IP system_image version | cut -d = -f 2`
-arch=`../query_set $IP board architecture | cut -d = -f 2`
+version=`$BUILD_DIR/query_set $IP system_image version | cut -d = -f 2`
+
 case $version in
     gth2_system_36b)
 	echo "skipping $0 because DUT is running a release without 'disable'" ;;
     *)
 	invalid_disable
-	case $arch in
+	case $(card_arch $IP) in
 	    sth*)
 		valid_disable sdh1;;
 	    *)

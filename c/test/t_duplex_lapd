@@ -11,7 +11,7 @@ usage()
 
 invalid_lapd()
 {
-    if ../duplex_lapd $IP 1A 2>/dev/null
+    if $BUILD_DIR/duplex_lapd $IP 1A 2>/dev/null
     then die "invalid command succeeded"; fi
 }
 
@@ -19,7 +19,7 @@ invalid_lapd()
 # bomb out---just like we want
 valid_lapd()
 {
-    ../duplex_lapd $IP 1A 1 2>/dev/null &
+    $BUILD_DIR/duplex_lapd $IP 1A 1 2>/dev/null &
     sleep 1
     pid=$!
     kill $!

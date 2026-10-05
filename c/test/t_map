@@ -13,18 +13,18 @@ usage()
 
 map_valid()
 {
-    ../enable $IP sdh1 2>/dev/null
-    local new_pcm=`../map $IP sdh1:hop1_1:lop1_5_3`
-    ../query_set $IP $new_pcm 1>/dev/null
-    ../disable $IP sdh1 1>/dev/null
+    $BUILD_DIR/enable $IP sdh1 2>/dev/null
+    local new_pcm=$($BUILD_DIR/map $IP sdh1:hop1_1:lop1_5_3)
+    $BUILD_DIR/query_set $IP $new_pcm 1>/dev/null
+    $BUILD_DIR/disable $IP sdh1 1>/dev/null
 }
 
 map_invalid()
 {
-    if ../map $IP bogus 2>/dev/null
+    if $BUILD_DIR/map $IP bogus 2>/dev/null
     then die "invalid map bogus succeeded"; fi
 
-    if ../map $IP sdh8:hop1_1:lop1_5_3 2>/dev/null
+    if $BUILD_DIR/map $IP sdh8:hop1_1:lop1_5_3 2>/dev/null
     then die "invalid map sdh8 succeeded"; fi
 }
 
@@ -33,7 +33,7 @@ then usage
 fi
 
 IP=$1
-arch=`../query_set $IP board architecture | cut -d = -f 2`
+arch=$($BUILD_DIR/query_set $IP board architecture | cut -d = -f 2)
 case $arch in
 sth3.0)
     map_valid

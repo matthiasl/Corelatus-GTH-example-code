@@ -35,7 +35,7 @@ release_archive=/home/matthias/corelatus_archive/releases/
 # We test for a couple of recent releases of each type
 systems()
 {
-    local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
+    local arch=$(card_arch $IP)
     local r=$release_archive
 
     if [ $arch = "sth4.0" ]; then
@@ -54,7 +54,7 @@ systems()
 
 failsafes()
 {
-    local arch=`../query_set $IP board architecture | sed -e 's/.*=//'`
+    local arch=$(card_arch $IP)
     local r=$release_archive
 
     if [ $arch = "sth4.0" ]; then
@@ -73,7 +73,7 @@ failsafes()
 
 ensure_failsafe_is_running()
 {
-    local busy=`../query_set $IP failsafe_image busy | sed -e 's/.*=//'`
+    local busy=$($BUILD_DIR/query_set $IP failsafe_image busy | sed -e 's/.*=//')
 
     if [ $busy != "true" ]; then die "failsafe should be busy"; fi
     ensure_both_non_empty
@@ -81,7 +81,7 @@ ensure_failsafe_is_running()
 
 ensure_system_is_running()
 {
-    local busy=`../query_set $IP system_image busy | sed -e 's/.*=//'`
+    local busy=$($BUILD_DIR/query_set $IP system_image busy | sed -e 's/.*=//')
 
     if [ $busy != "true" ]; then die "system should be busy"; fi
     ensure_both_non_empty
@@ -89,8 +89,8 @@ ensure_system_is_running()
 
 ensure_both_non_empty()
 {
-    local fs_ver=`../query_set $IP failsafe_image version | sed -e 's/.*=//'`
-    local sys_ver=`../query_set $IP system_image version | sed -e 's/.*=//'`
+    local fs_ver=$($BUILD_DIR/query_set $IP failsafe_image version | sed -e 's/.*=//')
+    local sys_ver=$($BUILD_DIR/query_set $IP system_image version | sed -e 's/.*=//')
 
     if [ $fs_ver = "empty" ]; then die "failsafe is empty"; fi
     if [ $sys_ver = "empty" ]; then die "system is empty"; fi
@@ -104,9 +104,9 @@ IP=$1
 
 for sys in $(systems); do
     for fs in $(failsafes); do
-	../install_release -f $IP $fs
+	$BUILD_DIR/install_release -f $IP $fs
 	ensure_failsafe_is_running
-	../install_release $IP $sys
+	$BUILD_DIR/install_release $IP $sys
 	ensure_system_is_running
     done
 done

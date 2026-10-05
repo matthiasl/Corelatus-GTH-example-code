@@ -14,9 +14,9 @@ arch_specific_setup()
 {
     case $arch in
 	sth*)
-	    ../enable $IP sdh1 2>/dev/null
-	    pcm=`../map $IP sdh1:hop1_1:lop1_5_3 | sed -e 's/^pcm//'`
-	    ../query_set $IP pcm$pcm 1>/dev/null ;;
+	    $BUILD_DIR/enable $IP sdh1 2>/dev/null
+	    pcm=$($BUILD_DIR/map $IP sdh1:hop1_1:lop1_5_3 | sed -e 's/^pcm//')
+	    $BUILD_DIR/query_set $IP pcm$pcm 1>/dev/null ;;
 	*)
 	    pcm="1A"
     esac
@@ -26,22 +26,22 @@ arch_specific_cleanup()
 {
     case $arch in
 	sth*)
-	    ../disable $IP sdh1
+	    $BUILD_DIR/disable $IP sdh1
     esac
 }
 
 invalid_record()
 {
-    if ../record $IP bogus 1 $tempdir/unused_file 2>/dev/null
+    if $BUILD_DIR/record $IP bogus 1 $tempdir/unused_file 2>/dev/null
     then die "invalid record 1 succeeded"; fi
 
-    if ../record $IP $pcm 39 $tempdir/unused_file 2>/dev/null
+    if $BUILD_DIR/record $IP $pcm 39 $tempdir/unused_file 2>/dev/null
     then die "invalid record 2 succeeded"; fi
 }
 
 valid_record()
 {
-    ../record $IP $pcm 1 - 2>/dev/null \
+    $BUILD_DIR/record $IP $pcm 1 - 2>/dev/null \
 	| dd bs=1024 count=2 of=$tempdir/recording 2>/dev/null
 }
 
@@ -50,8 +50,8 @@ then usage
 fi
 
 IP=$1
-arch=`../query_set $IP board architecture | cut -d = -f 2`
-tempdir=`mktemp --directory`
+arch=$(card_arch $IP)
+tempdir=$(mktemp --directory)
 
 arch_specific_setup
 invalid_record

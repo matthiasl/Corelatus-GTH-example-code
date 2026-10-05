@@ -11,42 +11,42 @@ usage()
 
 invalid()
 {
-    if ../save_to_pcap $IP bogus 2>/dev/null
+    if $BUILD_DIR/save_to_pcap $IP bogus 2>/dev/null
     then die "unexpected success of a bogus command"; fi
 }
 
 valid()
 {
-    ../save_to_pcap -m $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -m $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 
-    ../save_to_pcap $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 
-    ../save_to_pcap -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 
-    ../save_to_pcap -c $IP $pcm1 1-31 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -c $IP $pcm1 1-31 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 
-    ../save_to_pcap -c $IP $pcm1 1-15,17-31 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -c $IP $pcm1 1-15,17-31 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 
-    ../save_to_pcap -c $IP $pcm1 1-4 $pcm2 1-4 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -c $IP $pcm1 1-4 $pcm2 1-4 $tempdir/capture.pcapng 2>/dev/null &
     sleep 1
     kill $!
 
-    ../save_to_pcap -n duration:1 -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcap 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -n duration:1 -c $IP $pcm1 $pcm2 16 $tempdir/capture.pcap 2>/dev/null &
     sleep 3
     kill $!
     file $tempdir/capture.pcap_00001 | grep -q pcap.capture.file
 
-    ../save_to_pcap -n duration:1 $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
+    $BUILD_DIR/save_to_pcap -n duration:1 $IP $pcm1 $pcm2 16 $tempdir/capture.pcapng 2>/dev/null &
     sleep 3
     kill $!
     hexdump -C $tempdir/capture.pcapng_00001 | grep -q "00000000  0a 0d 0d 0a"
@@ -56,14 +56,14 @@ live()
 {
     # Known-good MTP-2 packet
     echo -ne '\x7e\x16\xa6\x36\x36\xf6\x04\xee\xf6\x4e\x36\x26\x60\x75\x7e' > $tempdir/hw
-    ../save_to_pcap -n packets:2 $IP $pcm1 16 $tempdir/live.pcapng 2>/dev/null&
+    $BUILD_DIR/save_to_pcap -n packets:2 $IP $pcm1 16 $tempdir/live.pcapng 2>/dev/null&
     sleep 1
-    ../query_set $IP pcm$pcm1 status enabled 2>/dev/null
-    ../query_set $IP pcm$pcm2 status enabled 2>/dev/null
+    $BUILD_DIR/query_set $IP pcm$pcm1 status enabled 2>/dev/null
+    $BUILD_DIR/query_set $IP pcm$pcm2 status enabled 2>/dev/null
     sleep 1
     pid=$!
     for i in {1..5}; do
-	../playback_file -l $IP $pcm2 16 $tempdir/hw 2>/dev/null
+	$BUILD_DIR/playback_file -l $IP $pcm2 16 $tempdir/hw 2>/dev/null
     done
     sleep 1
     kill $pid
@@ -75,9 +75,9 @@ live()
 
 map_l1()
 {
-    ../enable $IP sdh1
-    pcm1=`../map $IP sdh1:hop1_1:lop1_1_1`
-    pcm2=`../map $IP sdh1:hop1_1:lop1_1_2`
+    $BUILD_DIR/enable $IP sdh1
+    pcm1=$($BUILD_DIR/map $IP sdh1:hop1_1:lop1_1_1)
+    pcm2=$($BUILD_DIR/map $IP sdh1:hop1_1:lop1_1_2)
 }
 
 if [ $# -lt 1 ]
@@ -85,12 +85,11 @@ then usage
 fi
 
 IP=$1
-tempdir=`mktemp --directory`
-arch=`../query_set $IP board architecture | cut -d = -f 2`
+tempdir=$(mktemp --directory)
 pcm1="3A"
 pcm2="4A"
 
-case $arch in
+case $(card_arch $IP) in
     gth3.0)
         if [ $(is_duplex_card $IP) -eq 0 ]
         then

@@ -14,18 +14,17 @@ then usage
 fi
 
 invalid_enable() {
-    if ../enable $IP bogus 2>/dev/null
+    if $BUILD_DIR/enable $IP bogus 2>/dev/null
     then die "invalid enable 1 succeeded"; fi
 }
 
 valid_enable() {
-    ../enable $IP $@ 2>/dev/null
-    ../disable $IP $1
+    $BUILD_DIR/enable $IP $@ 2>/dev/null
+    $BUILD_DIR/disable $IP $1
 }
 
 IP=$1
-version=`../query_set $IP system_image version | cut -d = -f 2`
-arch=`../query_set $IP board architecture | cut -d = -f 2`
+version=$($BUILD_DIR/query_set $IP system_image version | cut -d = -f 2)
 
 case $version in
 gth2_system_36b)
@@ -33,7 +32,7 @@ gth2_system_36b)
 *)
 	invalid_enable
 
-	case $arch in
+	case $(card_arch $IP) in
 	    gth*)
 		valid_enable pcm1A tx_enabled false;;
 	    sth*)

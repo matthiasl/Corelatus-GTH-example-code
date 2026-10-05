@@ -11,7 +11,7 @@ usage()
 
 invalid_connect()
 {
-    if ../connect_timeslots $IP 1A 5 2>/dev/null
+    if $BUILD_DIR/connect_timeslots $IP 1A 5 2>/dev/null
     then die "invalid connect command succeeded"; fi
 }
 
@@ -19,7 +19,7 @@ invalid_connect()
 # to kill and we'll bomb out---just like we want
 single_connect()
 {
-    ../connect_timeslots $IP $@ 2>/dev/null &
+    $BUILD_DIR/connect_timeslots $IP $@ 2>/dev/null &
     sleep 1
     pid=$!
     kill $!

@@ -13,19 +13,19 @@ usage()
 
 unmap_valid()
 {
-    ../enable $IP sdh1 2>/dev/null
-    local new_pcm=`../map $IP sdh1:hop1_1:lop1_5_3`
-    ../query_set $IP $new_pcm >/dev/null
-    ../unmap $IP $new_pcm
-    ../disable $IP sdh1 2>/dev/null
+    $BUILD_DIR/enable $IP sdh1 2>/dev/null
+    local new_pcm=$($BUILD_DIR/map $IP sdh1:hop1_1:lop1_5_3)
+    $BUILD_DIR/query_set $IP $new_pcm >/dev/null
+    $BUILD_DIR/unmap $IP $new_pcm
+    $BUILD_DIR/disable $IP sdh1 2>/dev/null
 }
 
 unmap_invalid()
 {
-    if ../unmap $IP bogus 2>/dev/null
+    if $BUILD_DIR/unmap $IP bogus 2>/dev/null
     then die "invalid unmap bogus succeeded"; fi
 
-    if ../unmap $IP pcm536 2>/dev/null
+    if $BUILD_DIR/unmap $IP pcm536 2>/dev/null
     then die "invalid unmap pcm536 succeeded"; fi
 }
 
@@ -34,7 +34,7 @@ then usage
 fi
 
 IP=$1
-arch=`../query_set $IP board architecture | cut -d = -f 2`
+arch=$($BUILD_DIR/query_set $IP board architecture | cut -d = -f 2)
 case $arch in
 sth3.0)
     unmap_valid

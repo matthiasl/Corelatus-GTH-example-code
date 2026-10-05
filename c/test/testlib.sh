@@ -4,6 +4,8 @@
 export TOP_PID=$$
 trap "exit 2" TERM
 
+export BUILD_DIR=../build/unix/
+
 die()
 {
     echo $@ 1>&2
@@ -15,6 +17,13 @@ is_duplex_card()
 {
     local IP=$1
     local rc=0
-    ../query_set $IP system_image version | grep -q duplex || rc=$?
+    $BUILD_DIR/query_set $IP system_image version | grep -q duplex || rc=$?
     echo "$rc"
+}
+
+card_arch()
+{
+    local IP=$1
+    arch=$($BUILD_DIR/query_set $IP board architecture | cut -d = -f 2)
+    echo "$arch"
 }
