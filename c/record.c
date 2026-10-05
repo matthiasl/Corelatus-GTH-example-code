@@ -42,8 +42,8 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <assert.h>
 #include <string.h>
+#include <assert.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -106,8 +106,13 @@ struct WAV_header {
   u32 data_size;
 } PACK_SUFFIX;
 
+// If the header is longer than expected, the compiler must have
+// padded the structure. We can't have that.
+static_assert(sizeof(struct WAV_header) == 44, "odd struct padding");
+
+
 #if !(__BYTE_ORDER == __LITTLE_ENDIAN)
-#error "the .wav header will won't work"
+#error "this program assumes a little endian CPU"
 // If you want, you can disable this compile-time error. The recording
 // tool will still work, but the .wav header will be corrupt.
 #endif
@@ -123,16 +128,12 @@ static void possibly_prepend_wav_header(const char *filename,
 
   if (strcmp(filename + len - 4, ".wav") == 0)
     {
-      int result;
+      size_t result;
       struct WAV_header header;
       char riff[] = "RIFF";
       char wave[] = "WAVE";
       char fmt[] = "fmt ";
       char data[] = "data";
-
-      // If the header is longer than expected, the compiler must have
-      // padded the structure. We can't have that.
-      assert(sizeof(header) == 44);
 
       memcpy(header.ckID, riff, 4);
       header.cksize = 36 + 8000; // fill in a bogus length
@@ -150,8 +151,7 @@ static void possibly_prepend_wav_header(const char *filename,
       header.data_size = 80000;
 
       result = fwrite(&header, sizeof(header), 1, file);
-
-      assert(result == 1);
+      if (result != 1) die("I/O error, short file write");
     }
 }
 
@@ -269,9 +269,7 @@ int main(int argc, char** argv)
     die("unable to connect to the GTH");
   }
 
-  assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
-  strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
-  strncat(pcm_name, argv[2], sizeof pcm_name - strlen(pcm_name) - 1);
+  gth_make_pcm_name(pcm_name, sizeof pcm_name, argv[2]);
 
   if (setup_l1) {
     setup_layer_1(&api, pcm_name, t1_mulaw_mode);

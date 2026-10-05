@@ -37,7 +37,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <errno.h>
-#include <assert.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -80,7 +79,7 @@ static void play_a_file(GTH_api *api,
 {
   int data_socket;
   char buffer[1600];
-  size_t octet_count;
+  ssize_t octet_count;
   size_t octet_sum = 0;
   char job_id[MAX_COMMAND];
   ssize_t result;
@@ -111,11 +110,12 @@ static void play_a_file(GTH_api *api,
 
     // send could return less than the requested amount, e.g. if there's
     // back-pressure from the GTH. We don't deal with that case in this code.
-    assert((size_t)result == octet_count);
+    if (result != octet_count)
+      die("short socket write; couldn't write all the data");
   }
 
   result = closesocket(data_socket);
-  assert(result == 0);
+  if (result != 0) die("closing the data socket failed");
   fclose(file);
 
   fprintf(stderr, "wrote "SIZE_T_FORMAT" octets to the <player>\n", octet_sum);
@@ -155,13 +155,11 @@ int main(int argc, char **argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  assert(sizeof(pcm_name) > (strlen("pcm") + strlen(argv[2])));
-  strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
-  strncat(pcm_name, argv[2], sizeof pcm_name - strlen(pcm_name) - 1);
+  gth_make_pcm_name(pcm_name, sizeof pcm_name, argv[2]);
 
   if (setup_l1)
     {
-      gth_set_single(&api, pcm_name, "status", "enabled");
+      gth_enable(&api, pcm_name, 0, 0);
     }
 
   play_a_file(&api, argv[2], checked_atoi(argv[3]), argv[4]);

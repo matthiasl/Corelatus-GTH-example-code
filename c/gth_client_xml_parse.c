@@ -39,7 +39,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include <stdlib.h>
 
 #include "gth_client_xml_parse.h"
@@ -88,7 +87,7 @@ static int scan_string(const char* string, GTH_token *token, const char end)
   int len;
 
   endptr = strchr(string, end);
-  assert(endptr);
+  if (!endptr) die("unterminated string");
 
   len = endptr - string;
   token->type = TOK_STRING;
@@ -227,7 +226,7 @@ static void gth_free_tokens(GTH_token *token)
       break;
 
     default:
-      assert(current->payload == 0);
+      if (current->payload != 0) die("unexpected payload");
       break;
     }
     current++;
@@ -355,13 +354,13 @@ GTH_resp *gth_parse(const char *string)
   gth_scan(string, &tokens);
   end = parse(tokens, resp);
 
-  assert(end->type == TOK_END);
+  if (end->type != TOK_END) die("missing end token");
   gth_free_tokens(tokens);
 
   // After parsing's done, turn the forest into a tree
   if (resp->n_children == 1)
     {
-      assert(resp->n_attributes == 0);
+      if (resp->n_attributes != 0) die("unexpected attributes in top");
       old = resp->children;
       *resp = resp->children[0];
       free(old);
@@ -415,7 +414,7 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 	    || slash->type != TOK_SLASH
 	    || name->type  != TOK_NAME
 	    || strcmp(name->payload, tag_name) != 0
-	    || close->type != TOK_CLOSE) assert(!"parse ");
+	    || close->type != TOK_CLOSE) die("parse error");
 
 	tree->text = text;
 
@@ -427,8 +426,8 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 	slash = token++;
 	close = token++;
 
-	assert(slash->type == TOK_SLASH);
-	assert(close->type == TOK_CLOSE);
+	if (slash->type != TOK_SLASH) die("unexpected token (not slash)");
+	if (close->type != TOK_CLOSE) die("unexpected token (not close)");
 
 	token = parse(token, list_of_trees);
 	return token;
@@ -442,7 +441,7 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 GTH_token *parse_inside_tag(GTH_token *token, char **text) {
 
   if (token->type == TOK_TEXT) {
-    assert(token->payload);
+    if (token->payload == 0) die("text token is missing payload");
     *text = token->payload;
     token->payload = 0;
     token++;
@@ -460,7 +459,7 @@ static GTH_token *attributes(GTH_token *token, GTH_resp *resp) {
 
   if (token->type == TOK_CLOSE) return token;
   if (token->type == TOK_SLASH) {
-    assert((token+1)->type == TOK_CLOSE);
+    if ((token+1)->type != TOK_CLOSE) die("missing close token");
     return token;
   }
   if (!can_lookahead(token, 3)) return token;
@@ -469,9 +468,9 @@ static GTH_token *attributes(GTH_token *token, GTH_resp *resp) {
   equal = token++;
   string = token++;
 
-  assert(name->type == TOK_NAME);
-  assert(equal->type == TOK_EQUAL);
-  assert(string->type == TOK_STRING);
+  if (name->type != TOK_NAME) die("unexpected token");
+  if (equal->type != TOK_EQUAL) die("unexpected token");
+  if (string->type != TOK_STRING) die("unexpected token");
 
   resp_add_attribute(resp, name->payload, string->payload);
 
@@ -520,7 +519,7 @@ static GTH_resp_type name_to_token_type(const char* name)
 
   fprintf(stderr, "don't know what this is: %s\n", name);
 
-  assert(!"unknown tag");
+  die("unknown tag");
   return 0; // never reached
 }
 
@@ -557,7 +556,7 @@ void print_tokens(const GTH_token *token)
     case TOK_NAME:  fprintf(stderr, "(%s)", token->payload); break;
     case TOK_TEXT:  fprintf(stderr, "[%s]", token->payload); break;
     default:
-      assert(!"attempted to print a token which doesn't exist");
+      die("attempted to print a token which doesn't exist");
     }
     token++;
   }
@@ -577,7 +576,7 @@ static void print_children(GTH_resp *resp) {
 // For debugging.
 //
 void gth_print_tree(GTH_resp *resp) {
-  assert(resp);
+  if (!resp) die("attempted to print a null tree");
 
   switch (resp->type) {
   case GTH_RESP_ALARM:
@@ -725,7 +724,7 @@ void gth_print_tree(GTH_resp *resp) {
 
   default:
     fprintf(stderr, "default, type=%d\n", resp->type);
-    assert(!"encountered an <event> which we don't know how to handle");
+    die("encountered an <event> which we don't know how to handle");
   }
 }
 

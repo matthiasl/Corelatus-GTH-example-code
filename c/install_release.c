@@ -36,7 +36,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 // Microsoft VC13 only provides basename() in C++, not in C.
 #ifdef _MSC_VER
@@ -150,7 +149,8 @@ static void install_release(const char *hostname,
 			    int failsafe)
 {
   GTH_api api;
-  int result;
+  size_t result;
+  int retval;
   FILE *image;
   int image_length;
   char *image_data;
@@ -163,7 +163,8 @@ static void install_release(const char *hostname,
     image_name = "system_image";
   }
 
-  result = gth_connect(&api, hostname, verbose);
+  retval = gth_connect(&api, hostname, verbose);
+  if (retval != 0) die("unable to connect");
 
   fprintf(stderr, "installing software image %s\n", filename);
 
@@ -177,18 +178,18 @@ static void install_release(const char *hostname,
 
       image_data = checked_malloc(image_length);
       result = fread(image_data, image_length, 1, image);
-      assert(result == 1);
+      if (result != 1) die("I/O error reading the software image");
 
       fclose(image);
 
-      result = gth_set_single(&api, image_name, "locked", "false");
-      assert(result == 0);
+      retval = gth_set_single(&api, image_name, "locked", "false");
+      if (retval != 0) die("unable to unlock the firmware image");
 
-      result = gth_install(&api, image_name, "binary/filesystem",
+      retval = gth_install(&api, image_name, "binary/filesystem",
 			   image_data, image_length);
       free(image_data);
 
-      if (result != 0) die("install failed");
+      if (retval != 0) die("install failed");
     }
   else
     {
@@ -210,13 +211,13 @@ static void show_releases(const char *hostname, const int verbose)
 
   result = gth_query_resource_attribute(&api, "system_image", "version",
 					attribute, sizeof(attribute));
-  assert(result == 0);
+  if (result != 0) die("unable to read the system image version");
 
   printf("  Current system image version: %s\n", attribute);
 
   result = gth_query_resource_attribute(&api, "failsafe_image", "version",
 					attribute, sizeof(attribute));
-  assert(result == 0);
+  if (result != 0) die("unable to read the failsafe image version");
 
   printf("Current failsafe image version: %s\n", attribute);
 
@@ -372,11 +373,11 @@ check_for_problems(const char *hostname,
 
   //--------------------
   // The 'architecture' query fails on GTH 1.x ancient releases, e.g. fs3.
-  // Never mind, nobody is still using them.
+  // Never mind, that was 20+ years ago, nobody is still using them.
   reason = "Release filename is not reasonable for this hardware.";
   result = gth_query_resource_attribute(&api, "board", "architecture",
 					arch, sizeof(arch));
-  assert(result == 0);
+  if (result != 0) die("unable to read hardware architecture");
   if (case_insensitive_strncmp(arch, filename, 4) != 0)
     {
       fprintf(stderr, "Architecture is %s, release filename is '%s'\n",
@@ -396,7 +397,7 @@ check_for_problems(const char *hostname,
   strncat(image_name, "_image", sizeof(image_name) - 1 - strlen(other));
   result = gth_query_resource_attribute(&api, image_name, "version",
 					attribute, sizeof(attribute));
-  assert(result == 0);
+  if (result != 0) die("unable to read the firmware version");
 
   if (are_versions_incompatible(arch, failsafe, attribute, filename))
     die(reason);

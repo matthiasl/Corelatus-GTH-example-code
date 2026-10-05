@@ -33,7 +33,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <assert.h>
 
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
@@ -84,7 +83,7 @@ static void install_start_script(const char *hostname,
   rewind(script);
 
   script_data = checked_malloc(script_length);
-  assert(script_data);
+
   result = fread(script_data, script_length, 1, script);
 
   result = gth_install(&api, "start_script", "binary/file",

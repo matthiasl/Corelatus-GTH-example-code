@@ -49,10 +49,10 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <assert.h>
 #include <string.h>
 #include <signal.h>
 #include <time.h>
+#include <assert.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -66,6 +66,11 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 #include "pcap_structs.h"
+
+// Check crucial assumptions about type size.
+static_assert(sizeof(u32) == 4, "u32 size sanity check");
+static_assert(sizeof(u16) == 2, "u16 size sanity check");
+static_assert(sizeof(u8) == 1,  "u8 size sanity check");
 
 #define MAX_FILENAME 100
 #define MAX_TIMESTAMP 40
@@ -433,16 +438,13 @@ enable_electrical_l1(GTH_api *api,
 {
   int result;
   char span_name[20];
-
   int n_attributes = (monitoring)?3:2;
   GTH_const_attribute attributes[] = { {"status", "enabled"},
                                        {"tx_enabled", "false"},
                                        {"monitoring", "true"}
   };
 
-  assert(sizeof(span_name) > (strlen(span) + strlen("pcm")));
-  strncpy_s(span_name, sizeof span_name, "pcm", sizeof span_name - 1);
-  strncat(span_name, span, sizeof span_name - strlen(span_name) - 1);
+  gth_make_pcm_name(span_name, sizeof span_name, span);
 
   // Use <set> here: <enable> isn't supported until gth2_system_37a.
   result = gth_set(api, span_name, attributes, n_attributes);
@@ -898,8 +900,6 @@ static void write_classic_packet_header(HANDLE_OR_FILEPTR file,
   uint64_t ts_us;
   int result;
 
-  assert(sizeof ts_sec == 8);
-
   ts_us = timestamp_hi;
   ts_us <<= 32;
   ts_us += timestamp_lo;
@@ -1332,7 +1332,8 @@ convert_to_pcap(GTH_api *api,
 	  {
 	    read_exact(data_socket, (void*)&length, sizeof length);
 	    length = ntohs(length);
-	    assert(length <= sizeof signal_unit);
+            if (length > sizeof signal_unit)
+              die("received a signal unit that's too big for this program");
 	    read_exact(data_socket, (void*)&signal_unit, length);
 
 	    switch (user_options.protocol) {
@@ -1733,10 +1734,9 @@ static void event_handler(void *data, GTH_resp *resp)
   GTH_resp *child;
   GTH_api *api = data;
 
-  assert(api);
-  assert(resp);
-  assert(resp->type == GTH_RESP_EVENT);
-  assert(resp->n_children == 1);
+  if (!api || !resp) die("internal error");
+  if (resp->type != GTH_RESP_EVENT || resp->n_children != 1)
+    die("unexpected event format from the GTH");
 
   child = resp->children + 0;
 
@@ -1788,11 +1788,6 @@ main(int argc, char **argv)
   int listen_port = 0;
   int listen_socket = -1;
   Start_function start_function = 0;
-
-  // Check a couple of assumptions about type size.
-  assert(sizeof(u32) == 4);
-  assert(sizeof(u16) == 2);
-  assert(sizeof(u8) == 1);
 
   win32_specific_startup();
 

@@ -41,7 +41,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <assert.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -117,9 +116,7 @@ static void enable_l1(GTH_api *api, const char* span)
                                        {"framing", "multiframe"}
   };
 
-  assert(sizeof(pcm_name) > (strlen(span) + strlen("pcm")));
-  strncpy_s(pcm_name, sizeof pcm_name, "pcm", sizeof pcm_name - 1);
-  strncat(pcm_name, span, sizeof pcm_name - strlen(pcm_name) - 1);
+  gth_make_pcm_name(pcm_name, sizeof pcm_name, span);
 
   result = gth_set(api, pcm_name, attributes, 2);
   if (result != 0) {
@@ -143,7 +140,7 @@ static void send_dl_establish_req(int data_socket)
   su.reserved = 0;
 
   result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
-  assert(result == 8);
+  if (result != 8) die("LAPD socket write failed");
 }
 
 static void send_dl_data_req(int data_socket)
@@ -159,7 +156,8 @@ static void send_dl_data_req(int data_socket)
   strcpy(su.payload, "hello world");
 
   result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
-  assert(result == (ssize_t)(ntohs(su.length) + sizeof(su.length)));
+  if (result != (ssize_t)(ntohs(su.length) + sizeof(su.length)))
+    die("LAPD socket write failed");
 }
 
 // Start up duplex LAPD on the given timeslot

@@ -15,12 +15,6 @@ option(GTH_PEDANTIC "Enable extra compiler warnings (GCC/Clang)" OFF)
 # without the Visual C++ redistributable installed.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 
-# The examples use assert() to check return values, so keep asserts in
-# every build type, including Release.
-foreach(cfg RELEASE RELWITHDEBINFO MINSIZEREL)
-  string(REGEX REPLACE "[-/]DNDEBUG" "" CMAKE_C_FLAGS_${cfg} "${CMAKE_C_FLAGS_${cfg}}")
-endforeach()
-
 set(EXAMPLES
   connect_timeslots
   disable

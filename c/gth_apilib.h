@@ -593,6 +593,10 @@ void gth_silent_event_handler(void *data, GTH_resp *resp);
 // Print a timestamp to stderr. Intended for logging.
 void gth_print_timestamp(void);
 
+// Given a command-line span, e.g. '3A', safely turn that into 'pcm3A'
+void
+gth_make_pcm_name(char *pcm_name, int size, const char* arg);
+
 // The Win32 socket library needs some startup actions before it works.
 // So call this before doing anything if you're running on win32.
 // This function does nothing on non windows platforms.

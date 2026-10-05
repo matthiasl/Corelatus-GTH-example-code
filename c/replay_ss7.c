@@ -51,7 +51,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <assert.h>
 #include <string.h>
 
 #ifdef _WIN32
@@ -266,7 +265,7 @@ static void copy_packets(int data_socket)
   // length:16, opcode:16, reserved:16
   char packet[MAX_PACKET + 6] = {0,0, 0, TX_AND_FISU_OPCODE, 0,0};
   int length;
-  int result;
+  ssize_t result;
   int n_bytes = 0;
 
   for (;;) {
@@ -277,7 +276,8 @@ static void copy_packets(int data_socket)
     packet[0] = (length >> 8);
     packet[1] = (length & 255);
     result = send(data_socket, packet, length + 2, 0);
-    assert(result == length + 2);
+    if (result != length + 2)
+      die("unexpected short socket write");
   }
 
   fprintf(stderr, "packet bytes replayed: %d. Sleeping to drain buffers.\n",

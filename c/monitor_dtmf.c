@@ -49,7 +49,6 @@
 #include <sys/select.h>
 #endif // WIN32
 
-#include <assert.h>
 #include <string.h>
 
 #include "gth_win32_compat.h"
@@ -121,7 +120,7 @@ int main(int argc, char** argv)
 
   while (detections != 0) {
     result = select(api.fd + 1, &readfds, 0, 0, 0);
-    assert(result == 1);
+    if (result != 1) die("select returned an unexpected value");
     gth_process_event(&api);
   }
 
