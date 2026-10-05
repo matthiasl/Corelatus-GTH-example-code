@@ -1,14 +1,14 @@
-Author: matthias@corelatus.se
-----------------------------------------------------------------------
+Corelatus GTH example code in C
+===============================
 
 This is example code in C for a Corelatus GTH. It is available under
 a BSD licence. It includes:
 
-  A complete parser for the XML a GTH emits. (see gth_client_xml_parse.h)
+  * A complete parser for the XML a GTH emits. (see gth_client_xml_parse.h)
 
-  A C API for most, but not all, GTH features. (see gth_apilib.h)
+  * A C API for most, but not all, GTH features. (see gth_apilib.h)
 
-  Examples which use the C API:
+  * Examples which use the C API:
 
     - an SS7 sniffer
     - a DTMF sniffer
@@ -23,25 +23,25 @@ a BSD licence. It includes:
     - replay SS7 packets from a .pcap file
 
 As a convenience for Windows users, the distribution at
-www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built .exe files.
+www.corelatus.com/gth/api/gth_c_examples.zip includes pre-built
+.exe files, in 'build/mingw-win64'.
+
 
 How to build this code
 ----------------------
 
-  * If you're using a unix-like operating system with a GCC toolchain,
-    just type 'make'. We use this in-house, on Linux.
+  * On unix-like operating systems with a GCC toolchain: `make`
+    We use this in-house, on Linux.
 
-  * If you're using Microsoft Windows and Visual Studio 2019 or later,
-    open the top-level folder with File -> Open -> Folder.  Visual
-    Studio reads CMakeLists.txt directly; pick the 'windows-x64-debug'
-    or 'windows-x64-release' preset from the toolbar and build. The
-    programs end up in build/<preset>/.  You need the "Desktop
-    development with C++" workload, which includes CMake support.
+  * On Microsoft Windows and Visual Studio 2019 or later, open the
+    top-level folder with File -> Open -> Folder.  Visual Studio reads
+    CMakeLists.txt directly; pick the 'windows-x64-debug' or
+    'windows-x64-release' preset from the toolbar and build. The
+    programs end up in build/.  You need the "Desktop development with
+    C++" workload, which includes CMake support.
 
-  It's also possible to cross-compile from a Linux build system to a
-  win32 target. That's not documented, though.
+  * Cross-compiling for Windows with MinGW: `make win64`
 
-  If you get stuck building this code, feel free to mail matthias@corelatus.se
 
 SS7 sniffer which saves to PCAP (wireshark) format files
 --------------------------------------------------------
@@ -54,28 +54,34 @@ SS7 sniffer which saves to PCAP (wireshark) format files
 
   Typical use:
 
+  ```
     >./save_to_pcap 172.16.1.10 1A 2A 16 ss7.pcap
     capturing packets, press ^C to abort
     saving capture to file ss7.pcap.1
+  ```
 
   you can then open the ss7.pcap.1 file in 'wireshark' (www.wireshark.org)
 
   If you don't have a live E1 link, you can use a GTH to replay
   previously recorded data, using 'playback_file'
 
-  There's a WWW page which discusses this at
+  A WWW page explains this in depth:
 
-     https://www.corelatus.com/gth/api/save_to_pcap/index.html
+  https://www.corelatus.com/gth/api/save_to_pcap/index.html
 
   On Unix-like systems, output can be piped directly to wireshark or
   tshark for live capture, like this:
 
+  ```
     > ./save_to_pcap 172.16.1.10 1A 2A 16 - | wireshark -k -i -
+  ```
 
   On Windows systems, use 'named pipes' to do the same thing:
 
+  ```
     > start save_to_pcap 172.16.1.10 1A 2A 16 \\.\pipe\isup.1
     > wireshark -k -i \\.\pipe\isup.1
+  ```
 
 
 DTMF sniffer
@@ -86,19 +92,24 @@ DTMF sniffer
 
   Typical use, assuming a loopback cable connects P1 and P2:
 
+  ```
   > ./monitor_dtmf 172.16.1.10 1A 5
   event:   l1 message name=pcm2A state=OK
   event:   sync message state=locked
   detected DTMF digit 1 (duration: 94 ms)
   detected DTMF digit 2 (duration: 81 ms)
   detected DTMF digit 3 (duration: 81 ms)
+  ```
 
   And in another window:
 
+  ```
   > ./playback_file 172.16.1.10 2A 5 audio/dtmf3
+  ```
 
-  (if you make your own sequences of DTMF digits, keep in mind that
-  you need to put some silence between the digits)
+  If you make your own sequences of DTMF digits, keep in mind that
+  you need to put some silence between the digits.
+
 
 Timeslot recorder
 -----------------
@@ -106,7 +117,9 @@ Timeslot recorder
   Record the (bit exact) contents of a timeslot to a file, optionally
   with a .wav header. Typical use:
 
+  ```
    >./record 172.16.2.7 1A 1 recorded_file.wav
+  ```
 
 Timeslot playback
 -----------------
@@ -115,18 +128,21 @@ Timeslot playback
   for instance converting an audio file to a-law) timeslot on an
   E1. Typical use:
 
+  ```
    >./playback_file 172.16.2.7 1A 1 audio/mfc_fwd_3
    wrote 800 octets to the <player>
    all done
+  ```
 
 Software image installer
 ------------------------
 
-  The software on the GTH can be upgraded with new releases
-  (typically with new features and bug fixes) from www.corelatus.com.
+  The software on the GTH can be upgraded with new releases from
+  www.corelatus.com.
 
   The upgrade process works via the API. Typical use:
 
+  ```
    >./install_release 172.16.1.10 /tmp/gth2_system_33c.gth
    Current system image version: gth2_system_32a
    Current failsafe image version: gth2_failsafe_9
@@ -138,151 +154,170 @@ Software image installer
    waiting for the GTH to reboot
    GTH back up
    Current system image version: gth2_system_33c
+  ```
 
 Query and set attributes on GTH resources
 -----------------------------------------
 
-   The GTH has many counters and indicators, called
-   "attributes". These attributes are grouped into "resources". The
-   attributes can be queried, for example:
+  The GTH has many counters and indicators, called
+  "attributes". These attributes are grouped into "resources". The
+  attributes can be queried, for example:
 
-   Find out the temperature (and more) on the GTH module:
+  Find out the temperature (and more) on the GTH module:
 
-      >./query_set 172.16.2.7 board
-      architecture=gth2.1
-      ROM ID=0x26d02d81000000e7
-      temperature=33.4
-      power consumption=7.4
-      power source=A
+  ```
+     >./query_set 172.16.2.7 board
+     architecture=gth2.1
+     ROM ID=0x26d02d81000000e7
+     temperature=33.4
+     power consumption=7.4
+     power source=A
+  ```
 
-   See a list of all the resources:
+  See a list of all the resources:
 
-      >./query_set 172.16.1.10 inventory
-      sync
-      performance
-      cpu
-      board
-      os
-      system_image
-      failsafe_image
-      http_server
-      eth1
-      eth2
-      pcm1A
-      pcm1B
-      pcm1C
-      ...
+  ```
+     >./query_set 172.16.1.10 inventory
+     sync
+     performance
+     cpu
+     board
+     os
+     system_image
+     failsafe_image
+     http_server
+     eth1
+     eth2
+     pcm1A
+     pcm1B
+     pcm1C
+     ...
+  ```
 
-   Some attributes can also be changed, for instance to enable
-   an E1/T1 interface with default parameters:
+  To change configurable attributes, supply a value:
 
-      >./query_set 172.16.1.10 pcm1A status enabled
+  ```
+     >./query_set 172.16.1.10 application_log verbosity all
+  ```
 
-   The GTH API manual, https://www.corelatus.com/gth/api/ has a
-   section explaining what all the attributes are for.
+  The GTH API manual, https://www.corelatus.com/gth/api/ has a
+  section explaining what all the attributes are for.
 
 Query and set attributes on GTH jobs
 ------------------------------------
 
-   Many of the jobs on the GTH have counters and indicators.
-   These can be queried. Here's an example:
+  Many of the jobs on the GTH have counters and indicators.
+  These can be queried. Here's an example:
 
-      >./job_query 172.16.2.8 m2mo1
-      span=1A
-      timeslot=1
-      n_fisu=34670
-      fisu_o=173350
-      n_lssu=0
-      lssu_o=0
-      n_msu=571
-      msu_o=38273
-      n_esu=0
-      esu_o=0
-      n_rsu=0
-      rsu_o=0
-      fib_inv=0
-      bib_inv=0
-      current state=in service
-      current load=4
-      average load=3
-      maximum load=9
-      n_no signal units=0
-      n_out of service=0
-      n_in service=0
-      n_proc outage=0
-      n_congestion=0
-      t_no signal units=22792
-      t_out of service=0
-      t_in service=23668
-      t_proc outage=0
-      t_congestion=0
+  ```
+     >./job_query 172.16.2.8 m2mo1
+     span=1A
+     timeslot=1
+     n_fisu=34670
+     fisu_o=173350
+     n_lssu=0
+     lssu_o=0
+     n_msu=571
+     msu_o=38273
+     n_esu=0
+     esu_o=0
+     n_rsu=0
+     rsu_o=0
+     fib_inv=0
+     bib_inv=0
+     current state=in service
+     current load=4
+     average load=3
+     maximum load=9
+     n_no signal units=0
+     n_out of service=0
+     n_in service=0
+     n_proc outage=0
+     n_congestion=0
+     t_no signal units=22792
+     t_out of service=0
+     t_in service=23668
+     t_proc outage=0
+     t_congestion=0
+  ```
 
 Start duplex LAPD on a timeslot
 -------------------------------
 
-   Start duplex LAPD signalling on a timeslot. This example
-   program has hooks for inserting code to handle Q.931, i.e.
-   set up calls.
+  Start duplex LAPD signalling on a timeslot. This example
+  program has hooks for inserting code to handle Q.931, i.e.
+  set up calls.
 
-   Typical use:
+  Typical use:
 
-     >./duplex_lapd 172.16.1.10 1A 16
+  ```
+    >./duplex_lapd 172.16.1.10 1A 16
+  ```
 
 Switch a timeslot from one E1 to another
 ----------------------------------------
 
-   Switch one or more timeslots from one E1 to another. This
-   turns the GTH into a bare-bones MUX/DXC/Groomer.
+  Switch one or more timeslots from one E1 to another. This
+  turns the GTH into a bare-bones MUX/DXC/Groomer.
 
-   Typical use:
+  Typical use:
 
-     >./query_set 172.16.1.10 pcm1A status enabled
-     >./query_set 172.16.1.10 pcm2A status enabled
-     >./connect_timeslots 172.16.1.10 1A 16 2A 16
-     press ^C to shut down all timeslot connections
+  ```
+    >./query_set 172.16.1.10 pcm1A status enabled
+    >./query_set 172.16.1.10 pcm2A status enabled
+    >./connect_timeslots 172.16.1.10 1A 16 2A 16
+    press ^C to shut down all timeslot connections
+  ```
 
-   The timeslot connections are automatically removed when
-   the last program is terminated (e.g. by pressing ^C).
+  The timeslot connections are automatically removed when
+  the last program is terminated (e.g. by pressing ^C).
 
 
 Enable SDH/SONET and E1/T1 links
 --------------------------------
 
-   Typical use on SDH/SONET hardware:
+  Typical use on SDH/SONET hardware:
 
-     >./enable 172.16.1.10 sdh1
-     >./enable 172.16.1.10 sdh1 AU 4  TU 12
-     >./enable 172.16.1.10 sdh1 SONET true  OC 3  VT 2
+  ```
+    >./enable 172.16.1.10 sdh1
+    >./enable 172.16.1.10 sdh1 AU 4  TU 12
+    >./enable 172.16.1.10 sdh1 SONET true  OC 3  VT 2
+  ```
 
-   Typical use on E1/T1 hardware:
+  Typical use on E1/T1 hardware:
 
-     >./enable 172.16.1.10 pcm1A
-     >./enable 172.16.1.10 pcm2A  framing multiframe
-     >./enable 172.16.1.10 pcm2A  framing multiframe  monitoring true
+  ```
+    >./enable 172.16.1.10 pcm1A
+    >./enable 172.16.1.10 pcm2A  framing multiframe
+    >./enable 172.16.1.10 pcm2A  framing multiframe  monitoring true
+  ```
 
 Map an E1/T1 carried on SDH/SONET
 ---------------------------------
 
-   This example is only used on hardware with SDH/SONET interfaces.
+  This example is only used on hardware with SDH/SONET interfaces.
 
-   Typical use:
+  Typical use:
 
-     >./map 172.16.1.10 sdh1:hop1_1:lop1_5_3
-     pcm27
+  ```
+    >./map 172.16.1.10 sdh1:hop1_1:lop1_5_3
+    pcm27
+  ```
 
-   The program replies with the name of the newly mapped E1/T1, in
-   this example 'pcm27'. That name can then be used in an 'enable'
-   command to start L1 processing on 'pcm27'.
+  The program replies with the name of the newly mapped E1/T1, in
+  this example 'pcm27'. That name can then be used in an 'enable'
+  command to start L1 processing on 'pcm27'.
 
 Send raw XML commands
 ---------------------
 
   For debugging, you can send any XML command as per the API manual
-  (www.corelatus.se/gth/gth_api.pdf)
+  (www.corelatus.com/gth/api/gth_api.pdf)
 
   Example:
-
+   ```
   ./raw_xml 172.16.1.10 "<query verbose='true'><job id='ldmo137'/></query>"
+   ```
 
 Print broadcast events
 ----------------------
@@ -291,6 +326,7 @@ Print broadcast events
   changes states---the GTH broadcasts this information to all
   API connections. This program prints such broadcast events. Typical run:
 
+   ```
     >./print_broadcast_events 172.16.1.10
     Fri Mar  8 13:44:21 2019 event: sync message: state=dead
     Fri Mar  8 13:44:21 2019 event: l1 message: name=pcm1A state=LOS
@@ -298,6 +334,7 @@ Print broadcast events
     Fri Mar  8 13:44:21 2019 event: sync message: state=locked
     Fri Mar  8 13:44:28 2019 event: alert: reason=ntp
     [Problem contacting 172.16.3.1]
+   ```
 
 Replay SS7 packets from a .pcap file
 --------------------------------------
@@ -307,7 +344,9 @@ Replay SS7 packets from a .pcap file
 
   'replay_ss7' allows you to replay packets from a PCap file:
 
+   ```
    >./replay_ss7 172.16.1.10 isup.pcap 1A 16
+   ```
 
 GTH API for C programs
 ----------------------
@@ -323,6 +362,7 @@ GTH API for C programs
 
   Typical use:
 
+   ```c
     #include "gth_apilib.h"
 
     GTH_api api;
@@ -330,8 +370,7 @@ GTH API for C programs
 
     gth_connect(&api, "172.16.1.10");
     gth_new_player(&api, "3A", 16, buffer);
-
-    ...
+   ```
 
 Parser for GTH XML
 ------------------

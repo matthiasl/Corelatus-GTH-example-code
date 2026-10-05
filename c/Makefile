@@ -33,5 +33,4 @@ ship:
 	$(MAKE) gcc_build
 	$(MAKE) clang_build
 	$(MAKE) win64
-	sed -e 's/$$/\r/g' < README.unix > README.txt
-	zip gth_c_examples *.c *.h CMakeLists.txt CMakePresets.json cmake/*.cmake Makefile audio/* README.* build/mingw-win64/*.exe
+	zip gth_c_examples *.c *.h CMakeLists.txt CMakePresets.json cmake/*.cmake Makefile audio/* README.md build/mingw-win64/*.exe
