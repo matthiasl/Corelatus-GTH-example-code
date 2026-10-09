@@ -77,7 +77,7 @@ static void play_a_file(GTH_api *api,
 			int timeslot,
 			const char *filename)
 {
-  int data_socket;
+  gth_socket data_socket;
   char buffer[1600];
   size_t octet_count;
   size_t octet_sum = 0;
@@ -97,7 +97,7 @@ static void play_a_file(GTH_api *api,
   }
 
   data_socket = gth_new_player(api, span, timeslot, job_id);
-  if (data_socket < 0) {
+  if (data_socket == GTH_INVALID_SOCKET) {
     die("unable to start a player on the GTH. Use -v to see more details.");
   }
 

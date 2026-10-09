@@ -52,6 +52,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <string.h>
+#include <limits.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -63,6 +64,8 @@
 #include "gth_win32_compat.h"
 #include "gth_apilib.h"
 #include "pcap_structs.h"
+
+#define MAX_32BIT_SIGNED 0x7fffFFFF
 
 static void usage(void) {
   fprintf(stderr,
@@ -98,13 +101,13 @@ static int disable_link_type_adjustment;
 // How many bytes do we discard from the end of each read packet?
 static u32 link_type_adjustment;
 
-static int setup_transmitter(GTH_api *api,
+static gth_socket setup_transmitter(GTH_api *api,
                              const char *span,
                              const int timeslot)
 {
   int listen_port = 0;
-  int listen_socket = gth_make_listen_socket(&listen_port);
-  int data_socket;
+  gth_socket listen_socket = gth_make_listen_socket(&listen_port);
+  gth_socket data_socket;
   int result;
   char job_id[MAX_JOB_ID];
 
@@ -126,11 +129,18 @@ static void checked_fread(void *buf, size_t size) {
   if (result != 1) die("short read from PCAP file");
 }
 
+static void checked_fseek(FILE *f, long offset, int whence) {
+  int result = fseek(f, offset, whence);
+  if (result != 0)
+    die("fseek failed");
+  return;
+}
+
 static void open_pcap_file(const char *filename) {
   PCap_NG_shb shb;
-  int result;
   char *classic_pcap = "File looks like it's in classic PCAP format.\n"
     "Convert it with 'tshark -r classic.pcap -w modern.pcap'\n";
+  long int seek;
 
   pcap = fopen(filename, "rb");
   if (!pcap) die("unable to open the given .pcap file");
@@ -151,9 +161,14 @@ static void open_pcap_file(const char *filename) {
   if (shb.major_version != 1 || shb.minor_version > 0)
     die("PCAP file version is too new; more than 1.0");
 
-  result = fseek(pcap, shb.block_total_length - (u32)sizeof(shb), SEEK_CUR);
-  if (result != 0)
-    die("PCAP file seek failed");
+  if (shb.block_total_length > MAX_32BIT_SIGNED)
+    die("unreasonable PCAP SHB length");
+  if (sizeof(shb) > shb.block_total_length)
+    die("unreasonable PCAP SHB length");
+  seek = (long int)shb.block_total_length;
+  seek -= (long int)sizeof(shb);
+
+  checked_fseek(pcap, seek, SEEK_CUR);
 }
 
 static char length_indicator(u32 length) {
@@ -165,8 +180,8 @@ static char length_indicator(u32 length) {
 
 static u32 read_epb(char *packet) {
   size_t result;
-  int success;
   PCap_NG_epb epb;
+  long int seek;
 
   result = fread(&epb, sizeof epb, 1, pcap);
   if (result != 1)
@@ -190,28 +205,36 @@ static u32 read_epb(char *packet) {
   if (result != 1)
     die("PCAP file ended mid-packet");
 
-  success = fseek(pcap,
-                  epb.block_total_length
-                  - (u32)sizeof(epb) - epb.captured_len,
-                  SEEK_CUR);
-  if (success != 0)
-    die("seek failed");
+  if (epb.block_total_length > MAX_32BIT_SIGNED)
+    die("unreasonable EPB block length");
+  if (sizeof(epb) + epb.captured_len > epb.block_total_length)
+    die("unreasonable ratio between block sizes");
+
+  seek = (long int)epb.block_total_length;
+  seek -= (long int)sizeof(epb);
+  seek -= (long int)epb.captured_len;
+
+  checked_fseek(pcap, seek, SEEK_CUR);
 
   return epb.captured_len - link_type_adjustment + link_type_offset;
 }
 
 static void read_idb(void) {
   size_t result;
-  int success;
   PCap_NG_idb idb;
+  long int seek;
 
   result = fread(&idb, sizeof idb, 1, pcap);
   if (result != 1)
     die("read failed in the middle of an IDB");
 
-  success = fseek(pcap, idb.block_total_length - (u32)sizeof(idb), SEEK_CUR);
-  if (success != 0)
-    die("seek failed in the middle of an IDB");
+  if (idb.block_total_length > MAX_32BIT_SIGNED)
+    die("unreasonable IDB length");
+  if (sizeof(idb) > idb.block_total_length)
+    die("IDB is larger than entire block");
+  seek = (long int)idb.block_total_length;
+  seek -= (long int)sizeof(idb);
+  checked_fseek(pcap, seek, SEEK_CUR);
 
   if (link_type != 0 && link_type != idb.link_type)
     die("capture file contains conflicting IDBs; can't work with that");
@@ -248,7 +271,7 @@ static size_t read_packet_from_pcap(char *packet)
   for (;;) {
     result = fread(&block, sizeof block, 1, pcap);
     if (result != 1) return 0;
-    success = fseek(pcap, -(long)sizeof(block), SEEK_CUR);
+    success = fseek(pcap, -(long int)sizeof(block), SEEK_CUR);
       if (success != 0) return 0;
 
     switch (block.type) {
@@ -273,7 +296,7 @@ static size_t read_packet_from_pcap(char *packet)
 
 #define TX_AND_FISU_OPCODE 3
 
-static void copy_packets(int data_socket)
+static void copy_packets(gth_socket data_socket)
 {
   // Packet starts off with a six-byte header which is
   // length:16, opcode:16, reserved:16
@@ -307,7 +330,7 @@ static void copy_packets(int data_socket)
 int main(int argc, char** argv)
 {
   GTH_api api;
-  int data_socket;
+  gth_socket data_socket;
   int result;
   int verbose = 0;
 

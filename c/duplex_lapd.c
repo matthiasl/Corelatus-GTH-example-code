@@ -127,7 +127,7 @@ static void enable_l1(GTH_api *api, const char* span)
   sleep_seconds(1);
 }
 
-static void send_dl_establish_req(int data_socket)
+static void send_dl_establish_req(gth_socket data_socket)
 {
   GTH_lapd_tx_su su;
   ssize_t result;
@@ -139,11 +139,11 @@ static void send_dl_establish_req(int data_socket)
   su.opcode = Q921_DL_ESTABLISH_REQUEST;
   su.reserved = 0;
 
-  result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
+  result = send_wrap(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
   if (result != 8) die("LAPD socket write failed");
 }
 
-static void send_dl_data_req(int data_socket)
+static void send_dl_data_req(gth_socket data_socket)
 {
   GTH_lapd_tx_su su;
   ssize_t result;
@@ -155,20 +155,20 @@ static void send_dl_data_req(int data_socket)
   su.reserved = 0;
   strcpy((char*)su.payload, "hello world");
 
-  result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
+  result = send_wrap(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
   if (result != (ssize_t)(ntohs(su.length) + sizeof(su.length)))
     die("LAPD socket write failed");
 }
 
 // Start up duplex LAPD on the given timeslot
-static int setup_lapd(GTH_api *api,
+static gth_socket setup_lapd(GTH_api *api,
 		      const char *span,
 		      const int timeslot,
 		      const char *end)
 {
   int listen_port = 0;
-  int listen_socket = gth_make_listen_socket(&listen_port);
-  int data_socket;
+  gth_socket listen_socket = gth_make_listen_socket(&listen_port);
+  gth_socket data_socket;
   int result;
   int sapi = 0;
   int tei = 0;
@@ -192,7 +192,7 @@ static int setup_lapd(GTH_api *api,
 
 // This function is the hook for Q.931. For now, it prints out
 // data and tries to establish a data link.
-static void dump_incoming_lapd(int data_socket)
+static void dump_incoming_lapd(gth_socket data_socket)
 {
   uint16_t length;
   GTH_lapd_rx_su su;
@@ -250,7 +250,7 @@ static void dump_incoming_lapd(int data_socket)
 int main(int argc, char** argv)
 {
   GTH_api api;
-  int data_socket;
+  gth_socket data_socket;
   int result;
   char *end = "user";
   int verbose = 0;

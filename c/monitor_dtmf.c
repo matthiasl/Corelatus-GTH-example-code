@@ -125,7 +125,7 @@ int main(int argc, char** argv)
   FD_SET(api.fd, &readfds);
 
   while (detections != 0) {
-    result = select(api.fd + 1, &readfds, 0, 0, 0);
+    result = select(GTH_SELECT_NFDS(api.fd), &readfds, 0, 0, 0);
     if (result != 1) die("select returned an unexpected value");
     result = gth_process_event(&api);
     if (result != 0) die("gth_process_event failed");

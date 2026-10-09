@@ -79,7 +79,7 @@ typedef void(GTH_tone_handler)(const char *name, const int arg);
 
 typedef struct {
   // The file descriptor of the API socket to the GTH
-  int fd;
+  gth_socket fd;
 
   // Ascii representation of my IP address, from the GTH's pont of view.
   // 16 characters is enough for any IPv4 address, but not IPv6 (IP6).
@@ -117,18 +117,18 @@ int gth_connect(GTH_api *api, const char *address, const int verbose);
 //
 // This function also writes the port number to the *port argument so that
 //   you know which port the OS selected.
-int gth_make_listen_socket(int *port);
+gth_socket gth_make_listen_socket(int *port);
 
 // Return: the socket file descriptor
 //
 // This function also writes the port number to the *port argument so that
 //   you know which port the OS selected.
-int gth_make_udp_socket(int *port);
+gth_socket gth_make_udp_socket(int *port);
 
 // Given a socket, wait for an accept on it.
 //
 // Return: the accepted socket.
-int gth_wait_for_accept(int listen_socket);
+gth_socket gth_wait_for_accept(gth_socket listen_socket);
 
 // Wait for a <message ended> event for the given job_id
 //
@@ -415,10 +415,8 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
 			     const GTH_attribute *options,
 			     const int n_options);
 
-// Return: the file descriptor (>= 0) on success.
-//
-// The file descriptor is a socket to write the player data to.
-int gth_new_player(GTH_api *api,
+// Return: a socket to write the player data to, GTH_INVALID_SOCKET on failure.
+gth_socket gth_new_player(GTH_api *api,
 		   const char *span,
 		   int timeslot,      // E1: 1--31   T1: 1--24
 		   char *job_id);     // function writes the job-id here
@@ -440,10 +438,8 @@ int gth_new_raw_monitor(GTH_api *api,
                         const char *ip,
                         const int port);
 
-// Return: the file descriptor (>= 0) on success.
-//
-// The file descriptor is a socket the recorder data gets written to
-int gth_new_recorder(GTH_api *api,
+// Return: a socket the recorder data arrives on, GTH_INVALID_SOCKET on failure.
+gth_socket gth_new_recorder(GTH_api *api,
 		     const char *span,
 		     int timeslot,      // E1: 1--31   T1: 1--24
 		     char *job_id);     // function writes the job-id here
@@ -457,10 +453,8 @@ int gth_new_tone_detector(GTH_api *api,
 			  char *job_id,      // function writes the job-id here
 			  GTH_tone_handler* handler); // callback
 
-// Return: the file descriptor (>= 0) on success.
-//
-// The file descriptor is a UDP socket the incoming data appears on
-int gth_new_wide_recorder(GTH_api *api,
+// Return: a UDP socket the incoming data appears on, GTH_INVALID_SOCKET on failure.
+gth_socket gth_new_wide_recorder(GTH_api *api,
 			  const char *span,
 			  char *job_id);    // function writes the job-id here
 
@@ -611,10 +605,10 @@ void sleep_seconds(unsigned int seconds);
 
 // posix and Win32 have slightly different APIs for recv() and send(), the
 // type of the 'len' argument differs.
-ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags);
-ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags);
+ssize_t recv_wrap(gth_socket sockfd, void *buf, size_t len, int flags);
+ssize_t send_wrap(gth_socket sockfd, const void *buf, size_t len, int flags);
 
 // Read the exact number of bytes given, looping if necessary
-void read_exact(int fd, char *buf, size_t count);
+void read_exact(gth_socket fd, char *buf, size_t count);
 
 #endif

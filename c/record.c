@@ -164,7 +164,7 @@ static void record_a_file(GTH_api *api,
 			  const char *filename,
 			  const int mulaw)
 {
-  int data_socket;
+  gth_socket data_socket;
   char buffer[2000];
   ssize_t octet_count;
   ssize_t octet_sum = 0;
@@ -193,13 +193,13 @@ static void record_a_file(GTH_api *api,
   possibly_prepend_wav_header(filename, file, mulaw);
 
   data_socket = gth_new_recorder(api, span, timeslot, job_id);
-  if (data_socket < 0) {
+  if (data_socket == GTH_INVALID_SOCKET) {
     die("unable to start a <recorder> on the GTH. -v gives more information");
   }
 
   fprintf(stderr, "started recording. Press ^C to end.\n");
 
-  while ( (octet_count = recv(data_socket, buffer, sizeof buffer, 0)) ) {
+  while ( (octet_count = recv_wrap(data_socket, buffer, sizeof buffer, 0)) ) {
     if (octet_count < 0) {
       die("error while reading from the socket. Giving up.");
     }

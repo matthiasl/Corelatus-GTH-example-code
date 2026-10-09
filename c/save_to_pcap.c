@@ -277,7 +277,7 @@ usage(void) {
 #ifdef _WIN32
 // Return 1 on success
 #define fwrite write_to_handle_or_file
-static int
+static size_t
 write_to_handle_or_file(void *buffer,
 			size_t length,
 			size_t items,
@@ -976,8 +976,8 @@ is_filename_a_pipe(const char *name)
 
 // windows.h has a max() function. On *nix, sys/param.h has a MAX macro
 // We write our own to avoid confusion.
-static int
-max_arg(int a, int b)
+static gth_socket
+max_socket(gth_socket a, gth_socket b)
 {
   return (a > b)?a:b;
 }
@@ -987,11 +987,11 @@ max_arg(int a, int b)
 // Block (or loop) until a packet arrives.
 // Returns 0 on timeout, 1 otherwise.
 static int
-wait_for_packet(GTH_api *api, int data_socket)
+wait_for_packet(GTH_api *api, gth_socket data_socket)
 {
   fd_set fds;
   int result;
-  int nfds = max_arg(api->fd, data_socket) + 1;
+  int nfds = GTH_SELECT_NFDS(max_socket(api->fd, data_socket));
 
   FD_ZERO(&fds);
 
@@ -1326,7 +1326,7 @@ open_packet_file(const struct Options *opts, int *file_number)
 // Loop, converting the incoming GTH data to libpcap format
 static void
 convert_to_pcap(GTH_api *api,
-		int data_socket,
+		gth_socket data_socket,
                 const struct Options user_options)
 {
   u16 length;
@@ -1813,10 +1813,10 @@ int
 main(int argc, char **argv)
 {
   GTH_api api;
-  int data_socket = -1;
+  gth_socket data_socket = GTH_INVALID_SOCKET;
   int i;
   int listen_port = 0;
-  int listen_socket = -1;
+  gth_socket listen_socket;
   Start_function start_function = 0;
 
   win32_specific_startup();

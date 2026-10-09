@@ -81,16 +81,16 @@ struct tm *localtime_r(const time_t *t, struct tm *out)
   return localtime_s(out, t) ? NULL : out;
 }
 
-static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+static void set_nonblocking(gth_socket s, u_long on_or_off) // 1 means nonblocking
 {
   int result;
   u_long mode = on_or_off;
 
-  result = ioctlsocket(s, FIONBIO, &mode);
+  result = ioctlsocket(s, (long)FIONBIO, &mode);
   if (result != 0) die("ioctl failed");
 }
 
-ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags)
+ssize_t recv_wrap(gth_socket sockfd, void *buf, size_t len, int flags)
 {
   if (len > INT_MAX) {
     die("can't call recv with such a large argument on windows");
@@ -98,7 +98,7 @@ ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags)
   return recv(sockfd, buf, (int)len, flags);
 }
 
-ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags)
+ssize_t send_wrap(gth_socket sockfd, const void *buf, size_t len, int flags)
 {
   if (len > INT_MAX) {
     die("can't call send with such a large argument on windows");
@@ -156,7 +156,7 @@ static int asctime_s(char *dest, size_t dest_size, const struct tm *time)
   return (result == 0 /* asctime_r returns a pointer, or NULL */);
 }
 
-static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
+static void set_nonblocking(gth_socket s, int on_or_off) // 1 means nonblocking
 {
   int nonblock = on_or_off?O_NONBLOCK:0;
   int existing_flags = fcntl(s, F_GETFL) & ~O_NONBLOCK;
@@ -164,12 +164,12 @@ static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
   if (result != 0) die("fcntl failed");
 }
 
-ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags)
+ssize_t recv_wrap(gth_socket sockfd, void *buf, size_t len, int flags)
 {
   return recv(sockfd, buf, len, flags);
 }
 
-ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags)
+ssize_t send_wrap(gth_socket sockfd, const void *buf, size_t len, int flags)
 {
   return send(sockfd, buf, len, flags);
 }
@@ -182,13 +182,13 @@ ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags)
 //----------------------------------------------------------------------
 // Forward declarations.
 
-static int read_header_line(int fd, char *line);
-static int definite_read(int fd,
+static int read_header_line(gth_socket fd, char *line);
+static int definite_read(gth_socket fd,
 			 size_t length,
 			 char *response,
 			 const size_t max_response_length);
 static GTH_resp *gth_next_non_event(GTH_api *api);
-static void string_write(int s, const char* string);
+static void string_write(gth_socket s, const char* string);
 static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
@@ -201,7 +201,7 @@ static void my_ip_address(GTH_api *api);
 
 static int recv_job_id(GTH_api *api, char *id);
 static void api_write(GTH_api *api, const char* command);
-static void api_write_non_xml(int s,
+static void api_write_non_xml(gth_socket s,
 				  const char* type,
 				  const char* data,
 				  size_t len);
@@ -398,8 +398,8 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
     return -ENETUNREACH;
   }
 
-  api->fd = (int)socket(result->ai_family, result->ai_socktype, result->ai_protocol);
-  if (api->fd < 0) {
+  api->fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+  if (api->fd == GTH_INVALID_SOCKET) {
     freeaddrinfo(result);
     return -ENOTSOCK;
   }
@@ -456,9 +456,9 @@ int gth_delete(GTH_api *api, const char *job_id)
   return single_arg_ok_response(api, "<delete id='%s'/>", job_id);
 }
 
-int gth_make_listen_socket(int* port)
+gth_socket gth_make_listen_socket(int* port)
 {
-  int s = -1;
+  gth_socket s;
   int result;
   struct sockaddr_in addr;
   socklen_t addr_size = sizeof addr;
@@ -467,8 +467,8 @@ int gth_make_listen_socket(int* port)
   addr.sin_port = 0;
   addr.sin_addr.s_addr = INADDR_ANY;
 
-  s = (int)socket(PF_INET, SOCK_STREAM, 0);
-  if (s < 0) die("socket creating failed");
+  s = socket(PF_INET, SOCK_STREAM, 0);
+  if (s == GTH_INVALID_SOCKET) die("socket creating failed");
 
   result = bind(s, (struct sockaddr*)&addr, sizeof addr);
   if (result != 0) die("bind failed");
@@ -489,9 +489,9 @@ int gth_make_listen_socket(int* port)
   return s;
 }
 
-int gth_make_udp_socket(int* port)
+gth_socket gth_make_udp_socket(int* port)
 {
-  int s = -1;
+  gth_socket s;
   int result;
   struct sockaddr_in addr;
   socklen_t addr_size = sizeof addr;
@@ -500,8 +500,8 @@ int gth_make_udp_socket(int* port)
   addr.sin_port = 0;
   addr.sin_addr.s_addr = INADDR_ANY;
 
-  s = (int)socket(PF_INET, SOCK_DGRAM, 0);
-  if (s < 0) die("socket failed");
+  s = socket(PF_INET, SOCK_DGRAM, 0);
+  if (s == GTH_INVALID_SOCKET) die("socket failed");
 
   result = bind(s, (struct sockaddr*)&addr, sizeof addr);
   if (result != 0) die("bind failed");
@@ -515,9 +515,9 @@ int gth_make_udp_socket(int* port)
 }
 
 
-int gth_wait_for_accept(int listen_socket)
+gth_socket gth_wait_for_accept(gth_socket listen_socket)
 {
-  int data_socket = -1;
+  gth_socket data_socket;
   int result;
   struct timeval timeout = {2, 0};  // 2 seconds
   fd_set readfds;
@@ -525,7 +525,7 @@ int gth_wait_for_accept(int listen_socket)
   FD_ZERO(&readfds);
   FD_SET(listen_socket, &readfds);
 
-  result = select(listen_socket + 1, &readfds, 0, 0, &timeout);
+  result = select(GTH_SELECT_NFDS(listen_socket), &readfds, 0, 0, &timeout);
 
   if (result == 0)
     die("unable to accept socket, timed out (is this host firewalled?)");
@@ -533,8 +533,8 @@ int gth_wait_for_accept(int listen_socket)
   if (result < 0)
     die("unabled to accept socket");
 
-  data_socket = (int)accept(listen_socket, 0, 0);
-  if (data_socket < 0) {
+  data_socket = accept(listen_socket, 0, 0);
+  if (data_socket == GTH_INVALID_SOCKET) {
     die("unable to accept socket (possibly blocked by a firewall)");
   }
 
@@ -1177,14 +1177,14 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
 }
 
 
-int gth_new_player(GTH_api *api,
+gth_socket gth_new_player(GTH_api *api,
 		   const char *span,
 		   int timeslot,
 		   char *job_id)
 {
   int listen_port = 0;
-  int listen_socket = gth_make_listen_socket(&listen_port);
-  int data_socket = -1;
+  gth_socket listen_socket = gth_make_listen_socket(&listen_port);
+  gth_socket data_socket = GTH_INVALID_SOCKET;
   char command[MAX_COMMAND];
   int result;
   const char* cmd_template;
@@ -1207,7 +1207,7 @@ int gth_new_player(GTH_api *api,
   }
   closesocket(listen_socket);
 
-  return (result == 0)?data_socket:-1;
+  return (result == 0)?data_socket:GTH_INVALID_SOCKET;
 }
 
 
@@ -1236,14 +1236,14 @@ int gth_new_raw_monitor(GTH_api *api,
 }
 
 
-int gth_new_recorder(GTH_api *api,
+gth_socket gth_new_recorder(GTH_api *api,
 		     const char *span,
 		     int timeslot,
 		     char *job_id)
 {
   int listen_port = 0;
-  int listen_socket = gth_make_listen_socket(&listen_port);
-  int data_socket = -1;
+  gth_socket listen_socket = gth_make_listen_socket(&listen_port);
+  gth_socket data_socket = GTH_INVALID_SOCKET;
   char command[MAX_COMMAND];
   int result;
   const char* cmd_template;
@@ -1267,7 +1267,7 @@ int gth_new_recorder(GTH_api *api,
   }
   closesocket(listen_socket);
 
-  return (result == 0)?data_socket:-1;
+  return (result == 0)?data_socket:GTH_INVALID_SOCKET;
 }
 
 int gth_new_tone_detector(GTH_api *api,
@@ -1311,12 +1311,12 @@ void gth_nop(GTH_api *api)
   gth_free_resp(resp);
 }
 
-int gth_new_wide_recorder(GTH_api *api,
+gth_socket gth_new_wide_recorder(GTH_api *api,
 			  const char *span,
 			  char *job_id)
 {
   int portno = 0;
-  int data_socket = gth_make_udp_socket(&portno);
+  gth_socket data_socket = gth_make_udp_socket(&portno);
   char command[MAX_COMMAND];
   int result;
   const char* cmd_template;
@@ -1338,7 +1338,7 @@ int gth_new_wide_recorder(GTH_api *api,
     closesocket(data_socket);
   }
 
-  return (result == 0)?data_socket:-1;
+  return (result == 0)?data_socket:GTH_INVALID_SOCKET;
 }
 
 
@@ -1422,7 +1422,7 @@ static int recv_job_id(GTH_api *api, char *id)
 
 // Read a header line. A header line is always terminated by \r\n, though
 // we only check for \r here.
-static int read_header_line(int fd, char *line) {
+static int read_header_line(gth_socket fd, char *line) {
   int used = 0;
   ssize_t result;
 
@@ -1454,7 +1454,7 @@ static int read_header_line(int fd, char *line) {
 //
 // Return: 0 on success
 //
-static int definite_read(int fd,
+static int definite_read(gth_socket fd,
 			 size_t length,
 			 char *response,
 			 const size_t max_response_length)
@@ -1523,14 +1523,14 @@ static int next_api_response(GTH_api *api,
   result2 = read_header_line(api->fd, content_length);
   if (result1 != 0 || result2 != 0) {
     closesocket(api->fd);
-    api->fd = -1;
+    api->fd = GTH_INVALID_SOCKET;
     return -1;
   }
 
   if (strstr(content_type,   key1) != content_type ||
       strstr(content_length, key2) != content_length) {
     closesocket(api->fd);
-    api->fd = -1;
+    api->fd = GTH_INVALID_SOCKET;
     return -2;
   }
 
@@ -1541,13 +1541,13 @@ static int next_api_response(GTH_api *api,
   length = atoi(content_length + strlen(key2));
   if (length < 0) {
     closesocket(api->fd);
-    api->fd = -1;
+    api->fd = GTH_INVALID_SOCKET;
     return -3;
   }
 
   if (strcmp(type, "text/xml") != 0 && strcmp(type, "text/plain") != 0) {
     closesocket(api->fd);
-    api->fd = -1;
+    api->fd = GTH_INVALID_SOCKET;
     return -4;
   }
 
@@ -1555,14 +1555,14 @@ static int next_api_response(GTH_api *api,
   result1 = read_header_line(api->fd, content_type);
   if (result1 != 0) {
     closesocket(api->fd);
-    api->fd = -1;
+    api->fd = GTH_INVALID_SOCKET;
     return -5;
   }
 
   result2 = definite_read(api->fd, (size_t)length, response, max_response_length);
   if (result2 < 0) {
     closesocket(api->fd);
-    api->fd = -1;
+    api->fd = GTH_INVALID_SOCKET;
     return -6;
   }
 
@@ -1635,7 +1635,7 @@ static GTH_resp *gth_next_non_event(GTH_api *api) {
   }
 }
 
-static void string_write(int s, const char* string)
+static void string_write(gth_socket s, const char* string)
 {
   ssize_t result;
 
@@ -1668,7 +1668,7 @@ static void api_write(GTH_api *api, const char* command)
   string_write(api->fd, command);
 }
 
-static void api_write_non_xml(int s,
+static void api_write_non_xml(gth_socket s,
 			      const char* type,
 			      const char* data,
 			      size_t len)
@@ -2181,7 +2181,7 @@ int gth_wait_for_event(GTH_api *api, const int milliseconds)
   FD_ZERO(&readfds);
   FD_SET(api->fd, &readfds);
 
-  result = select(api->fd + 1, &readfds, 0, 0, &timeout);
+  result = select(GTH_SELECT_NFDS(api->fd), &readfds, 0, 0, &timeout);
 
   if (result == 0) return -1; // timeout
 
@@ -2381,7 +2381,7 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
 }
 
 // Read exactly the requested number of bytes from the given descriptor
-void read_exact(int fd, char *buf, size_t count) {
+void read_exact(gth_socket fd, char *buf, size_t count) {
   ssize_t this_time;
 
   while (count > 0) {

@@ -45,7 +45,10 @@
       "displayName": "Cross-compile for 64-bit Windows (MinGW)",
       "inherits": "unix-base",
       "toolchainFile": "${sourceDir}/cmake/mingw-w64.cmake",
-      "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "GTH_PEDANTIC": "ON"
+      }
     },
     {
       "name": "windows-base",

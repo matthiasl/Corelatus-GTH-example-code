@@ -99,6 +99,25 @@ struct tm *localtime_r(const time_t *t, struct tm *out);
 
 
 //----------------------------------------------------------------------
+// Sockets. On Windows a socket is a SOCKET (an unsigned, pointer-sized
+// handle) and failure is INVALID_SOCKET. On unix it's an int and failure
+// is -1. Always compare against GTH_INVALID_SOCKET, never '< 0': SOCKET is
+// unsigned, so '< 0' is always false on Windows.
+//
+// select() ignores its first argument on Windows, so GTH_SELECT_NFDS hides
+// the "highest fd + 1" calculation.
+#ifdef _WIN32
+#include <winsock2.h>
+typedef SOCKET gth_socket;
+#define GTH_INVALID_SOCKET INVALID_SOCKET
+#define GTH_SELECT_NFDS(max_fd) ((void)(max_fd), 0)
+#else
+typedef int gth_socket;
+#define GTH_INVALID_SOCKET (-1)
+#define GTH_SELECT_NFDS(max_fd) ((max_fd) + 1)
+#endif
+
+//----------------------------------------------------------------------
 // All cases
 
 // Print message and abort
