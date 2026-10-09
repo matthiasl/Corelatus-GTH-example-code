@@ -42,20 +42,6 @@
 
 #ifdef _MSC_VER
 
-// Microsoft's strncat_s isn't exactly a drop-in replacement for strncat.
-//
-// strncat: if we have too much data to fit, truncate, with nul termination.
-//          copy at most C bytes
-//
-// strncat_s: second argument the destination buffer size.
-//
-// So by passing in 'count' as the second argument, we're not using the
-// strncat_s() exactly as intended, but if the arguments are sound for
-// strncat(), then they're also sound for strncat_s(), i.e. it's a conservative
-// solution.
-
-#define strncat(A,B,C) strncat_s(A,C,B,C)
-
 #define POSSIBLY_EXTERN
 
 #define HANDLE_OR_FILEPTR HANDLE

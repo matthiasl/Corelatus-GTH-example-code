@@ -47,6 +47,8 @@
 
 #ifdef _WIN32
 #include <winsock2.h>
+#include <io.h>
+#include <fcntl.h>
 #else
 #include <sys/socket.h>
 #include <unistd.h>
@@ -176,6 +178,9 @@ static void record_a_file(GTH_api *api,
 
   if ( strcmp(filename, "-") == 0 ) {
     file = stdout;
+    #ifdef _WIN32
+    _setmode(_fileno(stdout), _O_BINARY);  // Windows stdout defaults to text
+    #endif
   } else {
     fopen_s(&file, filename, "wb");
     if (file == 0) {

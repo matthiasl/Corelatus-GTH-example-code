@@ -397,8 +397,9 @@ check_for_problems(const char *hostname,
   //--------------------
   reason = "Upgrade would fail because of version dependencies (consider -n)";
   image_name[0] = 0;
-  strncat(image_name, other, sizeof(image_name) - 1);
-  strncat(image_name, "_image", sizeof(image_name) - 1 - strlen(other));
+  result = snprintf(image_name, sizeof(image_name), "%s_image", other);
+  if (result < 0 || (size_t)result >= sizeof(image_name))
+    die("image name too long");
   result = gth_query_resource_attribute(&api, image_name, "version",
 					attribute, sizeof(attribute));
   if (result != 0) die("unable to read the firmware version");

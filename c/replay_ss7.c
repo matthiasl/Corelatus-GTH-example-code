@@ -129,7 +129,7 @@ static void open_pcap_file(const char *filename) {
   char *classic_pcap = "File looks like it's in classic PCAP format.\n"
     "Convert it with 'tshark -r classic.pcap -w modern.pcap'\n";
 
-  pcap = fopen(filename, "r");
+  pcap = fopen(filename, "rb");
   if (!pcap) die("unable to open the given .pcap file");
 
   checked_fread(&shb, sizeof shb);
