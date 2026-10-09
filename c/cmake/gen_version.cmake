@@ -19,8 +19,7 @@ endif()
 cmake_host_system_information(RESULT build_hostname QUERY HOSTNAME)
 
 file(WRITE ${OUTPUT}.tmp
-"#include \"gth_apilib.h\"
-const char git_head[] = \"${git_head}\";
+"const char git_head[] = \"${git_head}\";
 const char build_hostname[] = \"${build_hostname}\";
 ")
 file(COPY_FILE ${OUTPUT}.tmp ${OUTPUT} ONLY_IF_DIFFERENT)

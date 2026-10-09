@@ -71,7 +71,7 @@ if(MSVC)
 else()
   target_compile_options(gth PUBLIC -Wall)
   if(GTH_PEDANTIC)
-    target_compile_options(gth PUBLIC -Wextra -Wshadow -Wstrict-prototypes)
+    target_compile_options(gth PUBLIC -Wextra -Wshadow -Wstrict-prototypes -Wconversion)
   endif()
 endif()
 

@@ -121,7 +121,7 @@ static void possibly_prepend_wav_header(const char *filename,
 					FILE *file,
 					const int mulaw)
 {
-  int len = strlen(filename);
+  size_t len = strlen(filename);
 
   if (len < 4)
     return;
@@ -164,9 +164,9 @@ static void record_a_file(GTH_api *api,
   int data_socket;
   char buffer[2000];
   ssize_t octet_count;
-  int octet_sum = 0;
+  ssize_t octet_sum = 0;
   char job_id[MAX_JOB_ID];
-  int result;
+  size_t result;
   FILE* file = 0;
 
   if ( (timeslot < 1) || (timeslot > 31) ) {
@@ -197,17 +197,17 @@ static void record_a_file(GTH_api *api,
     if (octet_count < 0) {
       die("error while reading from the socket. Giving up.");
     }
-    result = fwrite(buffer, octet_count, 1, file);
+    result = fwrite(buffer, (size_t)octet_count, 1, file);
     if (result != 1) {
       die("Writing to the output file failed. Giving up.");
     }
-    fprintf(stderr, "%d ", octet_sum);
+    fprintf(stderr, "%zd ", octet_sum);
     octet_sum += octet_count;
   }
   closesocket(data_socket);
   fclose(file);
 
-  fprintf(stderr, "wrote %d octets to %s\n", octet_sum, filename);
+  fprintf(stderr, "wrote %zd octets to %s\n", octet_sum, filename);
 }
 
 // Set the mode for the given E1/T1, using default parameters.

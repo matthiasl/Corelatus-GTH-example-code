@@ -62,8 +62,10 @@ static void install_start_script(const char *hostname,
 {
   GTH_api api;
   int result;
+  size_t s_result;
   FILE *script;
-  int script_length;
+  ssize_t ftell_result;
+  size_t script_length;
   char *script_data;
 
   result = gth_connect(&api, hostname, verbose);
@@ -79,12 +81,18 @@ static void install_start_script(const char *hostname,
   }
 
   fseek(script, 0, SEEK_END);
-  script_length = ftell(script);
+  ftell_result = ftell(script);
+  if (ftell_result < 0)
+    die("unexpected seek fail in start script");
+  script_length = (size_t)ftell_result;
   rewind(script);
 
   script_data = checked_malloc(script_length);
 
-  result = fread(script_data, script_length, 1, script);
+  s_result = fread(script_data, script_length, 1, script);
+  if (s_result != 1) {
+    die("short read of start script");
+  }
 
   result = gth_install(&api, "start_script", "binary/file",
 		       script_data, script_length);
@@ -100,8 +108,8 @@ static void print_e1t1_names(const char *hostname) {
   GTH_api api;
   int result = gth_connect(&api, hostname, 0);
   GTH_attribute *attributes;
-  int n_attributes;
-  int x;
+  unsigned int n_attributes;
+  unsigned int x;
 
   result = gth_query_resource(&api, "inventory", &attributes, &n_attributes);
   if (result != 0) {

@@ -49,6 +49,10 @@
 //
 //----------------------------------------------------------------------
 
+#include <stddef.h>
+#include <sys/types.h>
+#include <stdio.h>
+#include "gth_win32_compat.h"
 #include "gth_client_xml_parse.h"
 
 // We promise that a GTH job-id will never be longer than 20 characters.
@@ -149,7 +153,7 @@ int gth_disable(GTH_api *api,
 int gth_enable(GTH_api *api,
 	       const char *resource,
 	       const GTH_const_attribute *attributes,
-	       int n_attributes);
+	       unsigned int n_attributes);
 
 // Install.
 //
@@ -158,7 +162,7 @@ int gth_install(GTH_api *api,
 		const char *name,
 		const char *type,  // one of "binary/file", "binary/filesystem"
 		const char *data,
-		const int length); // in octets (bytes)
+		const size_t length); // in octets (bytes)
 
 // Map
 //
@@ -167,7 +171,7 @@ int gth_install(GTH_api *api,
 int gth_map(GTH_api *api,
 	    const char *resource,
 	    char *name,
-	    int max_name);
+	    size_t max_name);
 
 // Start ATM AAL0 monitoring.
 //
@@ -470,7 +474,7 @@ void gth_nop(GTH_api *api);
 int gth_set(GTH_api *api,
 	    const char *resource,
 	    const GTH_const_attribute *attributes,
-	    int n_attributes);
+	    unsigned int n_attributes);
 
 // Special case of set for just one attribute.
 //
@@ -497,7 +501,7 @@ int gth_query_job(GTH_api *api,
                   const char *id,
                   char *owner,
                   GTH_attribute **attributes,
-                  int *n_attributes);
+                  unsigned int *n_attributes);
 
 // Query one attribute on a resource. Returns the value in result, using up
 // to max_size characters, including the terminating 0.
@@ -508,7 +512,7 @@ int gth_query_resource_attribute(GTH_api *api,
 				 const char *resource,
 				 const char *attribute,
 				 char *result,
-				 int max_size);
+				 size_t max_size);
 
 // Query a resource.
 //
@@ -522,7 +526,7 @@ int gth_query_resource_attribute(GTH_api *api,
 int gth_query_resource(GTH_api *api,
 		       const char *name,
 		       GTH_attribute **attributes,
-		       int *n_attributes);
+		       unsigned int *n_attributes);
 
 // Unmap
 //
@@ -536,7 +540,7 @@ int gth_unmap(GTH_api *api,
 GTH_resp *gth_raw_xml(GTH_api *api, const char* string);
 
 // Free an array of attributes, typically obtained from gth_query_resource()
-void gth_free_attributes(GTH_attribute *attributes, int n_attributes);
+void gth_free_attributes(GTH_attribute *attributes, unsigned int n_attributes);
 
 // Return an ascii representation of this machine's IP address as
 // observed by the GTH.
@@ -595,7 +599,7 @@ void gth_print_timestamp(void);
 
 // Given a command-line span, e.g. '3A', safely turn that into 'pcm3A'
 void
-gth_make_pcm_name(char *pcm_name, int size, const char* arg);
+gth_make_pcm_name(char *pcm_name, size_t size, const char* arg);
 
 // The Win32 socket library needs some startup actions before it works.
 // So call this before doing anything if you're running on win32.
@@ -603,6 +607,14 @@ gth_make_pcm_name(char *pcm_name, int size, const char* arg);
 void win32_specific_startup(void);
 
 // posix and Win32 have different APIs for sleeping. Unify them.
-void sleep_seconds(int seconds);
+void sleep_seconds(unsigned int seconds);
+
+// posix and Win32 have slightly different APIs for recv() and send(), the
+// type of the 'len' argument differs.
+ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags);
+ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags);
+
+// Read the exact number of bytes given, looping if necessary
+void read_exact(int fd, char *buf, size_t count);
 
 #endif

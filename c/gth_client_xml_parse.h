@@ -107,12 +107,12 @@ struct GTH_resp_struct;
 struct GTH_resp_struct {
   GTH_resp_type type;
   GTH_attribute *attributes;
-  int n_attributes;
-  int allocated_attributes;
+  unsigned int n_attributes;
+  unsigned int allocated_attributes;
 
   struct GTH_resp_struct *children;
-  int n_children;
-  int allocated_children;
+  unsigned int n_children;
+  unsigned int allocated_children;
 
   char *text;
 };

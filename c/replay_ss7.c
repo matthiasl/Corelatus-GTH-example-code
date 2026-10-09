@@ -90,10 +90,10 @@ static FILE *pcap;
 static u16 link_type;
 
 // How many empty bytes go before the read packet?
-static int link_type_offset;
+static u32 link_type_offset;
 
 // How many bytes do we discard from the end of each read packet?
-static int link_type_adjustment;
+static u32 link_type_adjustment;
 
 static int setup_transmitter(GTH_api *api,
                              const char *span,
@@ -148,19 +148,21 @@ static void open_pcap_file(const char *filename) {
   if (shb.major_version != 1 || shb.minor_version > 0)
     die("PCAP file version is too new; more than 1.0");
 
-  result = fseek(pcap, shb.block_total_length - sizeof(shb), SEEK_CUR);
+  result = fseek(pcap, shb.block_total_length - (u32)sizeof(shb), SEEK_CUR);
   if (result != 0)
     die("PCAP file seek failed");
 }
 
-static int length_indicator(int length) {
-  return (length > 63)?63:length;
+static char length_indicator(u32 length) {
+  char clength = (char)length;
+  return (length > 63)?63:clength;
 }
 
 #define MAX_PACKET 300
 
-static int read_epb(char *packet) {
-  int result;
+static u32 read_epb(char *packet) {
+  size_t result;
+  int success;
   PCap_NG_epb epb;
 
   result = fread(&epb, sizeof epb, 1, pcap);
@@ -178,28 +180,34 @@ static int read_epb(char *packet) {
   if (epb.captured_len + link_type_offset > MAX_PACKET)
     die("PCAP file contains unexpectedly long packets");
 
+  if (epb.captured_len < link_type_adjustment)
+    die("PCAP file contains impossibly short packet");
+
   result = fread(packet + link_type_offset, epb.captured_len, 1, pcap);
   if (result != 1)
     die("PCAP file ended mid-packet");
 
-  result = fseek(pcap, epb.block_total_length - sizeof(epb) - epb.captured_len,
-                 SEEK_CUR);
-  if (result != 0)
+  success = fseek(pcap,
+                  epb.block_total_length
+                  - (u32)sizeof(epb) - epb.captured_len,
+                  SEEK_CUR);
+  if (success != 0)
     die("seek failed");
 
   return epb.captured_len - link_type_adjustment + link_type_offset;
 }
 
 static void read_idb(void) {
-  int result;
+  size_t result;
+  int success;
   PCap_NG_idb idb;
 
   result = fread(&idb, sizeof idb, 1, pcap);
   if (result != 1)
     die("read failed in the middle of an IDB");
 
-  result = fseek(pcap, idb.block_total_length - sizeof(idb), SEEK_CUR);
-  if (result != 0)
+  success = fseek(pcap, idb.block_total_length - (u32)sizeof(idb), SEEK_CUR);
+  if (success != 0)
     die("seek failed in the middle of an IDB");
 
   if (link_type != 0 && link_type != idb.link_type)
@@ -226,17 +234,18 @@ static void read_idb(void) {
 }
 
 // Returns the packet length
-static int read_packet_from_pcap(char *packet)
+static size_t read_packet_from_pcap(char *packet)
 {
   PCap_NG_block block;
-  int result;
+  size_t result;
+  int success;
 
   // Process blocks until we find an EPB
   for (;;) {
     result = fread(&block, sizeof block, 1, pcap);
     if (result != 1) return 0;
-    result = fseek(pcap, -(long)sizeof(block), SEEK_CUR);
-      if (result != 0) return 0;
+    success = fseek(pcap, -(long)sizeof(block), SEEK_CUR);
+      if (success != 0) return 0;
 
     switch (block.type) {
     case PCAPNG_BLOCK_TYPE_EPB:
@@ -248,8 +257,8 @@ static int read_packet_from_pcap(char *packet)
       break;
 
     default:
-      result = fseek(pcap, block.block_total_length, SEEK_CUR);
-      if (result != 0)
+      success = fseek(pcap, block.block_total_length, SEEK_CUR);
+      if (success != 0)
         die("PCAP file seek failed");
     }
   }
@@ -264,26 +273,28 @@ static void copy_packets(int data_socket)
   // Packet starts off with a six-byte header which is
   // length:16, opcode:16, reserved:16
   char packet[MAX_PACKET + 6] = {0,0, 0, TX_AND_FISU_OPCODE, 0,0};
-  int length;
+  size_t length;
   ssize_t result;
-  int n_bytes = 0;
+  size_t n_bytes = 0;
 
   for (;;) {
     length = read_packet_from_pcap(packet + 6);
     if (length < 5) break;
     n_bytes += length;
     length += 4;    // length = pcap_length + 2(opcode) + 2(padding)
-    packet[0] = (length >> 8);
-    packet[1] = (length & 255);
-    result = send(data_socket, packet, length + 2, 0);
-    if (result != length + 2)
+    packet[0] = (char)(length >> 8);
+    packet[1] = (char)(length & 255);
+    result = send_wrap(data_socket, packet, length + 2, 0);
+    if (result == -1)
+      die("send() failed");
+    if ((size_t)result != length + 2)
       die("unexpected short socket write");
   }
 
-  fprintf(stderr, "packet bytes replayed: %d. Sleeping to drain buffers.\n",
+  fprintf(stderr, "packet bytes replayed: %zu. Sleeping to drain buffers.\n",
           n_bytes);
 
-  sleep_seconds(1 + n_bytes / 7000);
+  sleep_seconds((unsigned int)(1 + n_bytes / 7000));
 }
 
 // Entry point

@@ -67,7 +67,7 @@ typedef struct
 } GTH_token;
 
 static char *
-copy_to_new_add_null(const char *src, int len)
+copy_to_new_add_null(const char *src, size_t len)
 {
   char *result;
 
@@ -81,15 +81,15 @@ copy_to_new_add_null(const char *src, int len)
 // We're inside a string. Make a token out of the rest of the string.
 //
 // Return: the number of characters that were in the string.
-static int scan_string(const char* string, GTH_token *token, const char end)
+static size_t scan_string(const char* string, GTH_token *token, const char end)
 {
   char* endptr;
-  int len;
+  size_t len;
 
   endptr = strchr(string, end);
   if (!endptr) die("unterminated string");
 
-  len = endptr - string;
+  len = (size_t)(endptr - string);
   token->type = TOK_STRING;
   token->payload = copy_to_new_add_null(string, len);
 
@@ -99,9 +99,9 @@ static int scan_string(const char* string, GTH_token *token, const char end)
 // We're inside a name. Make a token out of it.
 //
 // Return: the number of characters that were in the name.
-static int scan_name(const char* string, GTH_token *token)
+static size_t scan_name(const char* string, GTH_token *token)
 {
-  int len;
+  size_t len;
 
   len = strcspn(string, " =\r\n/><");
 
@@ -121,14 +121,14 @@ static int scan_name(const char* string, GTH_token *token)
 static int gth_scan(const char *string, GTH_token **ret_tokens)
 {
   size_t len;
-  int max_token = 5;
-  int tokens_used = 0;
+  size_t max_token = 5;
+  size_t tokens_used = 0;
   GTH_token *start = checked_malloc(max_token * sizeof(GTH_token));
   GTH_token *current = start;
 
   //----
  outside_tag:
-  tokens_used = (current - start);
+  tokens_used = (size_t)(current - start);
   if ( tokens_used == max_token) {
     max_token = max_token * 2;
     start = checked_realloc(start, max_token * sizeof(GTH_token));
@@ -160,7 +160,7 @@ static int gth_scan(const char *string, GTH_token **ret_tokens)
  inside_tag:
   string++;
   current++;
-  tokens_used = (current - start);
+  tokens_used = (size_t)(current - start);
   if ( tokens_used == max_token) {
     max_token = max_token * 2;
     start = checked_realloc(start, max_token * sizeof(GTH_token));
@@ -268,7 +268,7 @@ void gth_free_resp(GTH_resp *resp) {
 
 static void free_resp(GTH_resp *resp)
 {
-  int x;
+  unsigned int x;
 
   // Free the attributes and their contents
   for (x = 0; x < resp->n_attributes; x++)
@@ -564,7 +564,7 @@ void print_tokens(const GTH_token *token)
 }
 
 static void print_children(GTH_resp *resp) {
-  int x;
+  unsigned int x;
 
   for (x = 0; x < resp->n_children; x++)
     {
@@ -729,7 +729,7 @@ void gth_print_tree(GTH_resp *resp) {
 }
 
 void print_attributes(const GTH_resp *resp) {
-  int x;
+  unsigned int x;
 
   for (x = 0; x < resp->n_attributes; x++)
     {

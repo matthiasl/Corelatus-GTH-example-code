@@ -37,12 +37,14 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //----------------------------------------------------------------------
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <errno.h>
 #include <string.h>
 #include <time.h>
+#include <limits.h>
 
 #ifdef _WIN32
 #include <winsock2.h>
@@ -87,6 +89,23 @@ static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
   result = ioctlsocket(s, FIONBIO, &mode);
   if (result != 0) die("ioctl failed");
 }
+
+ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags)
+{
+  if (len > INT_MAX) {
+    die("can't call recv with such a large argument on windows");
+  }
+  return recv(sockfd, buf, (int)len, flags);
+}
+
+ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags)
+{
+  if (len > INT_MAX) {
+    die("can't call send with such a large argument on windows");
+  }
+  return send(sockfd, buf, (int)len, flags);
+}
+
 
 #else // unix
 
@@ -144,6 +163,17 @@ static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
   int result = fcntl(s, F_SETFL, nonblock | existing_flags);
   if (result != 0) die("fcntl failed");
 }
+
+ssize_t recv_wrap(int sockfd, void *buf, size_t len, int flags)
+{
+  return recv(sockfd, buf, len, flags);
+}
+
+ssize_t send_wrap(int sockfd, const void *buf, size_t len, int flags)
+{
+  return send(sockfd, buf, len, flags);
+}
+
 #endif
 
 
@@ -154,18 +184,18 @@ static void set_nonblocking(int s, int on_or_off) // 1 means nonblocking
 
 static int read_header_line(int fd, char *line);
 static int definite_read(int fd,
-			 int length,
+			 size_t length,
 			 char *response,
-			 const int max_response_length);
+			 const size_t max_response_length);
 static GTH_resp *gth_next_non_event(GTH_api *api);
 static void string_write(int s, const char* string);
 static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
-				 int *n_attributes);
+				 unsigned int *n_attributes);
 static int query_inventory(GTH_api *api,
 			   GTH_attribute **attributes,
-			   int *n_attributes);
+			   unsigned int *n_attributes);
 
 static void my_ip_address(GTH_api *api);
 
@@ -174,7 +204,7 @@ static void api_write(GTH_api *api, const char* command);
 static void api_write_non_xml(int s,
 				  const char* type,
 				  const char* data,
-				  int len);
+				  size_t len);
 
 static int new_atm_aal_monitor(GTH_api *api,
                                const int tag,
@@ -209,7 +239,7 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
 //
 static int next_api_response(GTH_api *api,
 			     char* response,
-			     const int max_response_length);
+			     const size_t max_response_length);
 
 // Use the XML parser to parse the next response
 //
@@ -281,10 +311,10 @@ gth_print_timestamp(void)
 }
 
 void
-gth_make_pcm_name(char *pcm_name, int size, const char* arg)
+gth_make_pcm_name(char *pcm_name, size_t size, const char* arg)
 {
   int n = snprintf(pcm_name, size, "pcm%s", arg);
-  if (n < 0 || n >= size)
+  if (n < 0 || n >= (int)size)
     die("span name too long");
 }
 
@@ -368,13 +398,13 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
     return -ENETUNREACH;
   }
 
-  api->fd = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
+  api->fd = (int)socket(result->ai_family, result->ai_socktype, result->ai_protocol);
   if (api->fd < 0) {
     freeaddrinfo(result);
     return -ENOTSOCK;
   }
 
-  if (connect(api->fd, result->ai_addr, result->ai_addrlen)) {
+  if (connect(api->fd, result->ai_addr, (socklen_t)result->ai_addrlen)) {
     // On *nix, errno tells us why the connect failed.
     // On Win32, you have to call some WSA function.
     freeaddrinfo(result);
@@ -435,7 +465,7 @@ int gth_make_listen_socket(int* port)
   addr.sin_port = 0;
   addr.sin_addr.s_addr = INADDR_ANY;
 
-  s = socket(PF_INET, SOCK_STREAM, 0);
+  s = (int)socket(PF_INET, SOCK_STREAM, 0);
   if (s < 0) die("socket creating failed");
 
   result = bind(s, (struct sockaddr*)&addr, sizeof addr);
@@ -468,7 +498,7 @@ int gth_make_udp_socket(int* port)
   addr.sin_port = 0;
   addr.sin_addr.s_addr = INADDR_ANY;
 
-  s = socket(PF_INET, SOCK_DGRAM, 0);
+  s = (int)socket(PF_INET, SOCK_DGRAM, 0);
   if (s < 0) die("socket failed");
 
   result = bind(s, (struct sockaddr*)&addr, sizeof addr);
@@ -501,7 +531,7 @@ int gth_wait_for_accept(int listen_socket)
   if (result < 0)
     die("unabled to accept socket");
 
-  data_socket = accept(listen_socket, 0, 0);
+  data_socket = (int)accept(listen_socket, 0, 0);
   if (data_socket < 0) {
     die("unable to accept socket (possibly blocked by a firewall)");
   }
@@ -579,19 +609,28 @@ static int gth_wait_for_install_complete(GTH_api *api, int need_install_done)
   return 0;
 }
 
-static int kv_to_tags(char *buffer,
-		      const size_t buflen,
-		      const GTH_const_attribute *attributes,
-		      int n)
+// Return the number of characters used
+static size_t kv_to_tags(char *buffer,
+                         const size_t buflen,
+                         const GTH_const_attribute *attributes,
+                         unsigned int n)
 {
-  int used = 0;
+  size_t used = 0;
+  int result;
 
   *buffer = 0;
 
   while (attributes && n > 0) {
-    used += snprintf(buffer + used, buflen - used,
-		     "<attribute name='%s' value='%s'/>",
-		     attributes->key, attributes->value);
+    result = snprintf(buffer + used, buflen - used,
+                      "<attribute name='%s' value='%s'/>",
+                      attributes->key, attributes->value);
+    if (result < 0) {
+      die("snprintf failed");
+    }
+    if ((size_t)result >= buflen - used)
+      die("command overflow");
+
+    used += (size_t)result;
     n--;
     attributes++;
   }
@@ -599,19 +638,28 @@ static int kv_to_tags(char *buffer,
   return used;
 }
 
-static int kv_to_attributes(char *buffer,
-			    const size_t buflen,
-			    const GTH_attribute *attributes,
-			    int n)
+// Return the number of characters used
+static size_t kv_to_attributes(char *buffer,
+                               const size_t buflen,
+                               const GTH_attribute *attributes,
+                               int n)
 {
-  int used = 0;
+  size_t used = 0;
+  int result;
 
   *buffer = 0;
 
   while (attributes && n > 0) {
-    used += snprintf(buffer + used, buflen - used,
+    result = snprintf(buffer + used, buflen - used,
 		     " %s='%s'",
 		     attributes->key, attributes->value);
+    if (result < 0) {
+      die("snprintf failed");
+    }
+    if ((size_t)result >= buflen - used)
+      die("command overflow");
+
+    used += (size_t)result;
     n--;
     attributes++;
   }
@@ -650,9 +698,14 @@ static void format_sources(const char *span,
 
   for (x = 0; x < n_timeslots; x++)
     {
-      result = snprintf(pos, MAX_COMMAND - (pos - sources), cmd_template,
+      result = snprintf(pos, MAX_COMMAND - (size_t)(pos - sources), cmd_template,
 			span, timeslots[x]);
-      if (result >= (MAX_COMMAND - (pos - sources))) die("command overflow");
+      if (result < 0) {
+        die("snprintf failed");
+      }
+      if ((size_t)result >= (MAX_COMMAND - (size_t)(pos - sources))) {
+        die("command overflow");
+      }
       pos += result;
     }
 }
@@ -669,9 +722,14 @@ static void format_sinks(const char *span,
 
   for (x = 0; x < n_timeslots; x++)
     {
-      result = snprintf(pos, MAX_COMMAND - (pos - sinks), cmd_template,
+      result = snprintf(pos, MAX_COMMAND - (size_t)(pos - sinks), cmd_template,
 			span, timeslots[x]);
-      if (result >= (MAX_COMMAND - (pos - sinks))) die("command overflow");
+      if (result < 0) {
+        die("snprintf failed");
+      }
+      if ((size_t)result >= (MAX_COMMAND - (size_t)(pos - sinks))) {
+        die("command overflow");
+      }
       pos += result;
     }
 }
@@ -681,20 +739,35 @@ static int gth_enable_or_set(const char *command,
 			     GTH_api *api,
 			     const char *resource,
 			     const GTH_const_attribute *attributes,
-			     int n_attributes)
+			     unsigned int n_attributes)
 {
   char buffer[MAX_COMMAND];
-  int used;
+  size_t used;
+  int result;
 
   if (!api) die("api is null");
   if (!resource) die("resource is null");
 
-  used = snprintf(buffer, MAX_COMMAND, "<%s name='%s'>", command, resource);
+  result = snprintf(buffer, MAX_COMMAND, "<%s name='%s'>", command, resource);
+  if (result < 0) {
+    die("snprintf failed");
+  }
+  if ((size_t)result >= MAX_COMMAND)
+    die("command overflow");
+
+  used = (size_t)result;
 
   used += kv_to_tags(buffer + used, MAX_COMMAND - used,
 		     attributes, n_attributes);
 
-  used += snprintf(buffer + used, MAX_COMMAND - used, "</%s>", command);
+  result = snprintf(buffer + used, MAX_COMMAND - used, "</%s>", command);
+  if (result < 0) {
+    die("snprintf failed");
+  }
+  if ((size_t)result >= MAX_COMMAND - used)
+    die("command overflow");
+
+  used += (size_t)result;
 
   api_write(api, buffer);
 
@@ -714,7 +787,7 @@ int gth_disable(GTH_api *api,
 int gth_enable(GTH_api *api,
 	       const char *resource,
 	       const GTH_const_attribute *attributes,
-	       int n_attributes)
+	       unsigned int n_attributes)
 {
   return gth_enable_or_set("enable", api, resource, attributes, n_attributes);
 }
@@ -723,7 +796,7 @@ int gth_install(GTH_api *api,
 		const char *name,
 		const char *type,
 		const char *data,
-		const int length)
+		const size_t length)
 {
   char buffer[MAX_COMMAND];
   int result;
@@ -999,10 +1072,13 @@ int gth_new_lapd_monitor_opt(GTH_api *api,
 
   if (ts < 1 || ts > 31) die("invalid timeslot");
 
-  result = kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
+  kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
 
-  snprintf(source, MAX_COMMAND, "timeslot='%d' bandwidth='%d' first_bit='%d'",
-           ts, bandwidth, first_bit);
+  result = snprintf(source, MAX_COMMAND,
+                    "timeslot='%d' bandwidth='%d' first_bit='%d'",
+                    ts, bandwidth, first_bit);
+  if (result < 0) die("snprintf failed");
+  if (result >= MAX_COMMAND) die("command is too long");
 
   cmd_template = "<new><lapd_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
     "<pcm_source span='%s' %s />"
@@ -1010,6 +1086,7 @@ int gth_new_lapd_monitor_opt(GTH_api *api,
 
   result = snprintf(command, MAX_COMMAND, cmd_template, attributes, ip, port,
                     tag, span, source);
+  if (result < 0) die("snprintf failed");
   if (result >= MAX_COMMAND) die("command is too long");
   api_write(api, command);
   result = recv_job_id(api, job_id);
@@ -1062,16 +1139,16 @@ int gth_new_mtp2_monitor(GTH_api *api,
 
 
 int gth_new_mtp2_monitor_opt(GTH_api *api,
-			     const int tag,
-			     const char *span,
-			     const int timeslots[],
-			     const int n_timeslots,
+                             const int tag,
+                             const char *span,
+                             const int timeslots[],
+                             const int n_timeslots,
                              const int bandwidth,
-			     char *job_id,
-			     const char *ip,
-			     const int port,
-			     const GTH_attribute *options,
-			     const int n_options)
+                             char *job_id,
+                             const char *ip,
+                             const int port,
+                             const GTH_attribute *options,
+                             const int n_options)
 {
   char command[MAX_COMMAND];
   char sources[MAX_COMMAND];
@@ -1081,7 +1158,7 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
 
   if (n_timeslots < 1 || n_timeslots > 31) die("invalid timeslot");
 
-  result = kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
+  kv_to_attributes(attributes, MAX_COMMAND, options, n_options);
 
   cmd_template = "<new><mtp2_monitor %s ip_addr='%s' ip_port='%d' tag='%d'>"
     "%s</mtp2_monitor></new>";
@@ -1090,11 +1167,10 @@ int gth_new_mtp2_monitor_opt(GTH_api *api,
 
   result = snprintf(command, MAX_COMMAND, cmd_template,
 		    attributes, ip, port, tag, sources);
-  if (result >= MAX_COMMAND) die("command is too long");
+  if (result >= MAX_COMMAND)
+    die("command is too long");
   api_write(api, command);
-  result = recv_job_id(api, job_id);
-
-  return result;
+  return recv_job_id(api, job_id);
 }
 
 
@@ -1343,10 +1419,10 @@ static int recv_job_id(GTH_api *api, char *id)
 // we only check for \r here.
 static int read_header_line(int fd, char *line) {
   int used = 0;
-  int result;
+  ssize_t result;
 
   do {
-    result = recv(fd, line + used, 1, 0);
+    result = recv_wrap(fd, line + used, 1, 0);
     used++;
     if (used >= GTH_HEADER_BUFFER_LEN || result != 1) {
       return -1;
@@ -1356,7 +1432,7 @@ static int read_header_line(int fd, char *line) {
   line[used-1] = 0;
 
   // eat up the \n
-  result = recv(fd, line + used, 1, 0);
+  result = recv_wrap(fd, line + used, 1, 0);
 
   if (result != 1) {
     return -1;
@@ -1374,9 +1450,9 @@ static int read_header_line(int fd, char *line) {
 // Return: 0 on success
 //
 static int definite_read(int fd,
-			 int length,
+			 size_t length,
 			 char *response,
-			 const int max_response_length)
+			 const size_t max_response_length)
 {
   size_t to_read;
   ssize_t result;
@@ -1389,13 +1465,13 @@ static int definite_read(int fd,
   length -= to_read;
 
   while (to_read > 0) {
-    result = recv(fd, response, to_read, 0);
+    result = recv_wrap(fd, response, to_read, 0);
     if (result <= 0) {
       closesocket(fd);
       return -9;
     }
     response += result;
-    to_read -= result;
+    to_read -= (size_t)result;
   }
 
   *response = 0;
@@ -1412,12 +1488,12 @@ static int definite_read(int fd,
     if (to_read > sizeof(internal_buffer)) {
       to_read = sizeof(internal_buffer);
     }
-    result = recv(fd, internal_buffer, to_read, 0);
+    result = recv_wrap(fd, internal_buffer, to_read, 0);
     if (result <= 0) {
       closesocket(fd);
       return -9;
     }
-    length -= result;
+    length -= (size_t)result;
   }
 
   return -10;
@@ -1426,14 +1502,14 @@ static int definite_read(int fd,
 //----------------------------------------------------------------------
 static int next_api_response(GTH_api *api,
 			     char *response,
-			     const int max_response_length)
+			     const size_t max_response_length)
 {
   const char *key1 = "Content-type: ";
   const char *key2 = "Content-length: ";
   char content_type[GTH_HEADER_BUFFER_LEN];
   char content_length[GTH_HEADER_BUFFER_LEN];
   char type[GTH_HEADER_BUFFER_LEN];
-  int length;
+  ssize_t length;
   int result1;
   int result2;
 
@@ -1460,11 +1536,16 @@ static int next_api_response(GTH_api *api,
 	    content_type + strlen(key1),
 	    GTH_HEADER_BUFFER_LEN - 1);
   length = atoi(content_length + strlen(key2));
+  if (length < 0) {
+    closesocket(api->fd);
+    api->fd = -1;
+    return -3;
+  }
 
   if (strcmp(type, "text/xml") != 0 && strcmp(type, "text/plain") != 0) {
     closesocket(api->fd);
     api->fd = -1;
-    return -3;
+    return -4;
   }
 
   // flush the blank line
@@ -1472,12 +1553,14 @@ static int next_api_response(GTH_api *api,
   if (result1 != 0) {
     closesocket(api->fd);
     api->fd = -1;
-    return -4;
+    return -5;
   }
 
-  result2 = definite_read(api->fd, length, response, max_response_length);
+  result2 = definite_read(api->fd, (size_t)length, response, max_response_length);
   if (result2 < 0) {
-    return -5;
+    closesocket(api->fd);
+    api->fd = -1;
+    return -6;
   }
 
   if (api->print_responses) {
@@ -1555,7 +1638,7 @@ static void string_write(int s, const char* string)
 
   if (!string) die("can't send a null string");
 
-  result = send(s, string, strlen(string), 0);
+  result = send_wrap(s, string, strlen(string), 0);
   if (result != (ssize_t)strlen(string)) {
     die("unexpected failure writing a string to the GTH");
   }
@@ -1565,14 +1648,14 @@ static void api_write(GTH_api *api, const char* command)
 {
   const char *CT = "Content-type: text/xml\r\n";
   char CL[GTH_HEADER_BUFFER_LEN];
-  int len;
+  size_t len;
 
   if (!api) die("api is null");
   if (!command) die("command is null");
 
   len = strlen(command);
 
-  snprintf(CL, GTH_HEADER_BUFFER_LEN, "Content-length: %d\r\n\r\n", len);
+  snprintf(CL, GTH_HEADER_BUFFER_LEN, "Content-length: %zu\r\n\r\n", len);
 
   if (api->print_cmds) {
     fprintf(stderr, "GTH command: %s\n", command);
@@ -1585,7 +1668,7 @@ static void api_write(GTH_api *api, const char* command)
 static void api_write_non_xml(int s,
 			      const char* type,
 			      const char* data,
-			      int len)
+			      size_t len)
 {
   char CL[GTH_HEADER_BUFFER_LEN];
   ssize_t result;
@@ -1593,20 +1676,23 @@ static void api_write_non_xml(int s,
   if (!type) die("missing type");
   if (!data) die("missing data");
 
-  snprintf(CL, GTH_HEADER_BUFFER_LEN, "Content-length: %d\r\n\r\n", len);
+  snprintf(CL, GTH_HEADER_BUFFER_LEN, "Content-length: %zu\r\n\r\n", len);
 
   string_write(s, "Content-type: ");
   string_write(s, type);
   string_write(s, "\r\n");
   string_write(s, CL);
-  result = send(s, data, len, 0);
-  if (result != len) {
+  result = send_wrap(s, data, len, 0);
+  if (result < 0) {
+    die("send() failed");
+  }
+  if (result != (ssize_t)len) {
     die("unexpected failure writing to the GTH");
   }
 }
 
 const char *gth_attribute_value(const GTH_resp *resp, const char *key) {
-  int x;
+  unsigned int x;
 
   if (!resp) die("missing response");
   if (!key) die("missing key");
@@ -1621,7 +1707,7 @@ const char *gth_attribute_value(const GTH_resp *resp, const char *key) {
 }
 
 char *gth_attribute_value_and_clear(GTH_resp *resp, const char *key) {
-  int x;
+  unsigned int x;
   char *copy;
 
   if (!resp) die("missing response");
@@ -1643,11 +1729,11 @@ int gth_query_resource_attribute(GTH_api *api,
 				 const char *name,
 				 const char *key,
 				 char *result,
-				 int max_result) {
+				 size_t max_result) {
   char buffer[MAX_COMMAND];
   GTH_resp *resp;
   GTH_resp *resource;
-  int x;
+  unsigned int x;
   int retval = -6;
 
   if (!api) die("api is null");
@@ -1708,13 +1794,13 @@ int gth_query_job(GTH_api *api,
                   const char *id,
                   char *owner,
                   GTH_attribute **attributes,
-                  int *n_attributes)
+                  unsigned int *n_attributes)
 {
   char buffer[MAX_COMMAND];
   GTH_resp *resp;
   GTH_resp *job;
   const char *owner_copy;
-  int x;
+  unsigned int x;
   int retval = 0;
 
   if (!api) die("api is null");
@@ -1782,12 +1868,12 @@ static int is_text_following_resource_query(const char *name)
 static int query_single_resource(GTH_api *api,
 				 const char *name,
 				 GTH_attribute **attributes,
-				 int *n_attributes)
+				 unsigned int *n_attributes)
 {
   char buffer[MAX_COMMAND];
   GTH_resp *resp;
   GTH_resp *resource;
-  int x;
+  unsigned int x;
   int retval = 0;
 
   if (!api) die("api is null");
@@ -1888,11 +1974,11 @@ static int query_single_resource(GTH_api *api,
 
 static int query_inventory(GTH_api *api,
 			   GTH_attribute **attributes,
-			   int *n_attributes)
+			   unsigned int *n_attributes)
 {
   GTH_resp *resp;
   GTH_resp *resource;
-  int x;
+  unsigned int x;
   int retval = 0;
 
   if (!api) die("api is null");
@@ -1935,7 +2021,7 @@ static int query_inventory(GTH_api *api,
 int gth_query_resource(GTH_api *api,
 		       const char *name,
 		       GTH_attribute **attributes,
-		       int *n_attributes)
+		       unsigned int *n_attributes)
 {
   if (!strcmp(name, "inventory"))
     return query_inventory(api, attributes, n_attributes);
@@ -1947,7 +2033,7 @@ int gth_query_resource(GTH_api *api,
 int gth_set(GTH_api *api,
 	    const char *resource,
 	    const GTH_const_attribute *attributes,
-	    int n_attributes)
+	    unsigned int n_attributes)
 {
   return gth_enable_or_set("set", api, resource, attributes, n_attributes);
 }
@@ -2037,9 +2123,9 @@ const char *gth_my_ip_address(GTH_api *api)
   return api->my_ip;
 }
 
-void gth_free_attributes(GTH_attribute *attributes, int n_attributes)
+void gth_free_attributes(GTH_attribute *attributes, unsigned int n_attributes)
 {
-  int x;
+  unsigned int x;
 
   if (!attributes) die("missing attributes");
 
@@ -2053,7 +2139,7 @@ void gth_free_attributes(GTH_attribute *attributes, int n_attributes)
 
 // Windows has its own version of sleep(), which is called Sleep() and
 // it sleeps for milliseconds instead of seconds. So we wrap it.
-void sleep_seconds(int seconds) {
+void sleep_seconds(unsigned int seconds) {
   #ifdef _WIN32
   Sleep(seconds * 1000);
   #else
@@ -2188,7 +2274,7 @@ void gth_switch_to(const char *hostname,
 int gth_map(GTH_api *api,
 	    const char *resource,
 	    char *name,
-	    int max_name)
+	    size_t max_name)
 {
   char buffer[MAX_COMMAND];
   GTH_resp *resp;
@@ -2291,6 +2377,20 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
   return result;
 }
 
+// Read exactly the requested number of bytes from the given descriptor
+void read_exact(int fd, char *buf, size_t count) {
+  ssize_t this_time;
+
+  while (count > 0) {
+    this_time = recv_wrap(fd, buf, count, 0);
+    if (this_time <= 0)
+      die("data socket from GTH unexpectedly closed\n");
+
+    count -= (size_t)this_time;
+    buf += this_time;
+  }
+}
+
 // Win32 requires an initialisation call to its socket library at program
 // startup.
 void win32_specific_startup(void) {
@@ -2312,7 +2412,7 @@ void win32_specific_startup(void) {
 // they really are numbers.
 int checked_atoi(const char *s)
 {
-  int result;
+  long result;
   char *end;
 
   result = strtol(s, &end, 10);
@@ -2320,8 +2420,11 @@ int checked_atoi(const char *s)
     fprintf(stderr, "attempted to convert '%s' to an integer\n", s);
     die("can't convert value to an integer");
   }
+  if (result < INT_MIN || result > INT_MAX) {
+    die("number is too big to fit in an int");
+  }
 
-  return result;
+  return (int)result;
 }
 
 #ifndef _WIN32

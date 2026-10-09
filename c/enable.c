@@ -75,7 +75,7 @@ int main(int argc, char** argv)
   GTH_api api;
   int verbose = 0;
   GTH_const_attribute attrs[MAX_ATTRIBUTES];
-  int n_attrs = 0;
+  unsigned int n_attrs = 0;
 
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
@@ -104,7 +104,7 @@ int main(int argc, char** argv)
     die("Too many name/value pairs. Abort.");
   }
 
-  for (n_attrs = 0; n_attrs < (argc - 3) / 2; n_attrs++) {
+  for (n_attrs = 0; n_attrs < (unsigned int)(argc - 3) / 2; n_attrs++) {
     attrs[n_attrs].key   = argv[n_attrs * 2 + 3];
     attrs[n_attrs].value = argv[n_attrs * 2 + 4];
   }

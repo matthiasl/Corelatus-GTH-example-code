@@ -79,7 +79,7 @@ static void play_a_file(GTH_api *api,
 {
   int data_socket;
   char buffer[1600];
-  ssize_t octet_count;
+  size_t octet_count;
   size_t octet_sum = 0;
   char job_id[MAX_COMMAND];
   ssize_t result;
@@ -102,15 +102,15 @@ static void play_a_file(GTH_api *api,
   }
 
   while ( (octet_count = fread(buffer, 1, sizeof buffer, file)) ) {
-    result = send(data_socket, buffer, octet_count, 0);
+    result = send_wrap(data_socket, buffer, octet_count, 0);
     if (result <= 0)
       die("unable to send data to the player TCP socket");
-    fprintf(stderr, SIZE_T_FORMAT " ", octet_sum);
+    fprintf(stderr, "%zu ", octet_sum);
     octet_sum += octet_count;
 
-    // send could return less than the requested amount, e.g. if there's
-    // back-pressure from the GTH. We don't deal with that case in this code.
-    if (result != octet_count)
+    // we expect send() to block if there's back-pressure from the GTH,
+    // so we don't expect this sanity check to trigger, ever.
+    if (result != (ssize_t)octet_count)
       die("short socket write; couldn't write all the data");
   }
 
@@ -118,7 +118,7 @@ static void play_a_file(GTH_api *api,
   if (result != 0) die("closing the data socket failed");
   fclose(file);
 
-  fprintf(stderr, "wrote "SIZE_T_FORMAT" octets to the <player>\n", octet_sum);
+  fprintf(stderr, "wrote %zu octets to the <player>\n", octet_sum);
 
   gth_wait_for_message_ended(api, job_id);
 }

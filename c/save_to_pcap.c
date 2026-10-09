@@ -45,6 +45,7 @@
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //----------------------------------------------------------------------
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -102,14 +103,14 @@ struct GTH_mtp2_lapd_raw {
 
 struct GTH_aal0 {
   u32 gfc_vpi_vci;
-  char payload[MAX_SIGNAL_UNIT];
+  u8 payload[MAX_SIGNAL_UNIT];
 };
 
 struct GTH_aal2 {
   u32 gfc_vpi_vci;
   // The first 3 bytes of the payload are the
   // CID, LI, UUI and a HEC.
-  char payload[MAX_SIGNAL_UNIT];
+  u8 payload[MAX_SIGNAL_UNIT];
 };
 
 struct GTH_aal5 {
@@ -118,7 +119,7 @@ struct GTH_aal5 {
   u8 cpi;
   u16 cpcs_length;
   u32 crc;
-  char payload[MAX_SIGNAL_UNIT];
+  u8 payload[MAX_SIGNAL_UNIT];
 };
 
 struct GTH_su {
@@ -284,8 +285,12 @@ write_to_handle_or_file(void *buffer,
   int result;
   DWORD written;
 
-  result = WriteFile(file, buffer, length * items, &written, 0);
-  if (written != length || !result ) {
+  // highly unlikely check: does this fit in a DWORD? Makes cast below valid.
+  if (items != 0 && length > MAXDWORD / items)
+    return 0;
+
+  result = WriteFile(file, buffer, (DWORD)(length * items), &written, 0);
+  if (written != length * items || !result ) {
     return 0;
   }
   return 1;
@@ -409,7 +414,7 @@ enable_optical_l1(GTH_api *api,
   int result;
   char source_name[20];
   GTH_const_attribute attributes[] = { {"payload", "ATM"} };
-  int n_attributes = 0;
+  unsigned int n_attributes = 0;
 
   strncpy_s(source_name, 20, source, 19);
 
@@ -438,7 +443,7 @@ enable_electrical_l1(GTH_api *api,
 {
   int result;
   char span_name[20];
-  int n_attributes = (monitoring)?3:2;
+  unsigned int n_attributes = (monitoring)?3:2;
   GTH_const_attribute attributes[] = { {"status", "enabled"},
                                        {"tx_enabled", "false"},
                                        {"monitoring", "true"}
@@ -703,26 +708,10 @@ monitor_raw(GTH_api *api,
   return;
 }
 
-// Read exactly the requested number of bytes from the given descriptor
-static void
-read_exact(int fd, char* buf, size_t count)
-{
-  ssize_t this_time;
-
-  while (count > 0) {
-    this_time = recv(fd, buf, count, 0);
-    if (this_time <= 0)
-      die("Signal unit socket from GTH unexpectedly closed\n");
-
-    count -= this_time;
-    buf += this_time;
-  }
-}
-
 POSSIBLY_EXTERN inline void
-checked_fwrite(void *b, int n, HANDLE_OR_FILEPTR f)
+checked_fwrite(void *b, size_t n, HANDLE_OR_FILEPTR f)
 {
-  int result = fwrite(b, n, 1, f);
+  size_t result = fwrite(b, n, 1, f);
 
   if (result != 1) {
     die("fwrite failed. (Is the output file writeable?)");
@@ -772,10 +761,10 @@ read_hw_description(GTH_api *api, const char *hostname)
     die("Hardware description is too long");
 }
 
-inline static int
-round_up_32_bit(int x)
+inline static u32
+round_up_32_bit(u32 x)
 {
-  return (x + 3) & (~3);
+  return (x + 3) & (u32)(~3);
 }
 
 static void
@@ -785,7 +774,7 @@ write_pcap_ng_shb(HANDLE_OR_FILEPTR file)
   u32 btl;
   PCap_NG_option userappl = {4, 0};        // 4 = user application name
   PCap_NG_option end_of_options = {0, 0};
-  userappl.length = strlen(hw_description);
+  userappl.length = (u16)strlen(hw_description);
 
   btl = sizeof(PCap_NG_shb)
     + sizeof(userappl) + round_up_32_bit(userappl.length)
@@ -815,7 +804,7 @@ write_pcap_ng_shb(HANDLE_OR_FILEPTR file)
 // display only if_description. So we only have if_name.
 static void
 write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
-                int link_type)
+                u16 link_type)
 {
   int x;
   PCap_NG_option end_of_options = {0, 0};
@@ -831,11 +820,15 @@ write_pcap_idbs(HANDLE_OR_FILEPTR file, const Channel_t *c, int n,
 
     if_name.code = 2;    // if_name
     if (strstr(c[x].source, "sdh")) {
-      if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s", c[x].source);
+      int result = snprintf(idb_if_name, MAX_IF_NAME, "%s", c[x].source);
+      if (result < 0) die("error formatting interface name");
+      if_name.length = (u16) result;
     }
     else {
-      if_name.length = snprintf(idb_if_name, MAX_IF_NAME, "%s:%d",
-			      c[x].source, c[x].timeslots[0]);
+      int result = snprintf(idb_if_name, MAX_IF_NAME, "%s:%d",
+                            c[x].source, c[x].timeslots[0]);
+      if (result < 0) die("error formatting interface name");
+      if_name.length = (u16) result;
     }
     if (if_name.length >= MAX_IF_NAME)
       die("interface name is too long");
@@ -883,7 +876,7 @@ write_pcap_global_header(HANDLE_OR_FILEPTR file,
     write_pcap_idbs(file,
                     user_options->channels,
                     user_options->n_channels,
-                    user_options->link_type);
+                    (u16)user_options->link_type);
     break;
 
   default: die("internal error writing global pcap header");
@@ -893,12 +886,12 @@ write_pcap_global_header(HANDLE_OR_FILEPTR file,
 static void write_classic_packet_header(HANDLE_OR_FILEPTR file,
 					u32 timestamp_hi,
 					u32 timestamp_lo,
-					int length)
+					u32 length)
 {
   PCap_classic_packet_header pcap_header;
   uint64_t ts_sec;
   uint64_t ts_us;
-  int result;
+  size_t result;
 
   ts_us = timestamp_hi;
   ts_us <<= 32;
@@ -923,14 +916,14 @@ write_ng_packet_header(HANDLE_OR_FILEPTR file,
 		       u32 timestamp_hi,
 		       u32 timestamp_lo,
 		       u16 tag,
-		       int length)
+		       u32 length)
 {
   PCap_NG_epb epb;
 
   epb.type = PCAPNG_BLOCK_TYPE_EPB;
-  epb.block_total_length = sizeof(epb)
+  epb.block_total_length = (u32)sizeof(epb)
     + round_up_32_bit(length)
-    + sizeof(epb.block_total_length);
+    + (u32)sizeof(epb.block_total_length);
   epb.interface_id = tag;
   epb.timestamp_hi = timestamp_hi;
   epb.timestamp_lo = timestamp_lo;
@@ -948,8 +941,8 @@ write_packet(HANDLE_OR_FILEPTR file,
 	     u32 timestamp_lo,
 	     u16 tag,
 	     void *payload,
-	     int length,
-	     int format)
+	     u32 length,
+	     enum PCap_format format)
 {
   u32 total_length;
 
@@ -1134,9 +1127,15 @@ keep_capturing(int su_count, struct Options opts)
 }
 
 static void
-write_mtp2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+write_mtp2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
-  length -= (signal_unit->ml.payload - (char*)&(signal_unit->tag));
+  u32 length_adjustment = (u32)(offsetof(struct GTH_su, ml.payload)
+                                - offsetof(struct GTH_su, tag));
+
+  if (length_adjustment > length)
+    die("packet is shorter than the header");
+
+  length -= length_adjustment;
 
   write_packet(file,
 	       ntohs(signal_unit->timestamp_hi),
@@ -1151,38 +1150,38 @@ write_mtp2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 // For wireshark, LAPD is almost the same as MTP-2. The only difference
 // is that we must discard the two-octet FCS (CRC).
 static void
-write_lapd(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+write_lapd(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
   write_mtp2(file, signal_unit, length - 2);
 }
 
 // Wireshark doesn't have anything for AAL0. So just dump the raw data.
 static void
-write_aal0(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+write_aal0(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
   write_mtp2(file, signal_unit, length);
 }
 
 // Raw data. Just dump it.
 static void
-write_raw(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+write_raw(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
   write_mtp2(file, signal_unit, length);
 }
 
 static void
-write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
   u8 payload[MAX_SIGNAL_UNIT];
   struct NG40_aal2_header ng40;
-  u32 vpi = (signal_unit->a2.gfc_vpi_vci >> 20) & 0xff;
-  u32 vci = (signal_unit->a2.gfc_vpi_vci >> 4) & 0xffff;
+  u16 vpi = (signal_unit->a2.gfc_vpi_vci >> 20) & 0xff;
+  u16 vci = (signal_unit->a2.gfc_vpi_vci >> 4) & 0xffff;
 
-  length -= (  (char*)&(signal_unit->a2.payload)
-	     - (char*)&(signal_unit->tag));
+  length -= (u32)(offsetof(struct GTH_su, a2.payload)
+                  - offsetof(struct GTH_su, tag));
 
   ng40.type = 2;      // AAL2
-  ng40.length = sizeof(ng40) + length - 3;
+  ng40.length = (u32)(sizeof(ng40) + length - 3);
   ng40.protocol = 1;  // 1=ALCAP 2=NBAP
   ng40.id = 0;
   ng40.flags = 0;     // 0x1: message is ciphered
@@ -1208,20 +1207,20 @@ write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
 
 
 static void
-write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, int length)
+write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
   u8 payload[MAX_SIGNAL_UNIT];
 
-  length -= (  (char*)&(signal_unit->a5.payload)
-	     - (char*)&(signal_unit->tag));
+  length -= (u32)(offsetof(struct GTH_su, a5.payload)
+                  - offsetof(struct GTH_su, tag));
 
   // We copy the whole packet to insert the SUNATM header bytes.
   // This is cleaner but slightly slower than just trashing half the CRC
   memcpy(payload + 4, signal_unit->a5.payload, length);
   payload[0] = 6; // Traffic is SAAL/Q.2931
-  payload[1] = options.vpi;
-  payload[2] = options.vci >> 8;
-  payload[3] = options.vci & 0xff;
+  payload[1] = (u8)options.vpi;
+  payload[2] = (u8)(options.vci >> 8);
+  payload[3] = (u8)(options.vci & 0xff);
 
   write_packet(file,
 	       ntohs(signal_unit->timestamp_hi),
@@ -1387,7 +1386,7 @@ argument_to_ts_array(const char* s, int timeslots[], int *n_timeslots)
 
   while ( (pos = strchr(s, ',')) )
     {
-      strncpy_s(ranges[range++], MAX_RANGE, s, pos-s);
+      strncpy_s(ranges[range++], MAX_RANGE, s, (size_t)(pos-s));
       s = pos + 1;
       if (range > MAX_TIMESLOTS)
 	die("Too many timeslots specified. Abort.");

@@ -2,7 +2,7 @@
 // using
 //
 //    Case 1. gcc native-compiling on a unix-like system
-//    Case 2. gcc cross-compiling for win32 (using mingw32msvc-gcc)
+//    Case 2. gcc cross-compiling for win64 (x86_64-w64-mingw32-gcc)
 //    Case 3. Microsoft visual studio compiling Windows
 //
 //
@@ -25,14 +25,11 @@
 //       pragma, but it's unclear whether they always will; GNU don't
 //       seem to think the #pragma approach is a good idea.
 //
-//    D. Linux (and other *nix, not sure) have a 'z' format modifier
-//       for printing size_t. Windows doesn't.
+//    D. C99 and GNU-89 disagree about what 'extern inline' means.
 //
-//    E. C99 and GNU-89 disagree about what 'extern inline' means.
+//    E. Microsoft don't have ssize_t
 //
-//    F. Microsoft don't have ssize_t
-//
-//    G. GNU and Microsoft have different functions for the
+//    F. GNU and Microsoft have different functions for the
 //       thread-safe version of gmtime(), with different argument orders.
 //
 //
@@ -107,11 +104,9 @@ int strncpy_s(char *dest,
 	      const char *src,
 	      size_t copy_count);
 
-#define SIZE_T_FORMAT "%zu"
 #else
 //----------------------------------------------------------------------
 // Cases 2 and 3
-#define SIZE_T_FORMAT "%zu"
 struct tm *gmtime_r(const time_t *t, struct tm *out);
 struct tm *localtime_r(const time_t *t, struct tm *out);
 #endif

@@ -59,11 +59,11 @@ static void usage(void)
 
 static void query_job(GTH_api *api, const char *id)
 {
-  int n_attributes;
+  unsigned int n_attributes;
   GTH_attribute *attrs;
   char owner[MAX_JOB_ID + 1];
   int result;
-  int x;
+  unsigned int x;
 
   result = gth_query_job(api, id, owner, &attrs, &n_attributes);
   if (result != 0)

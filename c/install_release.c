@@ -152,7 +152,8 @@ static void install_release(const char *hostname,
   size_t result;
   int retval;
   FILE *image;
-  int image_length;
+  size_t image_length;
+  ssize_t ftell_result;
   char *image_data;
   char *image_name;
 
@@ -173,7 +174,10 @@ static void install_release(const char *hostname,
   if (image)
     {
       fseek(image, 0, SEEK_END);
-      image_length = ftell(image);
+      ftell_result = ftell(image);
+      if (ftell_result < 0)
+        die("unexpected seek fail in image");
+      image_length = (size_t)ftell_result;
       rewind(image);
 
       image_data = checked_malloc(image_length);

@@ -130,7 +130,7 @@ static void enable_l1(GTH_api *api, const char* span)
 static void send_dl_establish_req(int data_socket)
 {
   GTH_lapd_tx_su su;
-  int result;
+  ssize_t result;
 
   // To activate the link, send DL_EST_REQ
   su.length = htons(6);
@@ -188,20 +188,6 @@ static int setup_lapd(GTH_api *api,
   data_socket = gth_wait_for_accept(listen_socket);
 
   return data_socket;
-}
-
-// Read exactly the requested number of bytes from the given descriptor
-static void read_exact(int fd, char *buf, size_t count) {
-  ssize_t this_time;
-
-  while (count > 0) {
-    this_time = recv(fd, buf, count, 0);
-    if (this_time <= 0)
-      die("LAPD data socket from GTH unexpectedly closed\n");
-
-    count -= this_time;
-    buf += this_time;
-  }
 }
 
 // This function is the hook for Q.931. For now, it prints out
