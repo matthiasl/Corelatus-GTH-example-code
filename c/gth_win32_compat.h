@@ -102,7 +102,7 @@ struct tm *localtime_r(const time_t *t, struct tm *out);
 // All cases
 
 // Print message and abort
-void die(const char *message);
+_Noreturn void die(const char *message);
 
 // atoi which calls die() if passed something which isn't a number
 int checked_atoi(const char *s);

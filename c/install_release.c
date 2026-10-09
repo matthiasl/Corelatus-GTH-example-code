@@ -91,7 +91,7 @@ struct Compatibility {
 
 // All the version dependencies we know about.
 //
-// The 'desired' column must have newer releases first, within the same
+// The 'desired' column must have older releases first, within the same
 // release type.
 static struct Compatibility compatibility[] =
   // Hardware  Is_failsafe    desired         minimum_required
@@ -261,9 +261,10 @@ static void extract_version(const char* s, struct Version *v)
   if (!s)
     return;
 
-  // skip to first digit
-  while (*s++ && (*s < '0' || *s > '9'))
-    /* do nothing */;
+  // Skip to first digit
+  s = strpbrk(s, "0123456789");
+  if (!s)
+    return;
 
   result = sscanf(s, "%d%c", &(v->major), &(v->minor));
   v->minor = to_lower(v->minor);
@@ -274,7 +275,7 @@ static void extract_version(const char* s, struct Version *v)
 static enum Hardware arch_to_hw(const char* arch)
 {
   if (strcmp(arch, "sth4.0") == 0) return STH_4_0;
-  if (strcmp(arch, "gth4.0") == 0) return STH_4_0;
+  if (strcmp(arch, "gth4.0") == 0) return GTH_4_0;
   if (strcmp(arch, "sth3.0") == 0) return STH_3_0;
   if (strcmp(arch, "gth3.0") == 0) return GTH_3_0;
   if (strcmp(arch, "gth2.1") == 0) return GTH_2_1;

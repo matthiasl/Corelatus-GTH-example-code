@@ -92,6 +92,9 @@ static u16 link_type;
 // How many empty bytes go before the read packet?
 static u32 link_type_offset;
 
+// Command line switch to disable throwing out the FCS (link_type_adjustment)
+static int disable_link_type_adjustment;
+
 // How many bytes do we discard from the end of each read packet?
 static u32 link_type_adjustment;
 
@@ -218,7 +221,8 @@ static void read_idb(void) {
   switch (idb.link_type) {
   case LINK_TYPE_MTP2:
     link_type_offset = 0;
-    link_type_adjustment += 2;   // Assume file contains FCS (CRC). -f switch.
+    if (!disable_link_type_adjustment)
+      link_type_adjustment = 2;   // Assume file contains FCS (CRC). see -f switch.
     break;
 
   case LINK_TYPE_MTP3:
@@ -227,7 +231,7 @@ static void read_idb(void) {
     break;
 
   default:
-    die("Supported types are 141 (MTP-2) and 142 (MTP-3). See also 'editcap'.");
+    die("Supported types are 140 (MTP-2) and 141 (MTP-3). See also 'editcap'.");
   }
 
   link_type = idb.link_type;
@@ -257,9 +261,10 @@ static size_t read_packet_from_pcap(char *packet)
       break;
 
     default:
-      success = fseek(pcap, block.block_total_length, SEEK_CUR);
-      if (success != 0)
-        die("PCAP file seek failed");
+      if (block.block_total_length > MAX_32BIT_SIGNED
+          || block.block_total_length < sizeof(PCap_NG_block))
+        die("unreasonable block length");
+      checked_fseek(pcap, (long int)block.block_total_length, SEEK_CUR);
     }
   }
 
@@ -279,7 +284,8 @@ static void copy_packets(int data_socket)
 
   for (;;) {
     length = read_packet_from_pcap(packet + 6);
-    if (length < 5) break;
+    if (length == 0) break;   // EOF
+    if (length < 5) continue; // skip FISUs and LSSUs
     n_bytes += length;
     length += 4;    // length = pcap_length + 2(opcode) + 2(padding)
     packet[0] = (char)(length >> 8);
@@ -308,7 +314,7 @@ int main(int argc, char** argv)
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'v': verbose = 1; break;
-    case 'f': link_type_adjustment -= 2; break;
+    case 'f': disable_link_type_adjustment = 1; break;
     default: usage();
     }
     argc--;

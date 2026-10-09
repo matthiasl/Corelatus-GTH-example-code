@@ -57,13 +57,13 @@ SS7 sniffer which saves to PCAP (wireshark) format files
   ```
     >./save_to_pcap 172.16.1.10 1A 2A 16 ss7.pcap
     capturing packets, press ^C to abort
-    saving capture to file ss7.pcap.1
+    saving capture to file ss7.pcap_00001
   ```
 
-  you can then open the ss7.pcap.1 file in 'wireshark' (www.wireshark.org)
+  you can then open the .pcap file in 'wireshark' (www.wireshark.org)
 
   If you don't have a live E1 link, you can use a GTH to replay
-  previously recorded data, using 'playback_file'
+  previously recorded data, using 'playback_file'.
 
   A WWW page explains this in depth:
 
@@ -368,7 +368,7 @@ GTH API for C programs
     GTH_api api;
     char buffer[MAX_JOB_ID];
 
-    gth_connect(&api, "172.16.1.10");
+    gth_connect(&api, "172.16.1.10", 0);
     gth_new_player(&api, "3A", 16, buffer);
    ```
 

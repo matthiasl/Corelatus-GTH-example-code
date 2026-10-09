@@ -1,6 +1,6 @@
 # Builds the Corelatus GTH example code.
 #
-# Linux/unix:      make            (or: cmake --preset linux && cmake --build --preset linux)
+# Linux/unix:      make            (or: cmake --preset unix && cmake --build --preset unix)
 # Visual Studio:   File -> Open -> Folder, then pick a preset
 # Cross to win64:  make win64      (needs the Debian mingw-w64 packages)
 #
@@ -8,6 +8,9 @@
 
 cmake_minimum_required(VERSION 3.21)
 project(gth_c_examples LANGUAGES C)
+
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(GTH_PEDANTIC "Enable extra compiler warnings (GCC/Clang)" OFF)
 

@@ -74,7 +74,7 @@ typedef struct {
   uint8_t  flags;
   uint8_t  opcode;
   uint16_t reserved;
-  char payload[MAX_SIGNAL_UNIT];
+  unsigned char payload[MAX_SIGNAL_UNIT];
 } GTH_lapd_rx_su;
 
 typedef struct {
@@ -83,7 +83,7 @@ typedef struct {
   uint8_t  flags;
   uint8_t  opcode;
   uint16_t reserved;
-  char     payload[MAX_SIGNAL_UNIT];
+  unsigned char payload[MAX_SIGNAL_UNIT];
 } GTH_lapd_tx_su;
 
 static void usage(void) {
@@ -104,8 +104,8 @@ static void usage(void) {
   exit(-1);
 }
 
-// Start up L1 on the given span. It defaults to E1/doubleframe. We
-// disable the TX pins since we're only listening.
+// Start up L1 on the given span. It defaults to E1/multiframe, because
+// that's what LAPD links usually use.
 static void enable_l1(GTH_api *api, const char* span)
 {
   int result;
@@ -153,7 +153,7 @@ static void send_dl_data_req(int data_socket)
   su.flags = 0x21;
   su.opcode = Q921_DL_DATA_REQUEST;
   su.reserved = 0;
-  strcpy(su.payload, "hello world");
+  strcpy((char*)su.payload, "hello world");
 
   result = send(data_socket, (void*)&su, ntohs(su.length) + sizeof(su.length), 0);
   if (result != (ssize_t)(ntohs(su.length) + sizeof(su.length)))
@@ -204,6 +204,10 @@ static void dump_incoming_lapd(int data_socket)
       length = 0;
       read_exact(data_socket, (char *)&length, 2);
       length = ntohs(length);
+      if (length > sizeof su)
+        die("incoming LAPD packet is too large to fit in the buffer");
+      if (length < offsetof(GTH_lapd_rx_su, payload))
+        die("incoming LAPD packet is unreasonably short");
       read_exact(data_socket, (char *)&su, length);
 
       switch (su.opcode)

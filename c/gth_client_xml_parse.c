@@ -643,6 +643,8 @@ void gth_print_tree(GTH_resp *resp) {
     break;
 
   case GTH_RESP_JOB:
+    if (resp->n_attributes < 1)
+      die("job has no attributes");
     fprintf(stderr, "job, %d attrs, id=%s\n", resp->n_attributes, resp->attributes[0].value);
     break;
 

@@ -96,7 +96,7 @@ static_assert(sizeof(u8) == 1,  "u8 size sanity check");
 // the port-2089 API will return a 'refused' error with reason 'capacity.
 #define MAX_CHANNELS 400
 
-#pragma pack(1)
+#pragma pack(push, 1)
 struct GTH_mtp2_lapd_raw {
   char payload[MAX_SIGNAL_UNIT];
 };
@@ -134,6 +134,7 @@ struct GTH_su {
     struct GTH_aal5          a5;
   };
 };
+#pragma pack(pop)
 
 enum PCap_format { PCAP_CLASSIC = 0, PCAP_NG };
 
@@ -197,7 +198,7 @@ usage(void) {
 	  "\nexamining with wireshark, tshark or other network analyser software.\n"
 	  "\n<options>: [-a vpi:vci] [-b <bw>] [-c] [-d] [-f <option>] [-l] [-m]" \
           "\n           [-n <rotation>]"
-	  "\n           [-p mtp2|lapd|aal0|aal2|aal5|raw] [-s] [t <option>] [-v]\n"
+	  "\n           [-p mtp2|lapd|aal0|aal2|aal5|raw] [-s] [-t <option>] [-v]\n"
 	  "\n-a <vpi:vci>: the ATM VPI and VCI (used together with -p aal5)"
           "\n-b 56|48 bandwidth, in kbit/s (used for ANSI/NTT subrate MTP-2)"
 	  "\n-c: save in the classic Pcap format (default is the newer Pcap-NG)"
@@ -483,9 +484,11 @@ build_sources_list(const Channel_t channels[], const int n_channels,
     if (compare == 0) continue;   // source already present
 
     // Make space for insertion
-    (*n_sources)++;
     for (i = *n_sources; i > source; i--)
       sources[i] = sources[i-1];
+    (*n_sources)++;
+    if (*n_sources > MAX_SOURCES)
+      die("Too many sources");
 
     // Insert
     sources[i] = channels[channel].source;
@@ -1012,7 +1015,9 @@ wait_for_packet(GTH_api *api, int data_socket)
 
       if (FD_ISSET(api->fd, &fds))
 	{
-          gth_process_event(api);
+          result = gth_process_event(api);
+          if (result != 0)
+            die("internal error---API event processing failed");
 	}
 
       if (FD_ISSET(data_socket, &fds))
@@ -1111,16 +1116,16 @@ read_and_restart_timer(int seconds)
 #endif
 
 static inline int
-keep_capturing(int su_count, struct Options opts)
+keep_capturing(int su_count, const struct Options *opts)
 {
-  if  (opts.n_sus_per_file > 0)
+  if  (opts->n_sus_per_file > 0)
     {
-      return (su_count < opts.n_sus_per_file);
+      return (su_count < opts->n_sus_per_file);
     }
 
-  if (opts.duration_per_file > 0)
+  if (opts->duration_per_file > 0)
     {
-      return (read_and_restart_timer(opts.duration_per_file) != 0);
+      return (read_and_restart_timer(opts->duration_per_file) != 0);
     }
 
   return 1;
@@ -1152,6 +1157,8 @@ write_mtp2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 static void
 write_lapd(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
+  if (length < 2)
+    die("unreasonably short LAPD packet");
   write_mtp2(file, signal_unit, length - 2);
 }
 
@@ -1174,8 +1181,8 @@ write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
   u8 payload[MAX_SIGNAL_UNIT];
   struct NG40_aal2_header ng40;
-  u16 vpi = (signal_unit->a2.gfc_vpi_vci >> 20) & 0xff;
-  u16 vci = (signal_unit->a2.gfc_vpi_vci >> 4) & 0xffff;
+  u16 vpi = (ntohl(signal_unit->a2.gfc_vpi_vci) >> 20) & 0xff;
+  u16 vci = (ntohl(signal_unit->a2.gfc_vpi_vci) >> 4) & 0xffff;
 
   length -= (u32)(offsetof(struct GTH_su, a2.payload)
                   - offsetof(struct GTH_su, tag));
@@ -1193,7 +1200,7 @@ write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
   memcpy(payload, &ng40, sizeof(ng40));
 
   memcpy(payload + sizeof(struct NG40_aal2_header),
-         signal_unit->a2.payload + 3, length);
+         signal_unit->a2.payload + 3, length - 3);
 
   write_packet(file,
 	       ntohs(signal_unit->timestamp_hi),
@@ -1209,13 +1216,23 @@ write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 static void
 write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
 {
-  u8 payload[MAX_SIGNAL_UNIT];
+  const u32 header_length = (u32)(offsetof(struct GTH_su, a5.payload)
+                                  - offsetof(struct GTH_su, tag));
+  u8 payload[MAX_SIGNAL_UNIT + sizeof(struct PCap_aal5_header)];
+  struct PCap_aal5_header *sunatm = (struct PCap_aal5_header*)payload;
 
-  length -= (u32)(offsetof(struct GTH_su, a5.payload)
-                  - offsetof(struct GTH_su, tag));
+  if (length < header_length)
+    die("unreasonably short AAL5 packet received");
 
-  // We copy the whole packet to insert the SUNATM header bytes.
-  // This is cleaner but slightly slower than just trashing half the CRC
+  length -= header_length;
+
+  if (length > MAX_SIGNAL_UNIT)
+    die("unreasonably long AAL5 packet received");
+
+  sunatm->type = 6; // Traffic is SAAL/Q.2931
+  sunatm->vpi = (u8)options.vpi;
+  sunatm->vci = ntohs(options.vci);
+
   memcpy(payload + 4, signal_unit->a5.payload, length);
   payload[0] = 6; // Traffic is SAAL/Q.2931
   payload[1] = (u8)options.vpi;
@@ -1346,7 +1363,7 @@ convert_to_pcap(GTH_api *api,
 	    su_count++;
 	  }
       }
-    while ( keep_capturing(su_count, user_options) );
+    while ( keep_capturing(su_count, &user_options) );
     fclose(file);
   }
   while ( !user_options.capture_autostop );
@@ -1388,18 +1405,24 @@ argument_to_ts_array(const char* s, int timeslots[], int *n_timeslots)
     {
       strncpy_s(ranges[range++], MAX_RANGE, s, (size_t)(pos-s));
       s = pos + 1;
-      if (range > MAX_TIMESLOTS)
+      if (range >= MAX_TIMESLOTS)
 	die("Too many timeslots specified. Abort.");
     }
   strncpy_s(ranges[range++], MAX_RANGE, s, strlen(s));
 
   for (i = 0; i < range; i++)
     {
-      int lo;
-      int hi;
+      int lo = -1;
+      int hi = -1;
       int result;
 
       result = sscanf(ranges[i], "%d-%d", &lo, &hi);
+
+      if (result == EOF)
+	{
+	  die("Unexpected timeslot format");
+	}
+
 
       if (result == 0)
 	{
@@ -1412,7 +1435,7 @@ argument_to_ts_array(const char* s, int timeslots[], int *n_timeslots)
 
       if (lo > hi)
 	{
-	  fprintf(stderr, "timeslot range %s in unexpected format.", ranges[i]);
+	  fprintf(stderr, "timeslot range %s in unexpected format. ", ranges[i]);
 	  die("Abort.");
 	}
 
@@ -1421,6 +1444,9 @@ argument_to_ts_array(const char* s, int timeslots[], int *n_timeslots)
 
       do
 	{
+          if (*n_timeslots >= MAX_TIMESLOTS)
+            die("Too many timeslots specified. Abort.");
+
 	  timeslots[(*n_timeslots)++] = lo++;
 	}
       while (lo <= hi);
@@ -1492,9 +1518,10 @@ arguments_to_channels(int argc,
 	      n_sources = 0;
 	      n_timeslots = 0;
 	    }
-	  sources[n_sources++] = argv[current_arg];
-	  if (n_sources > MAX_SOURCES)
+
+	  if (n_sources >= MAX_SOURCES)
 	    die("Too many interfaces given");
+	  sources[n_sources++] = argv[current_arg];
 	}
       else // We're now processing either timeslots or timeslot ranges
 	{
@@ -1706,6 +1733,10 @@ process_arguments(char **argv,
   }
   opts->write_to_stdout = (strcmp(opts->base_filename, "-") == 0);
   opts->write_to_winpipe = is_filename_a_pipe(opts->base_filename);
+
+  if ((opts->write_to_stdout || opts->write_to_winpipe)
+      && (opts->n_sus_per_file > 0 || opts->duration_per_file > 0))
+    die("-n (file rotation) can't be used when writing to stdout or a pipe");
 }
 
 typedef void(*Start_function)

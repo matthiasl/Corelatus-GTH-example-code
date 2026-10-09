@@ -54,13 +54,13 @@ static void usage(void)
   fprintf(stderr,
 	  "playback_file git_head: %s build_hostname: %s\n\n"
 
-	  "playback_file [-v] <GTH-IP> <span> <timeslot> <filename>\n\n"
+	  "playback_file [-v] [-l] <GTH-IP> <span> <timeslot> <filename>\n\n"
 	  "Play the contents of a file on a timeslot.\n"
 	  "\n-v: print the API commands and responses (verbose)"
 	  "\n-l: do not set up L1; assume it's already set up"
 	  "\n<GTH-IP> is the GTH's IP address or hostname"
 	  "\n<span> is the name of a span, e.g. '1A'"
-	  "\n<ts> is a timeslot number, from 1 to 31"
+	  "\n<timeslot> is a timeslot number, from 1 to 31"
 	  "\n<filename> is the file to read data from",
 	  git_head, build_hostname);
 

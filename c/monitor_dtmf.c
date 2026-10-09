@@ -81,6 +81,7 @@ static void tone_handler(const char *name, int length)
 {
   if (detections > 0) detections--;
   printf("detected DTMF digit %s (duration: %d ms)\n", name, length);
+  fflush(stdout);
 }
 
 // Entry point
@@ -95,14 +96,16 @@ int main(int argc, char** argv)
   while (argc > 1 && argv[1][0] == '-') {
     switch (argv[1][1]) {
     case 'v': verbose = 1; break;
-    case 'n': detections = checked_atoi(argv[2]); argc--; argv++; break;
+    case 'n':
+      if (argc < 3) usage();
+      detections = checked_atoi(argv[2]); argc--; argv++; break;
     default: usage();
     }
     argc--;
     argv++;
   }
 
-  if (argc < 4) {
+  if (argc != 4) {
     usage();
   }
 
@@ -113,7 +116,10 @@ int main(int argc, char** argv)
     die("Unable to connect to the GTH. Giving up.");
   }
 
-  gth_new_tone_detector(&api, argv[2], atoi(argv[3]), job_id, &tone_handler);
+  result = gth_new_tone_detector(&api, argv[2], checked_atoi(argv[3]),
+                                 job_id, &tone_handler);
+  if (result != 0)
+    die("failed to start a tone detector");
 
   FD_ZERO(&readfds);
   FD_SET(api.fd, &readfds);
@@ -121,7 +127,8 @@ int main(int argc, char** argv)
   while (detections != 0) {
     result = select(api.fd + 1, &readfds, 0, 0, 0);
     if (result != 1) die("select returned an unexpected value");
-    gth_process_event(&api);
+    result = gth_process_event(&api);
+    if (result != 0) die("gth_process_event failed");
   }
 
   return 0;

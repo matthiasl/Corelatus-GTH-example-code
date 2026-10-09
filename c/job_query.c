@@ -73,6 +73,8 @@ static void query_job(GTH_api *api, const char *id)
       exit(-1);
     }
 
+  printf("owner=%s\n", owner);
+
   if (n_attributes == 0)
     printf("%s has no attributes\n", id);
 

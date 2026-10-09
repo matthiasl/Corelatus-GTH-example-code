@@ -4,7 +4,7 @@
 export TOP_PID=$$
 trap "exit 2" TERM
 
-export BUILD_DIR=../build/unix/
+export BUILD_DIR=../build/unix-gcc/
 
 die()
 {

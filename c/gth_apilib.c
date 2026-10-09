@@ -253,7 +253,7 @@ static int check_api_response(GTH_api *api, GTH_resp_type expected,
 
 //----------------------------------------------------------------------
 
-void die(const char* message)
+_Noreturn void die(const char* message)
 {
   fprintf(stderr, "%s\n", message);
 
@@ -408,6 +408,8 @@ int gth_connect(GTH_api *api, const char *address, const int verbose)
     // On *nix, errno tells us why the connect failed.
     // On Win32, you have to call some WSA function.
     freeaddrinfo(result);
+    closesocket(api->fd);
+    api->fd = GTH_INVALID_SOCKET;
     return -1;
   }
 
@@ -554,7 +556,8 @@ static int is_install_done_event(GTH_resp *resp)
     child = resp->children + 0;
 
     if (child->type == GTH_RESP_INFO) {
-      if (!strcmp("install_done", gth_attribute_value(child, "reason"))) {
+      const char *attribute = gth_attribute_value(child, "reason");
+      if (!attribute || !strcmp("install_done", attribute)) {
 	return 1;
       }
     }
@@ -1368,6 +1371,8 @@ int gth_wait_for_message_ended(GTH_api *api, const char *job_id)
 
     if (child->type == GTH_RESP_MESSAGE_ENDED) {
       event_job_id = gth_attribute_value(child, "id");
+      if (!event_job_id)
+        die("missing job ID in event");
       if (!strcmp(event_job_id, job_id)) {
 	gth_free_resp(resp);
 	break;
@@ -1467,7 +1472,6 @@ static int definite_read(int fd,
   while (to_read > 0) {
     result = recv_wrap(fd, response, to_read, 0);
     if (result <= 0) {
-      closesocket(fd);
       return -9;
     }
     response += result;
@@ -1490,7 +1494,6 @@ static int definite_read(int fd,
     }
     result = recv_wrap(fd, internal_buffer, to_read, 0);
     if (result <= 0) {
-      closesocket(fd);
       return -9;
     }
     length -= (size_t)result;
@@ -2335,7 +2338,7 @@ static int new_atm_aal_monitor(GTH_api *api,
   if (n_timeslots < 1 || n_timeslots > 31) die("invalid timeslot");
 
   cmd_template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
-    "vpi='%d' vci='%d' scrambling='%s'>"
+    " vpi='%d' vci='%d' scrambling='%s'>"
     "%s</atm_aal%d_monitor></new>";
 
   format_sources(span, timeslots, n_timeslots, 64, sources);
@@ -2365,7 +2368,7 @@ static int new_sdh_atm_aal_monitor(GTH_api *api,
   const char* cmd_template;
 
   cmd_template = "<new><atm_aal%d_monitor ip_addr='%s' ip_port='%d' tag='%d'"
-    "vpi='%d' vci='%d'>"
+    " vpi='%d' vci='%d'>"
     "<sdh_source name='%s'/></atm_aal%d_monitor></new>";
 
   result = snprintf(command, MAX_COMMAND, cmd_template,

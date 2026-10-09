@@ -86,7 +86,7 @@ typedef uint16_t u16;
 // The WAV header format, as described in
 //
 // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
-#pragma pack(1)
+#pragma pack(push, 1)
 struct WAV_header {
   char ckID[4];
   u32 cksize;         // always 20 + the number of samples
@@ -107,6 +107,7 @@ struct WAV_header {
   char DATAID[4];
   u32 data_size;
 } PACK_SUFFIX;
+#pragma pack(pop)
 
 // If the header is longer than expected, the compiler must have
 // padded the structure. We can't have that.

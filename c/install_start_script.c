@@ -42,7 +42,7 @@ static void usage(void)
   fprintf(stderr,
 	  "install_start_script git_head: %s build_hostname: %s\n\n"
 
-	  "install_start_script <GTH-IP> <filename>\n\n"
+	  "install_start_script [-v] <GTH-IP> <filename>\n\n"
 	  "Installs a start script on a GTH\n\n"
 
 	  "-v: print the API commands and responses (verbose)\n"
@@ -93,6 +93,7 @@ static void install_start_script(const char *hostname,
   if (s_result != 1) {
     die("short read of start script");
   }
+  fclose(script);
 
   result = gth_install(&api, "start_script", "binary/file",
 		       script_data, script_length);
@@ -110,6 +111,9 @@ static void print_e1t1_names(const char *hostname) {
   GTH_attribute *attributes;
   unsigned int n_attributes;
   unsigned int x;
+
+  if (result != 0)
+    die("Unable to connect to the GTH");
 
   result = gth_query_resource(&api, "inventory", &attributes, &n_attributes);
   if (result != 0) {

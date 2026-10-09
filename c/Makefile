@@ -7,7 +7,7 @@
 #   make ship         all of the above checks, then gth_c_examples.zip
 #
 # Needs cmake 3.21 or later. The Windows targets need the Debian
-# packages gcc-mingw-w64-i686 / gcc-mingw-w64-x86-64.
+# mingw packages.
 
 BUILD = cmake --preset $(1) && cmake --build --preset $(1) --parallel
 
