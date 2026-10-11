@@ -202,7 +202,8 @@ static int gth_scan(const char *string, GTH_token **ret_tokens)
   }
 
   len = scan_name(string, current);
-  string += len - 1;
+  if (len > 0)
+    string += len - 1;
   goto inside_tag;
 
  end_of_input:
