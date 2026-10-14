@@ -86,10 +86,15 @@ typedef uint16_t u16;
 // The WAV header format, as described in
 //
 // http://www-mmsp.ece.mcgill.ca/Documents/AudioFormats/WAVE/WAVE.html
+//
+// The spec says ulaw/alaw needs a 'fact' chunk. We don't put one in,
+// because sox and related programs don't need it and because that
+// chunk doesn't contain any useful information since we don't know
+// the number of samples ahead of time anyway.
 #pragma pack(push, 1)
 struct WAV_header {
   char ckID[4];
-  u32 cksize;         // always 20 + the number of samples
+  u32 cksize;
   char WAVEID[4];
 
   //----
@@ -139,7 +144,10 @@ static void possibly_prepend_wav_header(const char *filename,
       char data[] = "data";
 
       memcpy(header.ckID, riff, 4);
-      header.cksize = 36 + 8000; // fill in a bogus length
+
+      // We don't know the size in advance, and might be writing to
+      // stdout or a pipe. So set the length to de-facto "unknown".
+      header.cksize = 0xffffFFFF;
       memcpy(header.WAVEID, wave, 4);
       memcpy(header.format_id, fmt, 4);
       header.format_size = 16;
@@ -151,7 +159,7 @@ static void possibly_prepend_wav_header(const char *filename,
       header.wBitsPerSample = 8;
 
       memcpy(header.DATAID, data, 4);
-      header.data_size = 80000;
+      header.data_size = 0xffffFFFF;
 
       result = fwrite(&header, sizeof(header), 1, file);
       if (result != 1) die("I/O error, short file write");
