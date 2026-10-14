@@ -1118,15 +1118,13 @@ read_and_restart_timer(int seconds)
 static inline int
 keep_capturing(int su_count, const struct Options *opts)
 {
-  if  (opts->n_sus_per_file > 0)
-    {
-      return (su_count < opts->n_sus_per_file);
-    }
+  if  (opts->n_sus_per_file > 0
+       && su_count >= opts->n_sus_per_file)
+       return 0;
 
-  if (opts->duration_per_file > 0)
-    {
-      return (read_and_restart_timer(opts->duration_per_file) != 0);
-    }
+  if (opts->duration_per_file > 0
+      && read_and_restart_timer(opts->duration_per_file) == 0)
+    return 0;
 
   return 1;
 }
