@@ -165,8 +165,8 @@ struct Options {
   int duration_per_file;
   int drop_fisus;
   int esnf;
-  int vpi;
-  int vci;
+  u16 vpi;  // VPI is 8 bits. Let GTH if the user goes outside that
+  u16 vci;
   int bandwidth;
   char *hostname;
   Channel_t channels[MAX_CHANNELS];
@@ -1185,6 +1185,10 @@ write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
   length -= (u32)(offsetof(struct GTH_su, a2.payload)
                   - offsetof(struct GTH_su, tag));
 
+  if (length < sizeof(struct GTH_aal2)
+      || length > (MAX_SIGNAL_UNIT - sizeof(struct NG40_aal2_header)))
+    die("unreasonable AAL2 packet received");
+
   ng40.type = 2;      // AAL2
   ng40.length = (u32)(sizeof(ng40) + length - 3);
   ng40.protocol = 1;  // 1=ALCAP 2=NBAP
@@ -1232,10 +1236,6 @@ write_aal5(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
   sunatm->vci = ntohs(options.vci);
 
   memcpy(payload + 4, signal_unit->a5.payload, length);
-  payload[0] = 6; // Traffic is SAAL/Q.2931
-  payload[1] = (u8)options.vpi;
-  payload[2] = (u8)(options.vci >> 8);
-  payload[3] = (u8)(options.vci & 0xff);
 
   write_packet(file,
 	       ntohs(signal_unit->timestamp_hi),
@@ -1597,7 +1597,7 @@ process_arguments(char **argv,
       if (argc < 3) {
 	usage();
       }
-      result = sscanf(argv[2], "%d:%d", &(opts->vpi), &(opts->vci));
+      result = sscanf(argv[2], "%hu:%hu", &(opts->vpi), &(opts->vci));
       if (result != 2) {
 	usage();
       }

@@ -116,6 +116,20 @@ struct NG40_aal2_header {
   u16 cid;
 };
 
+// SUNATM AAL5 header (defined in libpcap/Wireshark)
+struct PCap_aal5_header {
+  u8 type;
+  u8 vpi;
+  u16 vci;
+};
+
+enum SUNATM_traffic_type {
+  TRAFFIC_TYPE_LANE = 1,
+  TRAFFIC_TYPE_LLC = 2,
+  TRAFFIC_TYPE_ILMI = 5,
+  TRAFFIC_TYPE_Q_SAAL = 6
+};
+
 // Link types, defined at http://www.tcpdump.org/linktypes.html
 //
 // See also: http://www.tcpdump.org/linktypes/LINKTYPE_NG40.html
