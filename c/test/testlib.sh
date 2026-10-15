@@ -21,6 +21,12 @@ is_duplex_card()
     echo "$rc"
 }
 
+# Convert a numerical exit code to a signal name, e.g. SEGV
+exit_code_to_name()
+{
+    echo $(kill -l $1)
+}
+
 card_arch()
 {
     local IP=$1

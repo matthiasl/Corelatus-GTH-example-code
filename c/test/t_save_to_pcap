@@ -13,6 +13,18 @@ invalid()
 {
     if $BUILD_DIR/save_to_pcap $IP bogus 2>/dev/null
     then die "unexpected success of a bogus command"; fi
+
+    # regression test, old versions blew the stack
+    if $BUILD_DIR/save_to_pcap -m $IP $pcm1 $pcm2 1-31,1-31 $tempdir/capture.pcapng 2>/dev/null
+    then
+        true
+    else
+        case $? in
+            255) echo "pass" ;;
+            138) die "fail; segfault" ;;
+        esac
+    fi
+
 }
 
 valid()
