@@ -111,6 +111,7 @@ struct NG40_aal2_header {
   u32 id;
   u32 flags;
   u8 direction;
+  u8 _pad;
   u16 vpi;
   u16 vci;
   u16 cid;

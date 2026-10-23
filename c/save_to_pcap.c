@@ -1185,19 +1185,20 @@ write_aal2(HANDLE_OR_FILEPTR file, struct GTH_su *signal_unit, u32 length)
   length -= (u32)(offsetof(struct GTH_su, a2.payload)
                   - offsetof(struct GTH_su, tag));
 
-  if (length < sizeof(struct GTH_aal2)
+  if (length < offsetof(struct GTH_aal2, payload)
       || length > (MAX_SIGNAL_UNIT - sizeof(struct NG40_aal2_header)))
     die("unreasonable AAL2 packet received");
 
-  ng40.type = 2;      // AAL2
-  ng40.length = (u32)(sizeof(ng40) + length - 3);
-  ng40.protocol = 1;  // 1=ALCAP 2=NBAP
+  ng40.type = htonl(2);      // AAL2
+  ng40.length = htonl((u32)(sizeof(ng40) + length - 3));
+  ng40.protocol = htonl(1);  // 1=ALCAP 2=NBAP
   ng40.id = 0;
   ng40.flags = 0;     // 0x1: message is ciphered
   ng40.direction = 0;
-  ng40.vpi = vpi;
-  ng40.vci = vci;
-  ng40.cid = signal_unit->a2.payload[0];
+  ng40._pad = 0;
+  ng40.vpi = htons(vpi);
+  ng40.vci = htons(vci);
+  ng40.cid = htons(signal_unit->a2.payload[0]);
 
   memcpy(payload, &ng40, sizeof(ng40));
 
