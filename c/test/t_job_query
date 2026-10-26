@@ -1,0 +1,62 @@
+#!/bin/bash -eu
+
+source testlib.sh
+
+usage()
+{
+    echo "Usage: $0 <IP>"
+    echo ""
+    exit 1
+}
+
+# STH 3.0 needs an E1 mapped before this test can run
+arch_specific_setup()
+{
+    case $arch in
+	sth*)
+	    $BUILD_DIR/enable $IP sdh1 2>/dev/null
+	    pcm=$($BUILD_DIR/map $IP sdh1:hop1_1:lop1_5_3 | sed -e 's/^pcm//')
+	    $BUILD_DIR/query_set $IP pcm$pcm 1>/dev/null ;;
+	*)
+	    pcm="1A"
+    esac
+}
+
+arch_specific_cleanup()
+{
+    case $arch in
+	sth*)
+	    $BUILD_DIR/disable $IP sdh1
+    esac
+}
+
+invalid_query()
+{
+    if $BUILD_DIR/job_query $IP bogus 2>/dev/null
+    then die "invalid query 1 succeeded"; fi
+
+    if $BUILD_DIR/job_query $IP m2mo333 2>/dev/null
+    then die "invalid query 2 succeeded"; fi
+}
+
+mtp2_query()
+{
+    # Start MTP-2 through save_to_pcap
+    $BUILD_DIR/save_to_pcap $IP $pcm 1 - 2>/dev/null &
+    pid=!$
+
+    job_id=$($BUILD_DIR/query_set $IP schedule | tr '\t ' '\n' | grep m2mo)
+    echo $job_id
+}
+
+if [ $# -lt 1 ]
+then usage
+fi
+
+IP=$1
+arch=$(card_arch $IP)
+
+arch_specific_setup
+invalid_query
+mtp2_query
+arch_specific_cleanup

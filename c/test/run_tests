@@ -5,7 +5,8 @@ IP=$1
 
 tests=""
 tests="$tests t_connect_timeslots t_disable t_duplex_lapd"
-tests="$tests t_enable t_map t_monitor_dtmf t_query_set"
+tests="$tests t_enable t_job_query t_map t_monitor_dtmf"
+tests="$tests t_query_set"
 tests="$tests t_playback_file t_record t_save_to_pcap t_unmap"
 tests="$tests t_install_start_script t_install_release"
 
