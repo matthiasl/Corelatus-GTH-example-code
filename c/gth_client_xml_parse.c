@@ -417,9 +417,7 @@ static GTH_token *parse(GTH_token *token, GTH_resp *list_of_trees)
 	    || strcmp(name->payload, tag_name) != 0
 	    || close->type != TOK_CLOSE) die("parse error");
 
-	tree->text = text;
-
-	return token;
+	return parse(token, list_of_trees); // keep parsing siblings
       }
     }
     else {                         // first case clause
@@ -487,6 +485,9 @@ static GTH_resp_type name_to_token_type(const char* name)
 {
   if (!strcmp(name, "alarm"))           return  GTH_RESP_ALARM;
   if (!strcmp(name, "alert"))           return  GTH_RESP_ALERT;
+  if (!strcmp(name, "atm_aal0_monitor"))return  GTH_RESP_ATM_AAL0_MONITOR;
+  if (!strcmp(name, "atm_aal2_monitor"))return  GTH_RESP_ATM_AAL2_MONITOR;
+  if (!strcmp(name, "atm_aal5_monitor"))return  GTH_RESP_ATM_AAL5_MONITOR;
   if (!strcmp(name, "atm_message"))     return  GTH_RESP_ATM_MESSAGE;
   if (!strcmp(name, "attribute"))       return  GTH_RESP_ATTRIBUTE;
   if (!strcmp(name, "backup"))          return  GTH_RESP_BACKUP;
@@ -510,11 +511,15 @@ static GTH_resp_type name_to_token_type(const char* name)
   if (!strcmp(name, "mtp2_monitor"))    return  GTH_RESP_MTP2_MONITOR;
   if (!strcmp(name, "ok"))              return  GTH_RESP_OK;
   if (!strcmp(name, "pcm_source"))      return  GTH_RESP_PCM_SOURCE;
+  if (!strcmp(name, "player"))          return  GTH_RESP_PLAYER;
+  if (!strcmp(name, "raw_monitor"))     return  GTH_RESP_RAW_MONITOR;
+  if (!strcmp(name, "recorder"))        return  GTH_RESP_RECORDER;
   if (!strcmp(name, "resource"))        return  GTH_RESP_RESOURCE;
   if (!strcmp(name, "sdh_message"))     return  GTH_RESP_SDH_MESSAGE;
   if (!strcmp(name, "sfp_message"))     return  GTH_RESP_SFP_MESSAGE;
   if (!strcmp(name, "slip"))            return  GTH_RESP_SLIP;
   if (!strcmp(name, "sync_message"))    return  GTH_RESP_SYNC_MESSAGE;
+  if (!strcmp(name, "tcp_sink"))        return  GTH_RESP_TCP_SINK;
   if (!strcmp(name, "tone"))            return  GTH_RESP_TONE;
   if (!strcmp(name, "state"))           return  GTH_RESP_STATE;
 

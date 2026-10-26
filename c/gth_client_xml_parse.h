@@ -52,6 +52,9 @@
 //----------------------------------------------------------------------
 
 typedef enum {
+  GTH_RESP_ATM_AAL0_MONITOR,
+  GTH_RESP_ATM_AAL2_MONITOR,
+  GTH_RESP_ATM_AAL5_MONITOR,
   GTH_RESP_ALARM,
   GTH_RESP_ALERT,
   GTH_RESP_ATM_MESSAGE,
@@ -81,6 +84,9 @@ typedef enum {
   GTH_RESP_MTP2_MONITOR,
   GTH_RESP_OK,
   GTH_RESP_PCM_SOURCE,
+  GTH_RESP_PLAYER,
+  GTH_RESP_RAW_MONITOR,
+  GTH_RESP_RECORDER,
   GTH_RESP_RESOURCE,
   GTH_RESP_SDH_MESSAGE,
   GTH_RESP_SFP_MESSAGE,
@@ -88,6 +94,7 @@ typedef enum {
   GTH_RESP_STATE,
   GTH_RESP_SYNC_MESSAGE,
 
+  GTH_RESP_TCP_SINK,
   GTH_RESP_TONE
 
 } GTH_resp_type;
