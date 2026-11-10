@@ -26,7 +26,7 @@ all GTH features.
 ### C: A complete parser for GTH responses
 
 Multiple customers use the `save_to_pcap` example in production. This
-code has support for compling on either Unix-like systems or Windows.
+code has support for compiling on either Unix-like systems or Windows.
 
 ---
 
